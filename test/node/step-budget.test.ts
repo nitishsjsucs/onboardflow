@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { parse } from "jsonc-parser";
 import { describe, expect, it } from "vitest";
 import { FIRST_ROUND_OPERATIONS, POLLED_OPERATIONS, STAGES } from "../../src/shared/stages.ts";
 import {
@@ -52,4 +54,24 @@ describe("step budget", () => {
     expect(worstCaseSteps({ ...PRODUCTION_STEP_CONFIG, pollMax: 13 })).toBe(base + 6 + 12);
     expect(worstCaseSteps({ ...PRODUCTION_STEP_CONFIG, maxApprovalRounds: 4 })).toBe(base + 12);
   });
+});
+
+describe("the workflow's loop bounds come from the same configuration", () => {
+  const wrangler = parse(readFileSync("wrangler.jsonc", "utf8")) as {
+    vars: Record<string, string>;
+    env: { production: { vars: Record<string, string> } };
+  };
+  for (const [name, vars] of [
+    ["dev", wrangler.vars],
+    ["production", wrangler.env.production.vars],
+  ] as const) {
+    it(`${name} vars match PRODUCTION_STEP_CONFIG`, () => {
+      expect({
+        pollMax: Number(vars.POLL_MAX),
+        maxRecoveryRounds: Number(vars.MAX_RECOVERY_ROUNDS),
+        maxApprovalRounds: Number(vars.MAX_APPROVAL_ROUNDS),
+        waitBudget: Number(vars.WAIT_BUDGET),
+      }).toEqual(PRODUCTION_STEP_CONFIG);
+    });
+  }
 });

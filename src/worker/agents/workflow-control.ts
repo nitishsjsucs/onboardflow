@@ -10,7 +10,7 @@ export type InstanceStatusName = InstanceStatus["status"];
 
 export interface WorkflowControl {
   /** Creates the instance; an existing instance counts as success (created: false). */
-  ensureInstance(instanceId: string, employeeId: string): Promise<{ created: boolean }>;
+  ensureInstance(instanceId: string, employeeId: string, limits?: Record<string, number>): Promise<{ created: boolean }>;
   /** Restarts the instance; throws if both the SDK and the raw binding refuse. */
   restart(instanceId: string): Promise<"sdk" | "binding">;
   /** Terminates the instance; an already finished instance counts as success. */
@@ -20,7 +20,7 @@ export interface WorkflowControl {
 
 /** The subset of Agent methods the control needs (keeps this file free of the CaseAgent type). */
 export type SdkWorkflowHost = {
-  runWorkflow(name: "ONBOARDING_WORKFLOW", params: { employeeId: string }, options: { id: string; metadata: Record<string, unknown> }): Promise<string>;
+  runWorkflow(name: "ONBOARDING_WORKFLOW", params: { employeeId: string; limits?: Record<string, number> }, options: { id: string; metadata: Record<string, unknown> }): Promise<string>;
   restartWorkflow(id: string): Promise<void>;
   terminateWorkflow(id: string): Promise<void>;
   getWorkflow(id: string): unknown;
@@ -43,9 +43,9 @@ export class SdkWorkflowControl implements WorkflowControl {
     this.#binding = binding;
   }
 
-  async ensureInstance(instanceId: string, employeeId: string) {
+  async ensureInstance(instanceId: string, employeeId: string, limits?: Record<string, number>) {
     try {
-      await this.#host.runWorkflow("ONBOARDING_WORKFLOW", { employeeId }, { id: instanceId, metadata: { employeeId } });
+      await this.#host.runWorkflow("ONBOARDING_WORKFLOW", { employeeId, ...(limits ? { limits } : {}) }, { id: instanceId, metadata: { employeeId } });
       return { created: true };
     } catch (err) {
       if (isAlreadyExists(err)) return { created: false };

@@ -97,7 +97,8 @@ export class CaseAgent extends Agent<Env, CaseState> {
   // Commands (DO RPC from the Hono routes). Each is one guarded D1 batch.
   // ---------------------------------------------------------------------------
 
-  async startCase(cmd: Cmd): Promise<CommandResult<{ instanceId: string; created: boolean }>> {
+  /** `limits` (tighter workflow loop bounds) is honored by the workflow only when EVAL_HOOKS=on. */
+  async startCase(cmd: Cmd, limits?: Record<string, number>): Promise<CommandResult<{ instanceId: string; created: boolean }>> {
     const db = this.env.DB;
     const id = this.employeeId;
     const clock = await this.clock();
@@ -132,7 +133,7 @@ export class CaseAgent extends Agent<Env, CaseState> {
     // so a retry, with the same key or a new one, creates the instance.
     let ensured: { created: boolean };
     try {
-      ensured = await this.control.ensureInstance(instanceId, id);
+      ensured = await this.control.ensureInstance(instanceId, id, limits);
     } catch (err) {
       if (isEngineAbort(err)) throw err;
       console.error(`ensureInstance ${instanceId}: ${errorMessage(err)}`);

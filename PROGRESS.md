@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 11 of 25 (Tier 1) done.
+Current: commit 12 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -20,8 +20,8 @@ Current: commit 11 of 25 (Tier 1) done.
 | 9 | feat(integrations): client | done |
 | 10 | feat(db): guarded mutations and API idempotency store | done |
 | 11 | feat(agents): CaseAgent commands, wake-ups, workflow control, callbacks | done |
-| 12 | feat(workflow): D1 gates and the eight stages end to end | next |
-| 13 | feat(workflow): recovery, approvals, restart, terminate, fallbacks | todo |
+| 12 | feat(workflow): D1 gates and the eight stages end to end | done |
+| 13 | feat(workflow): recovery, approvals, restart, terminate, fallbacks | next |
 | 14 | feat(agents): blocker rules, nudges, follow-up drafting, scheduled scans | todo |
 | 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | todo |
 | 16 | feat(api): REST routes | todo |
@@ -38,7 +38,7 @@ Current: commit 11 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (node 2 files, worker 12 files)
+- `npm test`: pass (17 files, 152 tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -54,6 +54,10 @@ Current: commit 11 of 25 (Tier 1) done.
 
 6. `startCase` does not store its API response inside the claim batch (unlike the other commands): a lost claim is not a conflict, and storing the response before `ensureInstance` would make a same-key retry replay instead of creating a missing instance. A failed create returns 503 (the API releases the key on 5xx), so any retry converges. `created` in the response reports whether this call created the workflow instance.
 7. `case-agent.test.ts` grows over commits: the scan, nudge and follow-up cases (SPEC 11.1) land with the rule engine in commit 14, since `scanBlockers` only refreshes until then.
+
+8. Commit 12 already contains the code paths for recovery rounds and approval reject/resubmit (the stage runner and approval loop are one mechanism with their happy path); commit 13 adds their tests (workflow-retries, -recovery, -approvals, -restart) and any fixes they force.
+9. Test and eval seam: `CaseAgent.startCase(cmd, limits)` passes tighter loop bounds (for example `waitBudget: 2`) to the workflow, which honors them only when `EVAL_HOOKS=on`. Used by the wait-budget test so it runs in seconds instead of 120 bounded waits.
+10. Task gates mark the stage `waiting_on_employee` inside the first failed gate check step and ping the CaseAgent with non-durable `reportProgress`, instead of a separate step plus `sendEvent`; this keeps the worst-case step count at the SPEC's 561.
 
 ## Environment notes
 
