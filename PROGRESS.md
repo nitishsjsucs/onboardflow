@@ -5,16 +5,16 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 1 of 25 (Tier 1) done.
+Current: commit 5 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
 | 1 | chore: scaffold Workers + Vite + React app with strict TS projects | done |
-| 2 | feat(shared): stage registry, role model, domain vocabularies, step budget | next |
-| 3 | feat(db): D1 migrations | todo |
-| 4 | feat(seed): deterministic synthetic dataset | todo |
-| 5 | feat(auth): Access JWT verification, dev keys, persona login, CSRF | todo |
-| 6 | feat(auth): role policy matrix and principal loading | todo |
+| 2 | feat(shared): stage registry, role model, domain vocabularies, step budget | done |
+| 3 | feat(db): D1 migrations | done |
+| 4 | feat(seed): deterministic synthetic dataset | done |
+| 5 | feat(auth): Access JWT verification, dev keys, persona login, CSRF | done |
+| 6 | feat(auth): role policy matrix and principal loading | next |
 | 7 | feat(sims): simulators with atomic idempotency | todo |
 | 8 | feat(sims): ordered fault pipeline | todo |
 | 9 | feat(integrations): client | todo |
@@ -38,13 +38,14 @@ Current: commit 1 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (no test files yet; `passWithNoTests`)
+- `npm test`: pass (node 2 files, worker 5 files; 34 worker + 16 node tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
 ## Deviations from SPEC.md
 
 1. `scripts/check-bundle.ts` accepts `var CaseAgent = class extends ...` as well as `class CaseAgent`. Vite 8 (Rolldown) emits the former; the anonymous class still gets `.name === "CaseAgent"` through ECMAScript name inference, which is what Agent callbacks rely on.
+3. `/dev/personas` returns 3 personas per role except admin, which has 2: the seed defines exactly 2 admins (SPEC 16), so "3 per role" (SPEC 9) cannot hold for admins. Coordinators are one per department.
 2. `scripts/dev-keys.ts` exports `generateDevSecrets()`; `vitest.config.ts` imports it for the per-run test key pair (the spec's `makeTestKeys()`), and the eval harness will reuse it.
 
 ## Environment notes
