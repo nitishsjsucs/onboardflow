@@ -5,8 +5,9 @@
 // counter-based names. Every wait is a D1 gate (gates.ts); every integration
 // call goes through runOp (stage-runner.ts); every write is a guarded,
 // audited batch (run-context.ts).
+import { getAgentByName } from "agents";
 import { AgentWorkflow } from "agents/workflows";
-import type { AgentWorkflowEvent, AgentWorkflowStep } from "agents/workflows";
+import type { AgentWorkflowEvent, AgentWorkflowStep, WorkflowCallback } from "agents/workflows";
 import { STAGE_IDS, STAGES, type StageId } from "../../shared/stages.ts";
 import type { CaseAgent } from "../agents/case-agent.ts";
 import { parseConfig } from "../config.ts";
@@ -60,9 +61,35 @@ async function readBegin(db: D1Database, employeeId: string): Promise<Begin> {
 }
 
 export class OnboardingWorkflow extends AgentWorkflow<CaseAgent, OnboardingParams, StageProgress> {
+  #employeeId: string | null = null;
+
+  /**
+   * Callbacks to the CaseAgent (sendEvent, reportProgress, reportComplete) go
+   * through the stub AgentWorkflow resolved when the run began. If the agent
+   * object was reset since (an eviction, a deploy), that stub stays broken and
+   * the SDK's callback step would retry it under the platform default policy
+   * for minutes. Re-resolve the agent by name and retry once; if that fails
+   * too, give up quietly: callbacks only refresh a projection that the agent's
+   * scheduled scan also refreshes, and gates never depend on them (ADR 0002).
+   */
+  protected override async notifyAgent(callback: WorkflowCallback): Promise<void> {
+    try {
+      await super.notifyAgent(callback);
+    } catch (first) {
+      if (!this.#employeeId) throw first;
+      try {
+        const fresh = await getAgentByName(this.env.CASE_AGENT, this.#employeeId);
+        await fresh._workflow_handleCallback(callback);
+      } catch (second) {
+        console.warn(`workflow callback ${callback.type} for ${this.#employeeId} dropped: ${errorMessage(second)}`);
+      }
+    }
+  }
+
   override async run(event: AgentWorkflowEvent<OnboardingParams>, step: AgentWorkflowStep) {
     const cfg = parseConfig(this.env);
     const employeeId = event.payload.employeeId;
+    this.#employeeId = employeeId;
     // After a restart this is a fresh read: the engine wiped the step history.
     const begin = await step.do("run.begin", CHECK_STEP, () => readBegin(this.env.DB, employeeId));
     const limits: RunLimits = {

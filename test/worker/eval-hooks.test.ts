@@ -105,3 +105,19 @@ describe("eval hooks", () => {
     expect(await call("/sim/admin/ledger")).toBe(404);
   });
 });
+
+describe("eviction while a workflow is running", () => {
+  it("does not strand the workflow: callbacks re-resolve the CaseAgent and the case completes", async () => {
+    const { driveThroughManagerApproval, finishFromOrientation } = await import("../helpers/workflow.ts");
+    const intro = await fastWorkflows();
+    try {
+      await driveThroughManagerApproval("E032");
+      expect((await api("/api/dev/agents/case/E032/evict", { as: "A01", body: {} })).status).toBe(202);
+      expect((await finishFromOrientation("E032")).status).toBe("complete");
+      const state = await (await caseAgent("E032")).getSnapshot();
+      expect(state.status).toBe("complete");
+    } finally {
+      await intro.dispose();
+    }
+  });
+});
