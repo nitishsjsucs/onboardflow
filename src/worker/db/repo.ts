@@ -1,4 +1,5 @@
 // Typed D1 queries shared by routes, agents and workflow steps.
+import type { ApprovalView, BlockerView, TaskView } from "../../shared/api.ts";
 import type { EmploymentType, EquipmentProfile, LicenseBundle, WorkMode } from "../../shared/domain.ts";
 
 export type EmployeeProfile = {
@@ -66,4 +67,153 @@ export const EMPLOYEE_COLUMNS =
 export async function getEmployee(db: D1Database, id: string): Promise<EmployeeProfile | null> {
   const r = await db.prepare(`SELECT ${EMPLOYEE_COLUMNS} FROM employees WHERE id = ?`).bind(id).first<EmployeeRow>();
   return r ? toEmployeeProfile(r) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Row -> view mappers
+// ---------------------------------------------------------------------------
+
+export type TaskRow = {
+  id: string;
+  employee_id: string;
+  stage_id: string;
+  kind: "checklist" | "followup";
+  template_key: string | null;
+  assignee: string;
+  title: string;
+  description: string;
+  status: "open" | "done" | "cancelled";
+  due_at: string | null;
+  blocker_id: string | null;
+  drafted_by: string | null;
+  llm_suggested_category: string | null;
+  created_at: string;
+  completed_at: string | null;
+  completed_by: string | null;
+};
+
+export function toTaskView(r: TaskRow): TaskView {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    stageId: r.stage_id,
+    kind: r.kind,
+    templateKey: r.template_key,
+    assignee: r.assignee,
+    title: r.title,
+    description: r.description,
+    status: r.status,
+    dueAt: r.due_at,
+    blockerId: r.blocker_id,
+    draftedBy: r.drafted_by,
+    llmSuggestedCategory: r.llm_suggested_category,
+    createdAt: r.created_at,
+    completedAt: r.completed_at,
+    completedBy: r.completed_by,
+  };
+}
+
+export const TASK_COLUMNS =
+  "id, employee_id, stage_id, kind, template_key, assignee, title, description, status, due_at, blocker_id, drafted_by, llm_suggested_category, created_at, completed_at, completed_by";
+
+export function getTask(db: D1Database, id: string): Promise<TaskRow | null> {
+  return db.prepare(`SELECT ${TASK_COLUMNS} FROM tasks WHERE id = ?`).bind(id).first<TaskRow>();
+}
+
+export type ApprovalRow = {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  stage_id: string;
+  checkpoint: "manager_approval" | "closeout";
+  round: number;
+  approver_role: "manager" | "coordinator";
+  approver_staff_id: string | null;
+  status: "pending" | "approved" | "rejected";
+  request_json: string;
+  privileged_access_approved: number | null;
+  requested_at: string;
+  due_at: string;
+  decided_at: string | null;
+  decided_by: string | null;
+  decided_on_behalf_of: string | null;
+  reason: string | null;
+};
+
+export const APPROVAL_SELECT = `SELECT a.id, a.employee_id, e.first_name || ' ' || e.last_name AS employee_name, a.stage_id, a.checkpoint, a.round,
+  a.approver_role, a.approver_staff_id, a.status, a.request_json, a.privileged_access_approved, a.requested_at, a.due_at,
+  a.decided_at, a.decided_by, a.decided_on_behalf_of, a.reason
+  FROM approvals a JOIN employees e ON e.id = a.employee_id`;
+
+export function toApprovalView(r: ApprovalRow): ApprovalView {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    employeeName: r.employee_name,
+    stageId: r.stage_id,
+    checkpoint: r.checkpoint,
+    round: r.round,
+    approverRole: r.approver_role,
+    approverStaffId: r.approver_staff_id,
+    status: r.status,
+    request: JSON.parse(r.request_json) as Record<string, unknown>,
+    privilegedAccessApproved: r.privileged_access_approved === null ? null : r.privileged_access_approved === 1,
+    requestedAt: r.requested_at,
+    dueAt: r.due_at,
+    decidedAt: r.decided_at,
+    decidedBy: r.decided_by,
+    decidedOnBehalfOf: r.decided_on_behalf_of,
+    reason: r.reason,
+  };
+}
+
+export function getApproval(db: D1Database, id: string): Promise<ApprovalRow | null> {
+  return db.prepare(`${APPROVAL_SELECT} WHERE a.id = ?`).bind(id).first<ApprovalRow>();
+}
+
+export type BlockerRow = {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  stage_id: string;
+  kind: string;
+  severity: "low" | "medium" | "high";
+  owner_department: "people_ops" | "it" | "facilities";
+  subject: string;
+  status: "open" | "resolved";
+  detail_json: string;
+  detected_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution: string | null;
+  follow_up_task_id: string | null;
+};
+
+export const BLOCKER_SELECT = `SELECT b.id, b.employee_id, e.first_name || ' ' || e.last_name AS employee_name, b.stage_id, b.kind, b.severity,
+  b.owner_department, b.subject, b.status, b.detail_json, b.detected_at, b.resolved_at, b.resolved_by, b.resolution,
+  (SELECT t.id FROM tasks t WHERE t.blocker_id = b.id LIMIT 1) AS follow_up_task_id
+  FROM blockers b JOIN employees e ON e.id = b.employee_id`;
+
+export function toBlockerView(r: BlockerRow): BlockerView {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    employeeName: r.employee_name,
+    stageId: r.stage_id,
+    kind: r.kind,
+    severity: r.severity,
+    ownerDepartment: r.owner_department,
+    subject: r.subject,
+    status: r.status,
+    detail: JSON.parse(r.detail_json) as Record<string, unknown>,
+    detectedAt: r.detected_at,
+    resolvedAt: r.resolved_at,
+    resolvedBy: r.resolved_by,
+    resolution: r.resolution,
+    followUpTaskId: r.follow_up_task_id,
+  };
+}
+
+export function getBlocker(db: D1Database, id: string): Promise<BlockerRow | null> {
+  return db.prepare(`${BLOCKER_SELECT} WHERE b.id = ?`).bind(id).first<BlockerRow>();
 }

@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 10 of 25 (Tier 1) done.
+Current: commit 11 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -19,8 +19,8 @@ Current: commit 10 of 25 (Tier 1) done.
 | 8 | feat(sims): ordered fault pipeline | done |
 | 9 | feat(integrations): client | done |
 | 10 | feat(db): guarded mutations and API idempotency store | done |
-| 11 | feat(agents): CaseAgent commands, wake-ups, workflow control, callbacks | next |
-| 12 | feat(workflow): D1 gates and the eight stages end to end | todo |
+| 11 | feat(agents): CaseAgent commands, wake-ups, workflow control, callbacks | done |
+| 12 | feat(workflow): D1 gates and the eight stages end to end | next |
 | 13 | feat(workflow): recovery, approvals, restart, terminate, fallbacks | todo |
 | 14 | feat(agents): blocker rules, nudges, follow-up drafting, scheduled scans | todo |
 | 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | todo |
@@ -38,7 +38,7 @@ Current: commit 10 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (node 2 files, worker 11 files)
+- `npm test`: pass (node 2 files, worker 12 files)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -51,6 +51,9 @@ Current: commit 10 of 25 (Tier 1) done.
 4. `canRetryStage` falls back to the stage's owning department when the stage has no open blocker (SPEC 6.2 names only the blocker's department). Without it, a coordinator retrying a stage that is not blocked would get 403 instead of the guarded 409 that R14 expects.
 
 5. Simulated IT `assign-licenses` takes an optional `approvalRef` alongside `{ bundle, privileged }`: SPEC 9.1 requires a 422 for "privileged without approval flag" but the body it lists carries no approval field. IT reads the employment type from the simulated HR worker record for the bundle check.
+
+6. `startCase` does not store its API response inside the claim batch (unlike the other commands): a lost claim is not a conflict, and storing the response before `ensureInstance` would make a same-key retry replay instead of creating a missing instance. A failed create returns 503 (the API releases the key on 5xx), so any retry converges. `created` in the response reports whether this call created the workflow instance.
+7. `case-agent.test.ts` grows over commits: the scan, nudge and follow-up cases (SPEC 11.1) land with the rule engine in commit 14, since `scanBlockers` only refreshes until then.
 
 ## Environment notes
 

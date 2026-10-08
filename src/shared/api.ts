@@ -52,3 +52,82 @@ export const FaultPlanInput = z.object({
   params: z.object({ retryAfterMs: z.number().int().min(0).optional() }).optional(),
 });
 export type FaultPlanInput = z.infer<typeof FaultPlanInput>;
+
+// ---------------------------------------------------------------------------
+// Response DTOs
+// ---------------------------------------------------------------------------
+export type TaskView = {
+  id: string;
+  employeeId: string;
+  stageId: string;
+  kind: "checklist" | "followup";
+  templateKey: string | null;
+  assignee: string;
+  title: string;
+  description: string;
+  status: "open" | "done" | "cancelled";
+  dueAt: string | null;
+  blockerId: string | null;
+  draftedBy: string | null;
+  llmSuggestedCategory: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  completedBy: string | null;
+};
+
+export type ApprovalView = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  stageId: string;
+  checkpoint: "manager_approval" | "closeout";
+  round: number;
+  approverRole: "manager" | "coordinator";
+  approverStaffId: string | null;
+  status: "pending" | "approved" | "rejected";
+  request: Record<string, unknown>;
+  privilegedAccessApproved: boolean | null;
+  requestedAt: string;
+  dueAt: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decidedOnBehalfOf: string | null;
+  reason: string | null;
+};
+
+export type BlockerView = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  stageId: string;
+  kind: string;
+  severity: "low" | "medium" | "high";
+  ownerDepartment: "people_ops" | "it" | "facilities";
+  subject: string;
+  status: "open" | "resolved";
+  detail: Record<string, unknown>;
+  detectedAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolution: string | null;
+  followUpTaskId: string | null;
+};
+
+export type EmployeeProfileDto = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
+  orgUnit: string;
+  employmentType: string;
+  workMode: string;
+  site: string;
+  startDate: string;
+  managerId: string;
+  equipmentProfile: string;
+  licenseBundle: string;
+  needsPrivilegedAccess: boolean;
+  costCenter: string;
+  photoOnFile: boolean;
+};
