@@ -17,7 +17,9 @@ import { apiError, type AppContext, type AppEnv } from "../http.ts";
 import { clearFaultPlans, insertFaultPlan } from "../sims/faults.ts";
 import { body, caseRef, idempotent } from "./util.ts";
 
-const ClockBody = z.object({ ms: z.number().int().min(0).max(366 * 86_400_000) });
+// Negative values are allowed so the eval harness can pin the simulated "now" to the seed's
+// reference date (the committed seed is anchored at 2026-11-02 and never changes).
+const ClockBody = z.object({ ms: z.number().int().min(-3660 * 86_400_000).max(366 * 86_400_000) });
 const CorruptBody = z.discriminatedUnion("field", [
   z.object({ field: z.literal("costCenter"), value: z.string().min(1).max(32) }),
   z.object({ field: z.literal("licenseBundle"), value: z.enum(["ft-standard", "ft-engineering", "contractor-basic", "intern-basic"]) }),
@@ -77,9 +79,10 @@ export function evalHookRoutes() {
 
   r.delete("/faults", async (c) => {
     const employeeRef = c.req.query("employeeRef") ?? null;
-    return idempotent(c, { employeeRef }, async () => {
-      const cleared = await clearFaultPlans(c.env.DB, new Date().toISOString(), employeeRef);
-      await evalAudit(c, "eval.fault_set", "fault_plan", employeeRef ?? "*", { cleared, employeeRef }, employeeRef ?? undefined);
+    const system = c.req.query("system") ?? null;
+    return idempotent(c, { employeeRef, system }, async () => {
+      const cleared = await clearFaultPlans(c.env.DB, new Date().toISOString(), employeeRef, system);
+      await evalAudit(c, "eval.fault_set", "fault_plan", employeeRef ?? "*", { cleared, employeeRef, system }, employeeRef ?? undefined);
       return { status: 200, body: { cleared } };
     });
   });

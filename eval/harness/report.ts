@@ -1,0 +1,51 @@
+// Console table for a run, and the README Results block rendered only from
+// recorded eval/results/latest-*.json files (readme-results.test.ts checks
+// that the README block equals this rendering).
+import type { EvalRun } from "./metrics.ts";
+
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+
+export function printRun(run: EvalRun): string {
+  const lines = [
+    `mode ${run.mode}, provider ${run.llmProvider}, git ${run.gitSha.slice(0, 7)}, ${run.environment.runtime}`,
+    `scenarios ${run.totals.scenarios}, started ${run.totals.startedCases}, completed ${run.totals.completed} (${pct(run.totals.completionRate)}), passed ${run.totals.passed} (${pct(run.totals.passRate)})`,
+    ...Object.entries(run.byCategory)
+      .filter(([, c]) => c.scenarios > 0)
+      .map(([k, c]) => `  ${k.padEnd(20)} ${c.completed}/${c.scenarios} completed, ${c.passed}/${c.scenarios} passed`),
+    `integration calls ${run.integration.calls}, retried ${run.integration.retriedCalls}, replays ${run.integration.replays}, duplicate side effects ${run.integration.duplicateSideEffects}`,
+    `regression: blockers precision ${run.regression.blockers.precision} recall ${run.regression.blockers.recall}; audit coverage ${run.regression.audit.coverage}; full 8-stage trails ${run.regression.audit.completedCasesWithFull8StageTrail}; hub consistent ${run.regression.hubConsistency.matchesReconcile}`,
+    `follow-ups ${run.followups.created}, correct department ${pct(run.followups.correctDepartmentRate)}`,
+    `timing p50 ${run.timing.scenarioP50Ms} ms, p95 ${run.timing.scenarioP95Ms} ms, total ${(run.timing.totalMs / 1000).toFixed(1)} s`,
+    ...run.failures.map((f) => `FAIL ${f.scenarioId} ${f.reason}: ${f.detail}`),
+  ];
+  return lines.join("\n");
+}
+
+/** The README Results block, rendered from recorded runs only. */
+export function renderResults(runs: EvalRun[]): string {
+  const sorted = [...runs].sort((a, b) => a.mode.localeCompare(b.mode));
+  const out: string[] = [];
+  for (const r of sorted) {
+    const date = r.startedAt.slice(0, 10);
+    const cmd = r.mode === "standard" ? "npm run eval:ci" : r.mode === "scale" ? "npm run eval:scale" : `node eval/harness/run.ts --mode ${r.mode}`;
+    out.push(`#### ${r.mode === "standard" ? "Standard mode (regression suite, scripted recovery)" : r.mode === "scale" ? "Scale mode (all 150 synthetic employees, no faults)" : r.mode}`);
+    out.push("");
+    out.push(`Command \`${cmd}\`, run ${date} (git ${r.gitSha.slice(0, 7)}), provider \`${r.llmProvider}\`, ${r.environment.runtime}, concurrency ${r.config.concurrency}.`);
+    out.push("");
+    out.push("| Metric | Value |");
+    out.push("|---|---|");
+    out.push(`| Cases started | ${r.totals.startedCases} |`);
+    out.push(`| Completed | ${r.totals.completed}/${r.totals.scenarios} (${pct(r.totals.completionRate)}) |`);
+    if (r.mode === "standard") {
+      out.push(`| Passed (completed and every expectation held) | ${r.totals.passed}/${r.totals.scenarios} |`);
+      for (const [k, c] of Object.entries(r.byCategory)) out.push(`| ${k.replace("_", " ")} | ${c.passed}/${c.scenarios} passed |`);
+    }
+    out.push(`| Integration calls (retried, replayed) | ${r.integration.calls} (${r.integration.retriedCalls}, ${r.integration.replays}) |`);
+    out.push(`| Duplicate side effects in the simulated systems | ${r.integration.duplicateSideEffects} |`);
+    out.push(`| Audit coverage (regression check) | ${r.regression.audit.coverage} |`);
+    out.push(`| Live hub equals D1 reconcile after the run | ${r.regression.hubConsistency.matchesReconcile ? "yes" : "no"} |`);
+    out.push(`| Scenario time p50 / p95, wall time | ${(r.timing.scenarioP50Ms / 1000).toFixed(1)} s / ${(r.timing.scenarioP95Ms / 1000).toFixed(1)} s, ${(r.timing.totalMs / 1000).toFixed(0)} s |`);
+    out.push("");
+  }
+  return out.join("\n").trimEnd();
+}

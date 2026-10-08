@@ -100,10 +100,18 @@ export async function insertFaultPlan(db: D1Database, p: FaultPlanInput, now: st
   return row!.id;
 }
 
-/** Clears active plans (all, or one employee's). Returns the number cleared. */
-export async function clearFaultPlans(db: D1Database, now: string, employeeRef?: string | null): Promise<number> {
-  const r = employeeRef
-    ? await db.prepare("UPDATE sim_fault_plans SET cleared_at = ? WHERE cleared_at IS NULL AND employee_ref = ?").bind(now, employeeRef).run()
-    : await db.prepare("UPDATE sim_fault_plans SET cleared_at = ? WHERE cleared_at IS NULL").bind(now).run();
+/** Clears active plans (all, one employee's, and optionally one system's). Returns the number cleared. */
+export async function clearFaultPlans(db: D1Database, now: string, employeeRef?: string | null, system?: string | null): Promise<number> {
+  const where = ["cleared_at IS NULL"];
+  const binds: unknown[] = [now];
+  if (employeeRef) {
+    where.push("employee_ref = ?");
+    binds.push(employeeRef);
+  }
+  if (system) {
+    where.push("system = ?");
+    binds.push(system);
+  }
+  const r = await db.prepare(`UPDATE sim_fault_plans SET cleared_at = ? WHERE ${where.join(" AND ")}`).bind(...binds).run();
   return r.meta.changes;
 }

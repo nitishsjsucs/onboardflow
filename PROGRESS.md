@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 21 of 25 (Tier 1) done.
+Current: commit 22 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -30,15 +30,16 @@ Current: commit 21 of 25 (Tier 1) done.
 | 19 | feat(web): approvals, queue, cases, case detail with audit trail | done |
 | 20 | feat(web): live dashboard | done |
 | 21 | feat(eval): 60-scenario catalog | done |
-| 22 | feat(eval): harness, standard and scale modes, metrics | next |
-| 23 | ci | todo |
+| 22 | feat(eval): harness, standard and scale modes, metrics | done |
+| 23 | ci | next |
 | 24 | docs: README, CONTEXT.md, ADRs | todo |
 | 25 | chore(eval): record results, render README results, tag v1-tier1 | todo |
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (36 files, 273 tests)
+- `npm test`: pass (38 files, 287 tests)
+- `npm run eval:ci` (trial runs during commit 22, not recorded): 60/60 completed and passed, CI gate passed; `npm run eval:scale`: 150/150. Results are recorded in commit 25.
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -69,6 +70,8 @@ Current: commit 21 of 25 (Tier 1) done.
 15. Eval hooks: the `/api/dev/*` guard runs before authentication so the paths are plain 404s outside dev mode; every hook mutation goes through the same Idempotency-Key wrapper (a replayed clock advance does not advance twice). Profile corruption is audited as `eval.fault_set` with `detail.corrupt`, since the closed AuditAction catalog has no separate corruption action. The hooks are not in `API_ROUTES` (that registry lists the product API the role matrix covers); `eval-hooks.test.ts` checks they are admin only.
 
 16. Scenario catalog extensions, each needed to script a SPEC 12.2 scenario honestly: Action gains `start` (O16 duplicates the start request), `concurrent` (R12's three concurrent scans), `expectBlockerStatus` (R13's "blocker stays open" and R02/R03's escalation checks), an optional `value` on `fixField` (R09's wrong fix), an optional `system` on `clearFaults` (R10's sequential outages) and an optional `expectStatus` on `retryStage` (R14's 409). Expectations gain `auditCounts`. Archetypes may also pin `equipmentProfile` and `startDate`. O07 holds intake with one 1.5 s rate-limited HR call so the employee demonstrably finishes paperwork before the gate is checked. Scenarios that move the shared simulated clock (O10, R02, R03) are marked `movesClock` and run serially after all others, because the clock is global to the server. Builders live in `eval/scenarios/script.ts`.
+
+17. Eval harness details: the simulated clock is pinned to `2026-10-08T12:00:00Z` (the seed's reference date) at the start of every run through `/api/dev/clock/advance`, which accepts negative values for this; without it, running the eval after 2026-10-19 would make the committed seed's paperwork overdue for every case. Mode `chaos`, the ablations and `--llm llama` are Tier 2 and refuse to run with a clear message. The harness defaults to `--port 8781 --inspector-port 9231` (this machine's allocation); CI can pass any free port. A preflight logs in as an admin and round-trips a scan before any scenario. An extra commit (`fix(workflow): re-resolve the CaseAgent when a callback stub is broken`) sits between commits 21 and 22: the first trial eval found a real bug (O19, R07), logged in `eval/results/CHANGELOG.md`.
 
 ## Environment notes
 
