@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 23 of 25 (Tier 1) done.
+Current: commit 24 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -32,13 +32,13 @@ Current: commit 23 of 25 (Tier 1) done.
 | 21 | feat(eval): 60-scenario catalog | done |
 | 22 | feat(eval): harness, standard and scale modes, metrics | done |
 | 23 | ci | done |
-| 24 | docs: README, CONTEXT.md, ADRs | next |
-| 25 | chore(eval): record results, render README results, tag v1-tier1 | todo |
+| 24 | docs: README, CONTEXT.md, ADRs | done |
+| 25 | chore(eval): record results, render README results, tag v1-tier1 | next |
 
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (38 files, 288 tests)
+- `npm test`: pass (39 files, 296 tests)
 - `npm run deploy:dry-run`: pass (2179 KiB upload, 499 KiB gzip; it leaves a production-flattened dist/, so run `npm run build` again before any eval)
 - `npm run eval:ci` (trial runs during commit 22, not recorded): 60/60 completed and passed, CI gate passed; `npm run eval:scale`: 150/150. Results are recorded in commit 25.
 - `npm run build`: pass (`check-bundle` ok)
