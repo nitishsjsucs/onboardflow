@@ -4,7 +4,7 @@
 // keeps a read-only live projection of the case for WebSocket subscribers
 // (ADR 0006), and reacts to workflow callbacks. Domain truth stays in D1
 // (ADR 0001). Decisions come from deterministic rules, not from an LLM.
-import { Agent } from "agents";
+import { Agent, getAgentByName } from "agents";
 import type { CaseState } from "../../shared/agent-state.ts";
 import { emptyCaseState } from "../../shared/agent-state.ts";
 import type { EmployeeProfileDto } from "../../shared/api.ts";
@@ -22,6 +22,7 @@ import { errorMessage, isEngineAbort } from "../integrations/errors.ts";
 import { createLlmProvider } from "../llm/provider.ts";
 import { detectBlockers, nudgeTargets, resolvedBlockers } from "./blocker-rules.ts";
 import { FollowUpDrafter } from "./followups.ts";
+import { HUB_NAME } from "./ops-hub-agent.ts";
 import { loadScanSnapshot, projectCase } from "./projection.ts";
 import { Serial } from "./serial.ts";
 import { SdkWorkflowControl, type WorkflowControl } from "./workflow-control.ts";
@@ -617,7 +618,16 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const c = await this.env.DB.prepare("SELECT workflow_instance_id FROM cases WHERE employee_id = ?").bind(this.employeeId).first<{ workflow_instance_id: string | null }>();
     const wfStatus = c?.workflow_instance_id ? ((this.getWorkflow(c.workflow_instance_id) as { status?: string } | undefined)?.status ?? null) : null;
     const next = await projectCase(this.env.DB, this.employeeId, wfStatus, new Date().toISOString());
-    if (next) this.applyProjection(next);
+    if (next) {
+      this.applyProjection(next);
+      // Best effort: the hub reconciles from D1 on a debounce and every minute anyway.
+      try {
+        const hub = await getAgentByName(this.env.OPS_HUB_AGENT, HUB_NAME);
+        await hub.caseChanged(this.employeeId, next.asOfSeq);
+      } catch (err) {
+        console.warn(`hub notify ${this.employeeId}: ${errorMessage(err)}`);
+      }
+    }
     return this.state;
   }
 

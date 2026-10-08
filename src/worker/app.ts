@@ -9,6 +9,7 @@ import { requireUser } from "./auth/middleware.ts";
 import { ConfigError, parseConfig } from "./config.ts";
 import { loadClock } from "./db/clock.ts";
 import { apiError, type AppEnv } from "./http.ts";
+import { agentRoutes } from "./routes/agents.ts";
 import { meRoutes } from "./routes/me.ts";
 import { simApp } from "./sims/app.ts";
 
@@ -53,6 +54,10 @@ export function createApp() {
   app.route("/sim", simApp());
 
   app.get("/api/health", (c) => c.json({ ok: true, authMode: c.get("config").authMode, version: APP_VERSION }));
+
+  // Live state subscriptions: same Access middleware, then origin + policy checks per upgrade.
+  app.use("/agents/*", requireUser);
+  app.route("/agents", agentRoutes());
 
   app.use("/api/*", requireUser);
   app.use("/api/*", requireSameOrigin);

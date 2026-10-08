@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 14 of 25 (Tier 1) done.
+Current: commit 15 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -23,8 +23,8 @@ Current: commit 14 of 25 (Tier 1) done.
 | 12 | feat(workflow): D1 gates and the eight stages end to end | done |
 | 13 | feat(workflow): recovery, approvals, restart, terminate, fallbacks | done |
 | 14 | feat(agents): blocker rules, nudges, follow-up drafting, scheduled scans | done |
-| 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | next |
-| 16 | feat(api): REST routes | todo |
+| 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | done |
+| 16 | feat(api): REST routes | next |
 | 17 | feat(api): dev eval hooks | todo |
 | 18 | feat(web): app shell, dev login, routing, API client, employee portal | todo |
 | 19 | feat(web): approvals, queue, cases, case detail with audit trail | todo |
@@ -38,7 +38,7 @@ Current: commit 14 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (23 files, 190 tests)
+- `npm test`: pass (25 files, 200 tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -61,6 +61,8 @@ Current: commit 14 of 25 (Tier 1) done.
 
 11. Blocker rule details the SPEC leaves open: `employee_task_overdue` is one blocker per waiting stage (subject `checklist:<stage>`, detail lists the overdue task ids) rather than one per task; integration and data-issue blockers auto-resolve only once the blocked operation succeeds after the blocker opened (or the stage completes), which is what R13 expects; auto-resolved and manually resolved blockers cancel their open follow-up. The stub provider records `drafted_by = "stub"` (not `llm:`), so the LLM rate metric stays honest.
 12. The Workers AI provider (Tier 2) is not built; `LLM_PROVIDER=workers-ai` yields a provider that always fails, so drafting falls back to templates.
+
+13. `ops-hub-agent.test.ts` compares the hub's domain fields with `computeHubDomain()` (the function `/api/dashboard/summary` serves) until the route exists in commit 16, which adds the HTTP comparison. Hub rollups count `revision_requested` stages as `waiting`; incidents use open `integration_outage` and `provisioning_stalled` blockers detected in the last 15 minutes, grouped by system.
 
 ## Environment notes
 
