@@ -2,15 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { unstable_splitSqlQuery as splitSql } from "wrangler";
 import { generateDevSecrets } from "./scripts/dev-keys.ts";
-
-/** The generated seed has one statement per chunk, each ending in ";" at end of line. */
-function splitSql(sql: string): string[] {
-  return sql
-    .split(/;\s*\n/)
-    .map((s) => s.replace(/^\s*--.*$/gm, "").trim())
-    .filter((s) => s.length > 0);
-}
 
 export default defineConfig(async () => {
   const migrations = await readD1Migrations("./migrations");
