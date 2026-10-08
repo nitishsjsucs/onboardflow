@@ -27,6 +27,7 @@
     "eval": "node eval/harness/run.ts",
     "eval:ci": "node eval/harness/run.ts --mode standard --llm stub --gate ci",
     "eval:scale": "node eval/harness/run.ts --mode scale --llm stub",
+    "eval:chaos": "node eval/harness/run.ts --mode chaos --llm stub --seeds 5",
     "results:readme": "node scripts/results-to-readme.ts"
   },
   "dependencies": {

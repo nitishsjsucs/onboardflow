@@ -115,3 +115,13 @@ export async function clearFaultPlans(db: D1Database, now: string, employeeRef?:
   const r = await db.prepare(`UPDATE sim_fault_plans SET cleared_at = ? WHERE ${where.join(" AND ")}`).bind(...binds).run();
   return r.meta.changes;
 }
+
+/** Clears specific plans by id (eval chaos mode ends outage windows and stalls this way). */
+export async function clearFaultPlansById(db: D1Database, now: string, ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const r = await db
+    .prepare(`UPDATE sim_fault_plans SET cleared_at = ? WHERE cleared_at IS NULL AND id IN (${ids.map(() => "?").join(",")})`)
+    .bind(now, ...ids)
+    .run();
+  return r.meta.changes;
+}

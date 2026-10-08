@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Next: Tier 2, starting at commit 26 (chaos mode). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commit 26 (chaos mode) done; next is commit 27 (ablations). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -35,8 +35,10 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Next: Tier 2, sta
 | 23 | ci | done |
 | 24 | docs: README, CONTEXT.md, ADRs | done |
 | 25 | chore(eval): record results, render README results, tag v1-tier1 | done |
-| 26 | feat(eval): chaos mode with seeded fault schedules and policy bots (T2) | next |
-| 27 | feat(eval): idempotency and retry ablations (T2) | todo |
+| (extra) | test(agents): push a live state frame on an employee task completion | done |
+| (extra) | fix(workflow): apply exponential retry backoff once, not compounded by the engine | done |
+| 26 | feat(eval): chaos mode with seeded fault schedules and policy bots (T2) | done |
+| 27 | feat(eval): idempotency and retry ablations (T2) | next |
 | 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | todo |
 | 29 | feat(web): integrations and audit explorer pages (T2) | todo |
 | 30 | feat(scripts): demo driver (T2) | todo |
@@ -45,7 +47,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Next: Tier 2, sta
 ## Check status (last run, 2026-10-08)
 
 - `npm run typecheck`: pass (worker, web, node projects)
-- `npm test`: pass (40 files, 299 tests: worker in workerd, node, web)
+- `npm test`: pass (41 files, 310 tests: worker in workerd, node, web)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 - `npm run seed:check`: ok (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)
@@ -53,11 +55,13 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Next: Tier 2, sta
 - `npm run eval:ci` (recorded, git 1a18873): 60/60 completed, 60/60 passed, 0 duplicate side effects, audit coverage 1, hub consistent, CI gate passed. File: `eval/results/latest-standard-stub.json`.
 - `npm run eval:scale` (recorded, git 1a18873): 150/150 completed, 0 duplicates, hub consistent. File: `eval/results/latest-scale-stub.json`.
 - README Results block rendered from those files by `npm run results:readme`; `test/node/readme-results.test.ts` guards drift.
+- The recorded standard and scale runs predate the retry backoff fix (e7c0f3e), which changed retry timing (not outcomes). Re-record them in the Tier 2 results commit (31) together with chaos, and log it in `eval/results/CHANGELOG.md`.
+- Chaos (not yet recorded): trial runs on seed 1 only; see `eval/results/CHANGELOG.md`. Trial result files are deleted, not committed.
 
 ## How to continue
 
 1. Read SPEC.md Sections 12.3 (chaos), 12.4 (metrics) and 21 (Tier 2 list), then this file's deviations.
-2. Chaos mode belongs in `eval/harness/chaos.ts` and `eval/harness/policies.ts` (+ `test/node/chaos-policy.test.ts`); the harness entry point (`eval/harness/run.ts`) currently rejects `--mode chaos` with a clear message, and `EvalRun.chaos` is `null`.
+2. Chaos mode lives in `eval/harness/chaos.ts` (orchestrator and bots) and `eval/harness/policies.ts` (pure seeded policies, tested in `test/node/chaos-policy.test.ts`); `npm run eval:chaos` runs 5 seeds (about 20 minutes on this Mac). Shared run helpers (ROOT, EVAL_VARS, snapshot, hub consistency) are in `eval/harness/server.ts` so `run.ts` and `chaos.ts` do not import each other (a top-level-await cycle deadlocks Node).
 3. Before any eval: `npm run build` (dev build). Use only port 8781 / inspector 9231 on this machine; the harness defaults to them and kills its process group at the end.
 4. Never edit scenarios or fault tables toward a target; log any change in `eval/results/CHANGELOG.md`.
 
@@ -82,6 +86,9 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Next: Tier 2, sta
 17. Eval harness details: the simulated clock is pinned to `2026-10-08T12:00:00Z` (the seed's reference date) at the start of every run through `/api/dev/clock/advance`, which accepts negative values for this; without it, running the eval after 2026-10-19 would make the committed seed's paperwork overdue for every case. Mode `chaos`, the ablations and `--llm llama` are Tier 2 and refuse to run with a clear message. The harness defaults to `--port 8781 --inspector-port 9231` (this machine's allocation; SPEC 12.1 says "free port"); CI uses the same defaults. A preflight logs in as an admin and round-trips a scan before any scenario.
 18. An extra commit (`fix(workflow): re-resolve the CaseAgent when a callback stub is broken`) sits between commits 21 and 22: the first trial eval found a real bug (O19, R07 stranded after a CaseAgent eviction), logged in `eval/results/CHANGELOG.md`. `OnboardingWorkflow` overrides the SDK's `notifyAgent` to re-resolve the agent by name once, then drop the callback.
 19. Web: the client bundle is about 445 KB raw (137 KB gzip), mostly `agents/react` and its socket client. The live hooks use `useAgent` with `onStateUpdate`; tests mock them.
+
+20. Chaos mode choices (also in `eval/results/CHANGELOG.md`): chaos runs use the production retry base (2 s) and a 1 s poll interval (`CHAOS_VARS`), because its faults, outage windows and bots run in real seconds; and instead of SPEC 12.3's single 4-day clock advance (which cannot make any committed-seed task overdue from the pinned 2026-10-08) the harness jumps 90 days at a seeded 5 to 15 s and then advances 3 days every 20 s. Faultable operations are the nine POST operations; `stall` applies to the three polled resources. The orchestrator (not a bot) clears a stall a seeded 5 to 30 s after its stage starts and applies photo corruption after paperwork (as in F6). Coordinator bots retry or give up only when the case shows the stage blocked. People Ops also signs off closeouts after a seeded delay (SPEC 12.3 does not say who does). Chaos case failures are classified `case_failed`, `bot_patience` (a bot gave up on one of its blockers) or `deadline`.
+21. `DELETE /api/dev/faults` also accepts `ids` (chaos ends outage windows and stalls by id).
 
 ## Known noise and caveats
 

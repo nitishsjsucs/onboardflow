@@ -34,10 +34,11 @@ describe("OpsHubAgent", () => {
     const meta = await runInDurableObject(stub, (a: OpsHubAgent) => a.meta());
     expect(meta).toEqual({ dirty: 1, debounce_pending: 1 });
     // the debounced reconcile fires on the Agent's alarm after HUB_DEBOUNCE_S (1 s in tests)
+    // the property (SPEC 8.2): once quiet, the debounced reconcile equals a fresh read of D1
     const state = await waitFor(async () => {
       const s = await stub.getSnapshot();
-      return s.version >= 1 ? s : null;
-    }, { timeoutMs: 10_000, what: "debounced reconcile" });
+      return s.version >= 1 && JSON.stringify(domainOf(s)) === JSON.stringify(await fresh()) ? s : null;
+    }, { timeoutMs: 10_000, what: "debounced reconcile equal to D1" });
     expect(domainOf(state)).toEqual(await fresh());
     // the same comparison over HTTP: the live hub equals /api/dashboard/summary
     const summary = await api<HubState>("/api/dashboard/summary", { as: "C01" });

@@ -31,7 +31,12 @@ export type EvalRun = {
   simulatedNow: string;
   totals: { startedCases: number; scenarios: number; completed: number; completionRate: number; passed: number; passRate: number };
   byCategory: Record<Category, { scenarios: number; completed: number; passed: number }>;
-  chaos: null;
+  chaos: null | {
+    perSeed: Array<{ seed: number; completed: number; cases: number; failures: Record<"bot_patience" | "deadline" | "case_failed", number> }>;
+    meanCompletion: number;
+    minCompletion: number;
+    maxCompletion: number;
+  };
   integration: {
     calls: number;
     retriedCalls: number;
@@ -160,4 +165,16 @@ export function ciGate(run: Pick<EvalRun, "totals" | "integration" | "regression
   if (run.regression.audit.coverage !== 1) problems.push(`audit coverage ${run.regression.audit.coverage}`);
   if (!run.regression.hubConsistency.matchesReconcile) problems.push(`hub inconsistent: ${run.regression.hubConsistency.diffs.join(", ")}`);
   return problems;
+}
+
+/** Chaos aggregates over seeds: completion per seed, then mean, min and max. */
+export function chaosAggregate(perSeed: Array<{ seed: number; completed: number; cases: number; failures: Record<"bot_patience" | "deadline" | "case_failed", number> }>) {
+  const rates = perSeed.map((s) => (s.cases === 0 ? 0 : s.completed / s.cases));
+  const mean = rates.length === 0 ? 0 : rates.reduce((a, b) => a + b, 0) / rates.length;
+  return {
+    perSeed,
+    meanCompletion: Math.round(mean * 10_000) / 10_000,
+    minCompletion: rates.length === 0 ? 0 : Math.round(Math.min(...rates) * 10_000) / 10_000,
+    maxCompletion: rates.length === 0 ? 0 : Math.round(Math.max(...rates) * 10_000) / 10_000,
+  };
 }

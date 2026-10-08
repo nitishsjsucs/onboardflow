@@ -3,7 +3,10 @@
 // timings, killed as a process group at the end.
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Harness } from "./actions.ts";
+import type { Snapshot } from "./assertions.ts";
 
 export type ServerOptions = {
   stateDir: string;
@@ -94,3 +97,89 @@ export async function startServer(root: string, o: ServerOptions): Promise<Runni
   }
   return { baseUrl, child, logPath, stop };
 }
+
+// ---------------------------------------------------------------------------
+// Run-wide constants and helpers shared by run.ts and chaos.ts
+// ---------------------------------------------------------------------------
+
+export const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
+/** The simulated "now" every run starts from: the seed's reference date (its cohorts start 2026-11-02). */
+export const SIMULATED_NOW = "2026-10-08T12:00:00.000Z";
+export const EVAL_VARS = {
+  AUTH_MODE: "dev",
+  EVAL_HOOKS: "on",
+  SIM_CLOCK: "on",
+  RETRY_BASE_DELAY_MS: "20",
+  POLL_INTERVAL_MS: "20",
+  INTEGRATION_TIMEOUT_MS: "2000",
+  GATE_WAIT_TIMEOUT_MS: "3000",
+  NUDGE_AFTER_S: "2",
+  HUB_DEBOUNCE_S: "1",
+  BLOCKER_SCAN_INTERVAL_S: "5",
+};
+
+export function git(args: string[]): string {
+  try {
+    return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+export function versionOf(cmd: string, args: string[]): string {
+  try {
+    return execFileSync(cmd, args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim().split("\n").pop() ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+export async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= items.length) return;
+        out[i] = await fn(items[i] as T);
+      }
+    }),
+  );
+  return out;
+}
+
+export async function snapshot(h: Harness, employeeId: string): Promise<Snapshot> {
+  const r = await h.admin<Snapshot>("GET", `/api/dev/eval/snapshot/${employeeId}`);
+  if (r.status !== 200) throw new Error(`snapshot ${employeeId}: ${r.status}`);
+  return r.body;
+}
+
+function domainOf(s: Record<string, unknown>) {
+  const { asOfSeq: _a, reconciledAt: _r, version: _v, ...rest } = s;
+  return rest;
+}
+
+export async function hubConsistency(h: Harness): Promise<{ matchesReconcile: boolean; diffs: string[] }> {
+  // quiescence: no new audit rows for 2 x HUB_DEBOUNCE_S
+  let last = -1;
+  for (let i = 0; i < 120; i++) {
+    const r = await h.admin("GET", "/api/audit?limit=1");
+    const seq = r.body?.items?.[0]?.seq ?? 0;
+    if (seq === last) break;
+    last = seq;
+    await new Promise((res) => setTimeout(res, 2 * Number(EVAL_VARS.HUB_DEBOUNCE_S) * 1000 + 500));
+  }
+  // the live hub reconciles on a debounce after the last case change
+  let diffs: string[] = [];
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const [hub, summary] = await Promise.all([h.admin("GET", "/api/dev/eval/hub"), h.admin("GET", "/api/dashboard/summary")]);
+    const a = domainOf(hub.body ?? {});
+    const b = domainOf(summary.body ?? {});
+    diffs = Object.keys(b).filter((k) => JSON.stringify((a as Record<string, unknown>)[k]) !== JSON.stringify((b as Record<string, unknown>)[k]));
+    if (diffs.length === 0) return { matchesReconcile: true, diffs };
+    await new Promise((res) => setTimeout(res, 2000));
+  }
+  return { matchesReconcile: false, diffs };
+}
+

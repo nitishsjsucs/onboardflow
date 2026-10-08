@@ -4,7 +4,6 @@
 // D1 per run, with per-run secrets, real HTTP calls as the seed personas,
 // and expectations checked against each case's snapshot. Writes
 // eval/results/<runId>.json and eval/results/latest-<mode>-<llm>.json.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, platform, release } from "node:os";
 import { join, resolve } from "node:path";
@@ -15,66 +14,13 @@ import { SCENARIOS } from "../scenarios/index.ts";
 import { closeoutApproved, managerApproves, orientation, paperwork } from "../scenarios/script.ts";
 import type { Scenario } from "../scenarios/types.ts";
 import { executeAction, ExpectationError, Harness, type ScenarioRun, UnknownActionError } from "./actions.ts";
-import { caseFacts, evaluateExpectations, type Snapshot } from "./assertions.ts";
+import { caseFacts, evaluateExpectations } from "./assertions.ts";
 import { ciGate, computeMetrics, type EvalRun, type ScenarioResult } from "./metrics.ts";
 import { printRun } from "./report.ts";
 import { writeRunSecrets } from "./secrets.ts";
-import { assertDevBuild, prepareDatabase, startServer } from "./server.ts";
+import { assertDevBuild, EVAL_VARS, git, hubConsistency, pool, prepareDatabase, ROOT, SIMULATED_NOW, snapshot, startServer, versionOf } from "./server.ts";
 
-const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-/** The simulated "now" every run starts from: the seed's reference date (its cohorts start 2026-11-02). */
-export const SIMULATED_NOW = "2026-10-08T12:00:00.000Z";
 const CASE_DEADLINE_MS = 90_000;
-
-export const EVAL_VARS = {
-  AUTH_MODE: "dev",
-  EVAL_HOOKS: "on",
-  SIM_CLOCK: "on",
-  RETRY_BASE_DELAY_MS: "20",
-  POLL_INTERVAL_MS: "20",
-  INTEGRATION_TIMEOUT_MS: "2000",
-  GATE_WAIT_TIMEOUT_MS: "3000",
-  NUDGE_AFTER_S: "2",
-  HUB_DEBOUNCE_S: "1",
-  BLOCKER_SCAN_INTERVAL_S: "5",
-};
-
-function git(args: string[]): string {
-  try {
-    return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
-  } catch {
-    return "unknown";
-  }
-}
-
-function versionOf(cmd: string, args: string[]): string {
-  try {
-    return execFileSync(cmd, args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim().split("\n").pop() ?? "unknown";
-  } catch {
-    return "unknown";
-  }
-}
-
-async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      for (;;) {
-        const i = next++;
-        if (i >= items.length) return;
-        out[i] = await fn(items[i] as T);
-      }
-    }),
-  );
-  return out;
-}
-
-async function snapshot(h: Harness, employeeId: string): Promise<Snapshot> {
-  const r = await h.admin<Snapshot>("GET", `/api/dev/eval/snapshot/${employeeId}`);
-  if (r.status !== 200) throw new Error(`snapshot ${employeeId}: ${r.status}`);
-  return r.body;
-}
 
 export async function runScenario(h: Harness, sc: Scenario, started: Set<string>): Promise<ScenarioResult> {
   const t0 = Date.now();
@@ -150,40 +96,12 @@ function scaleScenarios(dataset: ReturnType<typeof generateDataset>): Scenario[]
   }));
 }
 
-function domainOf(s: Record<string, unknown>) {
-  const { asOfSeq: _a, reconciledAt: _r, version: _v, ...rest } = s;
-  return rest;
-}
-
-async function hubConsistency(h: Harness): Promise<{ matchesReconcile: boolean; diffs: string[] }> {
-  // quiescence: no new audit rows for 2 x HUB_DEBOUNCE_S
-  let last = -1;
-  for (let i = 0; i < 120; i++) {
-    const r = await h.admin("GET", "/api/audit?limit=1");
-    const seq = r.body?.items?.[0]?.seq ?? 0;
-    if (seq === last) break;
-    last = seq;
-    await new Promise((res) => setTimeout(res, 2 * Number(EVAL_VARS.HUB_DEBOUNCE_S) * 1000 + 500));
-  }
-  // the live hub reconciles on a debounce after the last case change
-  let diffs: string[] = [];
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const [hub, summary] = await Promise.all([h.admin("GET", "/api/dev/eval/hub"), h.admin("GET", "/api/dashboard/summary")]);
-    const a = domainOf(hub.body ?? {});
-    const b = domainOf(summary.body ?? {});
-    diffs = Object.keys(b).filter((k) => JSON.stringify((a as Record<string, unknown>)[k]) !== JSON.stringify((b as Record<string, unknown>)[k]));
-    if (diffs.length === 0) return { matchesReconcile: true, diffs };
-    await new Promise((res) => setTimeout(res, 2000));
-  }
-  return { matchesReconcile: false, diffs };
-}
-
 async function main() {
   const { values } = parseArgs({
     options: {
       mode: { type: "string", default: "standard" },
       llm: { type: "string", default: "stub" },
-      seeds: { type: "string", default: "1" },
+      seeds: { type: "string", default: "5" },
       concurrency: { type: "string" },
       gate: { type: "string" },
       port: { type: "string", default: "8781" },
@@ -193,11 +111,14 @@ async function main() {
     },
   });
   const mode = values.mode ?? "standard";
-  if (mode !== "standard" && mode !== "scale") throw new Error(`mode ${mode} is Tier 2 and not built in this version (standard and scale only)`);
+  if (mode !== "standard" && mode !== "scale" && mode !== "chaos") throw new Error(`mode ${mode} is not built in this version (standard, scale and chaos)`);
   if (values.llm !== "stub") throw new Error("--llm llama is Tier 2 and not built in this version; use --llm stub");
   const concurrency = Number(values.concurrency ?? (mode === "scale" ? 10 : 6));
 
   assertDevBuild(ROOT);
+  if (mode === "chaos") {
+    process.exit(await runChaosMode({ seeds: Number(values.seeds ?? 5), port: Number(values.port), inspectorPort: Number(values["inspector-port"]), keep: values.keep ?? false }));
+  }
   const dataset = generateDataset();
   const runId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${mode}`;
   const stateDir = join(ROOT, "eval/.state", runId, "0");
@@ -290,6 +211,59 @@ async function main() {
     if (!values.keep && exitCode === 0) rmSync(join(ROOT, "eval/.state", runId), { recursive: true, force: true });
   }
   process.exit(exitCode);
+}
+
+/** Chaos mode: K seeds, each on a fresh state directory and wrangler dev process. */
+async function runChaosMode(o: { seeds: number; port: number; inspectorPort: number; keep: boolean }): Promise<number> {
+  const { CHAOS, CHAOS_VARS } = await import("./policies.ts");
+  const { runChaosSeed } = await import("./chaos.ts");
+  const { chaosAggregate } = await import("./metrics.ts");
+  const seeds = CHAOS.seeds.slice(0, Math.max(1, Math.min(o.seeds, CHAOS.seeds.length)));
+  const runId = `${new Date().toISOString().replace(/[:.]/g, "-")}-chaos`;
+  const startedAt = new Date().toISOString();
+  const t0 = Date.now();
+  const outcomes = [];
+  for (const seed of seeds) outcomes.push(await runChaosSeed(seed, runId, { port: o.port, inspectorPort: o.inspectorPort, concurrency: 10 }));
+  const results = outcomes.flatMap((x) => x.results);
+  const hub = { matchesReconcile: outcomes.every((x) => x.hub.matchesReconcile), diffs: outcomes.flatMap((x) => x.hub.diffs.map((d) => `seed ${x.seed}: ${d}`)) };
+  const metrics = computeMetrics(results, { startedCases: results.length, totalMs: Date.now() - t0, hub });
+  const run: EvalRun = {
+    runId,
+    startedAt,
+    gitSha: git(["rev-parse", "HEAD"]),
+    mode: "chaos",
+    llmProvider: "stub",
+    seeds,
+    environment: {
+      runtime: "local wrangler dev (Miniflare/workerd)",
+      wrangler: versionOf("npx", ["wrangler", "--version"]),
+      workerd: versionOf("node", ["-p", "require('./node_modules/workerd/package.json').version"]),
+      node: process.version,
+      machine: `${platform()} ${release()}, ${cpus().length} cpus`,
+    },
+    config: {
+      retryLimit: 4,
+      retryBaseDelayMs: Number(CHAOS_VARS.RETRY_BASE_DELAY_MS),
+      pollIntervalMs: Number(CHAOS_VARS.POLL_INTERVAL_MS),
+      pollMax: 12,
+      integrationTimeoutMs: Number(EVAL_VARS.INTEGRATION_TIMEOUT_MS),
+      gateWaitTimeoutMs: Number(EVAL_VARS.GATE_WAIT_TIMEOUT_MS),
+      concurrency: 10,
+    },
+    simulatedNow: SIMULATED_NOW,
+    ...metrics,
+    chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures }) => ({ seed, completed, cases, failures }))),
+    scenarios: results,
+  };
+  const out = join(ROOT, "eval/results");
+  mkdirSync(out, { recursive: true });
+  const body = JSON.stringify(run, null, 2) + "\n";
+  writeFileSync(join(out, `${runId}.json`), body);
+  writeFileSync(join(out, "latest-chaos-stub.json"), body);
+  console.log(`\n${printRun(run)}`);
+  console.log(`chaos: mean completion ${run.chaos?.meanCompletion} (min ${run.chaos?.minCompletion}, max ${run.chaos?.maxCompletion}) over seeds ${seeds.join(", ")}`);
+  if (!o.keep) rmSync(join(ROOT, "eval/.state", runId), { recursive: true, force: true });
+  return 0;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

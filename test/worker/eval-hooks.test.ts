@@ -48,6 +48,12 @@ describe("eval hooks", () => {
     expect(f.status).toBe(200);
     expect(await DB.prepare("SELECT fault, remaining FROM sim_fault_plans WHERE id = ?").bind(f.body.id).first()).toEqual({ fault: "fail_503", remaining: 2 });
     expect((await api("/api/dev/faults?employeeRef=E031", { as: "A01", method: "DELETE" })).body).toEqual({ cleared: 1 });
+    // clearing by id leaves other plans alone
+    const a = await api("/api/dev/faults", { as: "A01", body: { system: "hr", operation: "create-worker", employeeRef: null, fault: "fail_503" } });
+    const b = await api("/api/dev/faults", { as: "A01", body: { system: "hr", operation: "activate-worker", employeeRef: null, fault: "fail_503" } });
+    expect((await api(`/api/dev/faults?ids=${a.body.id}`, { as: "A01", method: "DELETE" })).body).toEqual({ cleared: 1 });
+    expect(await DB.prepare("SELECT cleared_at IS NULL AS active FROM sim_fault_plans WHERE id = ?").bind(b.body.id).first()).toEqual({ active: 1 });
+    await api(`/api/dev/faults?ids=${b.body.id}`, { as: "A01", method: "DELETE" });
 
     const before = (await env.DB.prepare("SELECT offset_ms FROM sim_clock WHERE id = 1").first<{ offset_ms: number }>())!.offset_ms;
     const clock = await api("/api/dev/clock/advance", { as: "A01", body: { ms: 49 * 3600_000 } });

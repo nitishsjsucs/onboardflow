@@ -14,7 +14,7 @@ import { auditInsert } from "../db/audit.ts";
 import { getEmployee, TASK_COLUMNS, type TaskRow, toTaskView } from "../db/repo.ts";
 import { errorMessage } from "../integrations/errors.ts";
 import { apiError, type AppContext, type AppEnv } from "../http.ts";
-import { clearFaultPlans, insertFaultPlan } from "../sims/faults.ts";
+import { clearFaultPlans, clearFaultPlansById, insertFaultPlan } from "../sims/faults.ts";
 import { body, caseRef, idempotent } from "./util.ts";
 
 // Negative values are allowed so the eval harness can pin the simulated "now" to the seed's
@@ -80,9 +80,13 @@ export function evalHookRoutes() {
   r.delete("/faults", async (c) => {
     const employeeRef = c.req.query("employeeRef") ?? null;
     const system = c.req.query("system") ?? null;
-    return idempotent(c, { employeeRef, system }, async () => {
-      const cleared = await clearFaultPlans(c.env.DB, new Date().toISOString(), employeeRef, system);
-      await evalAudit(c, "eval.fault_set", "fault_plan", employeeRef ?? "*", { cleared, employeeRef, system }, employeeRef ?? undefined);
+    const ids = (c.req.query("ids") ?? "")
+      .split(",")
+      .map((x) => Number(x))
+      .filter((x) => Number.isInteger(x) && x > 0);
+    return idempotent(c, { employeeRef, system, ids }, async () => {
+      const cleared = ids.length > 0 ? await clearFaultPlansById(c.env.DB, new Date().toISOString(), ids) : await clearFaultPlans(c.env.DB, new Date().toISOString(), employeeRef, system);
+      await evalAudit(c, "eval.fault_set", "fault_plan", ids.length > 0 ? ids.join(",") : (employeeRef ?? "*"), { cleared, employeeRef, system, ids }, employeeRef ?? undefined);
       return { status: 200, body: { cleared } };
     });
   });
