@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 20 of 25 (Tier 1) done.
+Current: commit 21 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -29,8 +29,8 @@ Current: commit 20 of 25 (Tier 1) done.
 | 18 | feat(web): app shell, dev login, routing, API client, employee portal | done |
 | 19 | feat(web): approvals, queue, cases, case detail with audit trail | done |
 | 20 | feat(web): live dashboard | done |
-| 21 | feat(eval): 60-scenario catalog | next |
-| 22 | feat(eval): harness, standard and scale modes, metrics | todo |
+| 21 | feat(eval): 60-scenario catalog | done |
+| 22 | feat(eval): harness, standard and scale modes, metrics | next |
 | 23 | ci | todo |
 | 24 | docs: README, CONTEXT.md, ADRs | todo |
 | 25 | chore(eval): record results, render README results, tag v1-tier1 | todo |
@@ -38,7 +38,7 @@ Current: commit 20 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (35 files, 265 tests)
+- `npm test`: pass (36 files, 273 tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -67,6 +67,8 @@ Current: commit 20 of 25 (Tier 1) done.
 14. API details the SPEC leaves open: `PATCH /api/employees/:id` takes exactly one field per request (each correction is its own audited change); `/api/me/checklist` also returns the employee's open `blockers` for the portal; approval list items carry `resubmittable`; People Ops coordinators see closeout approvals plus rejected approvals of both checkpoints; every response carries `X-Request-Id` (the audit test correlates audit rows by it). `cases.scan` writes no user audit row of its own (what it opens or resolves is audited as agent actions), so the audit test excludes it with that reason.
 
 15. Eval hooks: the `/api/dev/*` guard runs before authentication so the paths are plain 404s outside dev mode; every hook mutation goes through the same Idempotency-Key wrapper (a replayed clock advance does not advance twice). Profile corruption is audited as `eval.fault_set` with `detail.corrupt`, since the closed AuditAction catalog has no separate corruption action. The hooks are not in `API_ROUTES` (that registry lists the product API the role matrix covers); `eval-hooks.test.ts` checks they are admin only.
+
+16. Scenario catalog extensions, each needed to script a SPEC 12.2 scenario honestly: Action gains `start` (O16 duplicates the start request), `concurrent` (R12's three concurrent scans), `expectBlockerStatus` (R13's "blocker stays open" and R02/R03's escalation checks), an optional `value` on `fixField` (R09's wrong fix), an optional `system` on `clearFaults` (R10's sequential outages) and an optional `expectStatus` on `retryStage` (R14's 409). Expectations gain `auditCounts`. Archetypes may also pin `equipmentProfile` and `startDate`. O07 holds intake with one 1.5 s rate-limited HR call so the employee demonstrably finishes paperwork before the gate is checked. Scenarios that move the shared simulated clock (O10, R02, R03) are marked `movesClock` and run serially after all others, because the clock is global to the server. Builders live in `eval/scenarios/script.ts`.
 
 ## Environment notes
 
