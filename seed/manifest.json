@@ -1,0 +1,117 @@
+{
+  "seed": 20261008,
+  "anchor": "2026-11-02",
+  "version": "v1",
+  "counts": {
+    "employees": 150,
+    "staff": 26,
+    "managers": 18,
+    "coordinators": 6,
+    "admins": 2,
+    "users": 176,
+    "roles": 4,
+    "cases": 150,
+    "caseStages": 1200
+  },
+  "jointCounts": {
+    "orgUnit": {
+      "Customer Support": 21,
+      "Engineering": 54,
+      "Finance": 12,
+      "Marketing": 15,
+      "Operations": 12,
+      "People": 12,
+      "Sales": 24
+    },
+    "orgUnitByEmployment": {
+      "Customer Support|contractor": 4,
+      "Customer Support|full_time": 16,
+      "Customer Support|intern": 1,
+      "Engineering|contractor": 8,
+      "Engineering|full_time": 40,
+      "Engineering|intern": 6,
+      "Finance|contractor": 1,
+      "Finance|full_time": 11,
+      "Marketing|contractor": 1,
+      "Marketing|full_time": 12,
+      "Marketing|intern": 2,
+      "Operations|contractor": 1,
+      "Operations|full_time": 10,
+      "Operations|intern": 1,
+      "People|contractor": 1,
+      "People|full_time": 10,
+      "People|intern": 1,
+      "Sales|contractor": 2,
+      "Sales|full_time": 21,
+      "Sales|intern": 1
+    },
+    "workMode": {
+      "hybrid": 54,
+      "onsite": 60,
+      "remote": 36
+    },
+    "site": {
+      "Austin": 38,
+      "New York": 38,
+      "Remote (US)": 36,
+      "San Jose HQ": 38
+    },
+    "startDate": {
+      "2026-11-02": 15,
+      "2026-11-09": 15,
+      "2026-11-16": 15,
+      "2026-11-23": 15,
+      "2026-11-30": 15,
+      "2026-12-07": 15,
+      "2026-12-14": 15,
+      "2026-12-21": 15,
+      "2026-12-28": 15,
+      "2027-01-04": 15
+    },
+    "equipmentProfile": {
+      "design": 6,
+      "engineering": 54,
+      "standard": 90
+    },
+    "equipmentByOrgUnit": {
+      "Customer Support|standard": 21,
+      "Engineering|engineering": 54,
+      "Finance|standard": 12,
+      "Marketing|design": 6,
+      "Marketing|standard": 9,
+      "Operations|standard": 12,
+      "People|standard": 12,
+      "Sales|standard": 24
+    },
+    "licenseBundle": {
+      "contractor-basic": 18,
+      "ft-engineering": 40,
+      "ft-standard": 80,
+      "intern-basic": 12
+    },
+    "privilegedByOrgEmployment": {
+      "Engineering|full_time": 21
+    },
+    "managerReports": {
+      "M01": 9,
+      "M02": 9,
+      "M03": 9,
+      "M04": 9,
+      "M05": 9,
+      "M06": 9,
+      "M07": 8,
+      "M08": 8,
+      "M09": 8,
+      "M10": 7,
+      "M11": 7,
+      "M12": 7,
+      "M13": 8,
+      "M14": 7,
+      "M15": 6,
+      "M16": 6,
+      "M17": 12,
+      "M18": 12
+    }
+  },
+  "sha256": "56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e"
+}
