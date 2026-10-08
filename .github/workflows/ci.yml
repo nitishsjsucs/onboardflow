@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+env:
+  CI: true
+  WRANGLER_SEND_METRICS: false
+
+jobs:
+  check:
+    name: check (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: 24
+            experimental: false
+          - node: 25
+            experimental: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generated binding types are current
+        run: npm run typegen:check
+
+      - name: Seed is byte-identical to the generator
+        run: npm run seed:check
+
+      - name: Typecheck (worker, web, node projects)
+        run: npm run typecheck
+
+      - name: Tests (worker in workerd, node, web)
+        run: npm test
+
+      - name: Build (and check class names survive bundling)
+        run: npm run build
+
+      - name: Standard eval, 60 scenarios, CI gate
+        run: npm run eval:ci
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-node-${{ matrix.node }}
+          path: eval/results/*.json
+          if-no-files-found: warn
+
+      # Last: it leaves a production-flattened dist/ (with the AI binding),
+      # which a later `wrangler dev` would try to log in for.
+      - name: Production deploy dry run (no credentials)
+        run: npm run deploy:dry-run
