@@ -34,12 +34,30 @@ const ids: Record<Exclude<PersonaKey, "anon">, string> = {
 };
 
 beforeAll(async () => {
-  const e = await env.DB.prepare("SELECT manager_id FROM employees WHERE id = 'E001'").first<{ manager_id: string }>();
+  const DB = env.DB;
+  const e = await DB.prepare("SELECT manager_id FROM employees WHERE id = 'E001'").first<{ manager_id: string }>();
   ids.manager = e!.manager_id;
-  const other = await env.DB.prepare("SELECT id FROM staff WHERE kind = 'manager' AND id <> ? ORDER BY id LIMIT 1")
+  const other = await DB.prepare("SELECT id FROM staff WHERE kind = 'manager' AND id <> ? ORDER BY id LIMIT 1")
     .bind(ids.manager)
     .first<{ id: string }>();
   ids.otherManager = other!.id;
+  // Fixtures in states where an allowed caller reaches the guarded command and gets a clean 409,
+  // so the matrix exercises authorization without side effects.
+  const now = new Date().toISOString();
+  await DB.batch([
+    DB.prepare(
+      `INSERT INTO approvals (id, employee_id, stage_id, checkpoint, round, approver_role, approver_staff_id, status, request_json, requested_at, due_at, decided_at, decided_by)
+       VALUES ('apr:E001:manager_approval:1', 'E001', 'manager_approval', 'manager_approval', 1, 'manager', ?, 'approved', '{}', ?, ?, ?, 'fixture')`,
+    ).bind(ids.manager, now, now, now),
+    DB.prepare(
+      `INSERT INTO blockers (id, employee_id, stage_id, kind, severity, owner_department, subject, dedupe_key, status, detail_json, detected_at, resolved_at)
+       VALUES ('blk:fixture', 'E001', 'it_provisioning', 'integration_outage', 'high', 'it', 'it.order-device', 'fixture', 'resolved', '{}', ?, ?)`,
+    ).bind(now, now),
+    DB.prepare(
+      `INSERT INTO tasks (id, employee_id, stage_id, kind, template_key, assignee, title, description, status, created_at, completed_at)
+       VALUES ('chk:E001:w4', 'E001', 'paperwork', 'checklist', 'w4', 'employee', 'W-4', 'd', 'done', ?, ?)`,
+    ).bind(now, now),
+  ]);
 });
 
 // ---------------------------------------------------------------------------
@@ -47,7 +65,7 @@ beforeAll(async () => {
 // so a new route cannot land without its authorization expectations.
 // ---------------------------------------------------------------------------
 type RouteCase = { path: string; opts?: Omit<CallOptions, "as">; expect: Record<PersonaKey, number> };
-const ok = (anon: number, status = 200): Record<PersonaKey, number> => ({
+const all = (anon: number, status = 200): Record<PersonaKey, number> => ({
   anon,
   employee: status,
   manager: status,
@@ -58,9 +76,43 @@ const ok = (anon: number, status = 200): Record<PersonaKey, number> => ({
   admin: status,
 });
 
+/** Statuses for everyone except the listed personas, which get their own. */
+const only = (allowed: Partial<Record<PersonaKey, number>>, otherwise = 403): Record<PersonaKey, number> => ({ ...all(401, otherwise), ...allowed });
+const OPS = { coordPeopleOps: 200, coordIt: 200, coordFacilities: 200, admin: 200 };
+const VIEWERS = { employee: 200, manager: 200, coordPeopleOps: 200, coordIt: 200, coordFacilities: 200, admin: 200 };
+
 const ROUTE_CASES: Record<RouteId, RouteCase> = {
-  health: { path: "/api/health", expect: ok(200) },
-  me: { path: "/api/me", expect: ok(401) },
+  health: { path: "/api/health", expect: all(200) },
+  me: { path: "/api/me", expect: all(401) },
+  "me.checklist": { path: "/api/me/checklist", expect: only({ employee: 200 }) },
+  "employees.list": { path: "/api/employees", expect: only({ manager: 200, otherManager: 200, ...OPS }) },
+  "employees.get": { path: "/api/employees/E001", expect: only(VIEWERS) },
+  // same value as the seed: an allowed caller applies a no-op correction
+  "employees.patch": { path: "/api/employees/E001", opts: { body: { costCenter: "CC-1100" } }, expect: only({ coordPeopleOps: 200, admin: 200 }) },
+  // the first allowed start creates the instance, the second converges (202 both)
+  "cases.start": { path: "/api/cases/E140/start", opts: { body: {} }, expect: only({ coordPeopleOps: 202, admin: 202 }) },
+  "cases.get": { path: "/api/cases/E001", expect: only(VIEWERS) },
+  "cases.audit": { path: "/api/cases/E001/audit", expect: only(VIEWERS) },
+  "cases.integrations": { path: "/api/cases/E001/integrations", expect: only(OPS) },
+  // it_provisioning is owned by IT and not blocked: the owner reaches the guarded 409
+  "cases.retry": { path: "/api/cases/E001/stages/it_provisioning/retry", opts: { body: {} }, expect: only({ coordIt: 409, admin: 409 }) },
+  "cases.scan": { path: "/api/cases/E001/scan", opts: { body: {} }, expect: only(OPS) },
+  "cases.restart": { path: "/api/cases/E001/restart", opts: { body: { reason: "matrix" } }, expect: only({ admin: 409 }) },
+  "cases.terminate": { path: "/api/cases/E001/terminate", opts: { body: { reason: "matrix" } }, expect: only({ admin: 409 }) },
+  "tasks.complete": { path: "/api/tasks/chk:E001:w4/complete", opts: { body: {} }, expect: only({ employee: 409, admin: 409 }) },
+  "approvals.list": { path: "/api/approvals", expect: only({ manager: 200, otherManager: 200, coordPeopleOps: 200, admin: 200 }) },
+  "approvals.decision": {
+    path: "/api/approvals/apr:E001:manager_approval:1/decision",
+    opts: { body: { decision: "approve" } },
+    expect: only({ manager: 409, admin: 409 }),
+  },
+  "approvals.resubmit": { path: "/api/approvals/apr:E001:manager_approval:1/resubmit", opts: { body: { note: "matrix" } }, expect: only({ coordPeopleOps: 409, admin: 409 }) },
+  "blockers.list": { path: "/api/blockers", expect: only(OPS) },
+  "blockers.resolve": { path: "/api/blockers/blk:fixture/resolve", opts: { body: { resolution: "matrix" } }, expect: only({ coordIt: 409, admin: 409 }) },
+  "followups.list": { path: "/api/followups", expect: only(OPS) },
+  "dashboard.summary": { path: "/api/dashboard/summary", expect: only(OPS) },
+  "integrations.health": { path: "/api/integrations/health", expect: only(OPS) },
+  "audit.list": { path: "/api/audit", expect: only({ admin: 200 }) },
 };
 
 describe("route registry x roles", () => {

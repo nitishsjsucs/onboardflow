@@ -188,3 +188,29 @@ export async function calls(employeeId: string, operation?: string) {
 export async function retry(employeeId: string, stage: StageId, as: string) {
   return (await rpc(employeeId)).retryStage(stage, await cmdFor(as));
 }
+
+/** Drives a case to the end through the real REST API with the real personas. */
+export async function driveHappyPathViaApi(employeeId: string) {
+  const { api } = await import("./api.ts");
+  const ok = (r: { status: number }, what: string) => {
+    if (r.status >= 300) throw new Error(`${what}: ${r.status}`);
+  };
+  ok(await api(`/api/cases/${employeeId}/start`, { as: "C01", body: {} }), "start");
+  for (const stage of ["paperwork", "orientation"] as const) {
+    await waitForStage(employeeId, stage, "waiting_on_employee");
+    const checklist: { body: { tasks: Array<{ id: string; stageId: string; status: string }> } } = await api("/api/me/checklist", { as: employeeId });
+    for (const t of checklist.body.tasks.filter((x) => x.stageId === stage && x.status === "open")) {
+      ok(await api(`/api/tasks/${t.id}/complete`, { as: employeeId, body: {} }), `complete ${t.id}`);
+    }
+    if (stage === "paperwork") {
+      const manager = await managerOf(employeeId);
+      const id = `apr:${employeeId}:manager_approval:1`;
+      await waitFor(async () => DB().prepare("SELECT 1 AS ok FROM approvals WHERE id = ? AND status = 'pending'").bind(id).first(), { what: id });
+      ok(await api(`/api/approvals/${id}/decision`, { as: manager, body: { decision: "approve", privilegedAccessApproved: true } }), "manager decision");
+    }
+  }
+  const closeout = `apr:${employeeId}:closeout:1`;
+  await waitFor(async () => DB().prepare("SELECT 1 AS ok FROM approvals WHERE id = ? AND status = 'pending'").bind(closeout).first(), { what: closeout });
+  ok(await api(`/api/approvals/${closeout}/decision`, { as: "C02", body: { decision: "approve" } }), "closeout decision");
+  return waitForCase(employeeId, ["complete", "failed"]);
+}

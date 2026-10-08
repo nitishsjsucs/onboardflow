@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { FIRST_ROUND_OPERATIONS, OPERATIONS } from "../../src/shared/stages.ts";
 import { ledger } from "../helpers/sims.ts";
-import { auditActions, caseAgent, driveHappyPath, fastWorkflows } from "../helpers/workflow.ts";
+import { auditActions, caseAgent, driveHappyPath, driveHappyPathViaApi, fastWorkflows } from "../helpers/workflow.ts";
 
 describe("happy path through CaseAgent RPC", () => {
   it("runs all 8 stages to complete with one side effect per operation and every action audited", async () => {
@@ -49,5 +49,25 @@ describe("happy path through CaseAgent RPC", () => {
     const state = await (await caseAgent("E060")).getSnapshot();
     expect(state.status).toBe("complete");
     expect(state.stages.map((s) => s.status)).toEqual(Array(8).fill("complete"));
+  });
+});
+
+describe("happy path through the REST API", () => {
+  it("completes a privileged engineer's onboarding driven by the four personas over HTTP", async () => {
+    const priv = await env.DB.prepare("SELECT id FROM employees WHERE needs_privileged_access = 1 AND id > 'E060' ORDER BY id LIMIT 1").first<{ id: string }>();
+    const id = priv!.id;
+    const intro = await fastWorkflows();
+    try {
+      expect((await driveHappyPathViaApi(id)).status).toBe("complete");
+    } finally {
+      await intro.dispose();
+    }
+    const lic = await env.DB.prepare("SELECT data_json FROM sim_resources WHERE system = 'it' AND resource_type = 'it_licenses' AND employee_ref = ?").bind(id).first<{ data_json: string }>();
+    expect(JSON.parse(lic!.data_json)).toMatchObject({ privileged: true });
+    const audit = await auditActions(id);
+    const userActions = audit.filter((a) => a.id.startsWith("usr:")).map((a) => a.action);
+    expect(userActions.filter((a) => a === "task.completed")).toHaveLength(10);
+    expect(userActions.filter((a) => a === "approval.approved")).toHaveLength(2);
+    expect(userActions).toContain("case.started");
   });
 });

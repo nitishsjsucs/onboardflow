@@ -66,3 +66,35 @@ describe("dev cookie", () => {
     expect(res.headers.get("Set-Cookie")).toContain("Max-Age=0");
   });
 });
+
+describe("same-origin checks on /api mutations", () => {
+  it("rejects a POST without Origin, with a foreign Origin, or without X-OnboardFlow, and changes nothing", async () => {
+    const before = await env.DB.prepare("SELECT status, workflow_instance_id FROM cases WHERE employee_id = 'E141'").first();
+    for (const opts of [{ origin: null }, { origin: "https://evil.example" }, { csrf: false }] as const) {
+      const res = await call("/api/cases/E141/start", { as: "C01", body: {}, ...opts });
+      expect(res.status).toBe(403);
+    }
+    // a body-less cross-site start is rejected too
+    const bare = await call("/api/cases/E141/start", { as: "C01", method: "POST", origin: "https://evil.example" });
+    expect(bare.status).toBe(403);
+    expect(await env.DB.prepare("SELECT status, workflow_instance_id FROM cases WHERE employee_id = 'E141'").first()).toEqual(before);
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E141'").first<{ n: number }>())!.n).toBe(0);
+  });
+
+  it("requires an Idempotency-Key on /api mutations", async () => {
+    const res = await call("/api/cases/E141/scan", { as: "C01", body: {}, idempotencyKey: null });
+    expect(res.status).toBe(400);
+    expect(await json(res)).toMatchObject({ error: { code: "idempotency_key_required" } });
+  });
+
+  it("rejects a WebSocket upgrade from a foreign Origin", async () => {
+    const { exports } = await import("cloudflare:workers");
+    const { tokenFor } = await import("../helpers/api.ts");
+    const res = await exports.default.fetch(
+      new Request("http://localhost/agents/case-agent/E141", {
+        headers: { Upgrade: "websocket", Origin: "https://evil.example", "Cf-Access-Jwt-Assertion": await tokenFor("E141") },
+      }),
+    );
+    expect(res.status).toBe(403);
+  });
+});

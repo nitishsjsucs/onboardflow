@@ -1,7 +1,9 @@
 // Hono app composition. Middleware order (SPEC Section 9):
 //   request id -> config (fails closed) -> clock -> dev host guard
 //   -> /dev (dev only, same-origin on mutations)
-//   -> /api: health (public), Access JWT -> principal -> same-origin -> routes
+//   -> /api: health (public), Access JWT -> principal -> same-origin
+//      -> Idempotency-Key present on mutations -> route role gate -> resource policy
+//      -> zod validation -> idempotent command
 import { Hono } from "hono";
 import { devRoutes } from "./auth/dev.ts";
 import { requireSameOrigin } from "./auth/csrf.ts";
@@ -10,7 +12,17 @@ import { ConfigError, parseConfig } from "./config.ts";
 import { loadClock } from "./db/clock.ts";
 import { apiError, type AppEnv } from "./http.ts";
 import { agentRoutes } from "./routes/agents.ts";
+import { approvalRoutes } from "./routes/approvals.ts";
+import { auditRoutes } from "./routes/audit.ts";
+import { blockerRoutes } from "./routes/blockers.ts";
+import { caseRoutes } from "./routes/cases.ts";
+import { dashboardRoutes } from "./routes/dashboard.ts";
+import { employeeRoutes } from "./routes/employees.ts";
+import { followupRoutes } from "./routes/followups.ts";
+import { integrationRoutes } from "./routes/integrations.ts";
 import { meRoutes } from "./routes/me.ts";
+import { taskRoutes } from "./routes/tasks.ts";
+import { requireIdempotencyKey } from "./routes/util.ts";
 import { simApp } from "./sims/app.ts";
 
 export const APP_VERSION = "1.0.0";
@@ -21,7 +33,9 @@ export function createApp() {
   const app = new Hono<AppEnv>();
 
   app.use("*", async (c, next) => {
-    c.set("requestId", crypto.randomUUID());
+    const requestId = crypto.randomUUID();
+    c.set("requestId", requestId);
+    c.header("X-Request-Id", requestId);
     try {
       c.set("config", parseConfig(c.env));
     } catch (err) {
@@ -61,7 +75,17 @@ export function createApp() {
 
   app.use("/api/*", requireUser);
   app.use("/api/*", requireSameOrigin);
+  app.use("/api/*", requireIdempotencyKey);
   app.route("/api/me", meRoutes());
+  app.route("/api/employees", employeeRoutes());
+  app.route("/api/cases", caseRoutes());
+  app.route("/api/tasks", taskRoutes());
+  app.route("/api/approvals", approvalRoutes());
+  app.route("/api/blockers", blockerRoutes());
+  app.route("/api/followups", followupRoutes());
+  app.route("/api/dashboard", dashboardRoutes());
+  app.route("/api/integrations", integrationRoutes());
+  app.route("/api/audit", auditRoutes());
 
   app.notFound((c) => apiError(c, 404, "not_found", "not found"));
   app.onError((err, c) => {

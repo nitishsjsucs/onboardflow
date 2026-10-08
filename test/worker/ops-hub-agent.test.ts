@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { HubState } from "../../src/shared/agent-state.ts";
 import type { OpsHubAgent } from "../../src/worker/agents/ops-hub-agent.ts";
 import { computeHubDomain } from "../../src/worker/agents/projection.ts";
+import { api } from "../helpers/api.ts";
 import { waitFor } from "../helpers/workflow.ts";
 
 const DB = env.DB;
@@ -38,6 +39,10 @@ describe("OpsHubAgent", () => {
       return s.version >= 1 ? s : null;
     }, { timeoutMs: 10_000, what: "debounced reconcile" });
     expect(domainOf(state)).toEqual(await fresh());
+    // the same comparison over HTTP: the live hub equals /api/dashboard/summary
+    const summary = await api<HubState>("/api/dashboard/summary", { as: "C01" });
+    expect(summary.status).toBe(200);
+    expect(domainOf(state)).toEqual(domainOf(summary.body));
     expect(Object.values(state.totals).reduce((a, b) => a + b, 0)).toBe(150);
     expect(state.totals.blocked).toBe(1);
     expect(state.byStage).toHaveLength(8);

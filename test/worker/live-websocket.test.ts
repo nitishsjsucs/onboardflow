@@ -14,7 +14,9 @@ async function connect(path: string, as: string, origin: string | null = "http:/
   const messages: Msg[] = [];
   if (ws) {
     ws.accept();
-    ws.addEventListener("message", (e) => messages.push(JSON.parse(String(e.data)) as Msg));
+    ws.addEventListener("message", (e) => {
+      messages.push(JSON.parse(String(e.data)) as Msg);
+    });
   }
   return { status: res.status, ws, messages };
 }

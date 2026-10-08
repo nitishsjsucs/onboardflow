@@ -1,6 +1,7 @@
 // Typed D1 queries shared by routes, agents and workflow steps.
-import type { ApprovalView, BlockerView, TaskView } from "../../shared/api.ts";
-import type { EmploymentType, EquipmentProfile, LicenseBundle, WorkMode } from "../../shared/domain.ts";
+import type { ApprovalView, AuditEventView, BlockerView, IntegrationCallView, StageView, TaskView } from "../../shared/api.ts";
+import type { StageId } from "../../shared/stages.ts";
+import type { Assignee, BlockerKind, EmploymentType, EquipmentProfile, LicenseBundle, WorkMode } from "../../shared/domain.ts";
 
 export type EmployeeProfile = {
   id: string;
@@ -76,10 +77,10 @@ export async function getEmployee(db: D1Database, id: string): Promise<EmployeeP
 export type TaskRow = {
   id: string;
   employee_id: string;
-  stage_id: string;
+  stage_id: StageId;
   kind: "checklist" | "followup";
   template_key: string | null;
-  assignee: string;
+  assignee: Assignee;
   title: string;
   description: string;
   status: "open" | "done" | "cancelled";
@@ -124,7 +125,7 @@ export type ApprovalRow = {
   id: string;
   employee_id: string;
   employee_name: string;
-  stage_id: string;
+  stage_id: StageId;
   checkpoint: "manager_approval" | "closeout";
   round: number;
   approver_role: "manager" | "coordinator";
@@ -175,8 +176,8 @@ export type BlockerRow = {
   id: string;
   employee_id: string;
   employee_name: string;
-  stage_id: string;
-  kind: string;
+  stage_id: StageId;
+  kind: BlockerKind;
   severity: "low" | "medium" | "high";
   owner_department: "people_ops" | "it" | "facilities";
   subject: string;
@@ -216,4 +217,106 @@ export function toBlockerView(r: BlockerRow): BlockerView {
 
 export function getBlocker(db: D1Database, id: string): Promise<BlockerRow | null> {
   return db.prepare(`${BLOCKER_SELECT} WHERE b.id = ?`).bind(id).first<BlockerRow>();
+}
+
+// ---------------------------------------------------------------------------
+// Stage, audit, integration call and summary views
+// ---------------------------------------------------------------------------
+
+export async function stageViews(db: D1Database, employeeId: string): Promise<StageView[]> {
+  const r = await db
+    .prepare(
+      `SELECT s.id, s.ordinal, s.name, s.owner, cs.status, cs.round, cs.started_at, cs.completed_at, cs.blocked_reason_json
+         FROM stages s JOIN case_stages cs ON cs.stage_id = s.id AND cs.employee_id = ? ORDER BY s.ordinal`,
+    )
+    .bind(employeeId)
+    .all<{ id: StageId; ordinal: number; name: string; owner: string; status: StageView["status"]; round: number; started_at: string | null; completed_at: string | null; blocked_reason_json: string | null }>();
+  return r.results.map((s) => ({
+    id: s.id,
+    ordinal: s.ordinal,
+    name: s.name,
+    owner: s.owner,
+    status: s.status,
+    round: s.round,
+    startedAt: s.started_at,
+    completedAt: s.completed_at,
+    blockedReason: s.blocked_reason_json ? (JSON.parse(s.blocked_reason_json) as Record<string, unknown>) : null,
+  }));
+}
+
+export type AuditRow = {
+  seq: number;
+  id: string;
+  occurred_at: string;
+  actor_type: AuditEventView["actorType"];
+  actor_id: string;
+  actor_role: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  employee_id: string | null;
+  stage_id: string | null;
+  run_no: number | null;
+  round: number | null;
+  request_id: string | null;
+  detail_json: string;
+};
+
+export function toAuditView(r: AuditRow): AuditEventView {
+  return {
+    seq: r.seq,
+    id: r.id,
+    occurredAt: r.occurred_at,
+    actorType: r.actor_type,
+    actorId: r.actor_id,
+    actorRole: r.actor_role,
+    action: r.action,
+    entityType: r.entity_type,
+    entityId: r.entity_id,
+    employeeId: r.employee_id,
+    stageId: r.stage_id,
+    runNo: r.run_no,
+    round: r.round,
+    requestId: r.request_id,
+    detail: JSON.parse(r.detail_json) as Record<string, unknown>,
+  };
+}
+
+export type IntegrationCallRow = {
+  rid: number;
+  id: string;
+  run_no: number;
+  step_name: string;
+  system: IntegrationCallView["system"];
+  operation: string;
+  method: string;
+  path: string;
+  idempotency_key: string | null;
+  attempt: number;
+  http_status: number | null;
+  outcome: IntegrationCallView["outcome"];
+  retry_after_ms: number | null;
+  latency_ms: number;
+  error: string | null;
+  created_at: string;
+};
+
+export function toIntegrationCallView(r: IntegrationCallRow): IntegrationCallView {
+  return {
+    id: r.id,
+    runNo: r.run_no,
+    stepName: r.step_name,
+    system: r.system,
+    operation: r.operation,
+    method: r.method,
+    path: r.path,
+    idempotencyKey: r.idempotency_key,
+    attempt: r.attempt,
+    httpStatus: r.http_status,
+    outcome: r.outcome,
+    retryAfterMs: r.retry_after_ms,
+    latencyMs: r.latency_ms,
+    error: r.error,
+    createdAt: r.created_at,
+  };
 }

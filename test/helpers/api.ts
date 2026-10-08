@@ -50,3 +50,9 @@ export async function call(path: string, o: CallOptions = {}): Promise<Response>
 export async function json<T = unknown>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
+
+export async function api<T = any>(path: string, o: CallOptions = {}): Promise<{ status: number; body: T; headers: Headers }> {
+  const res = await call(path, o);
+  const text = await res.text();
+  return { status: res.status, body: (text ? JSON.parse(text) : null) as T, headers: res.headers };
+}
