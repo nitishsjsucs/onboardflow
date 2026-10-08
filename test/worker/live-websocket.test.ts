@@ -1,8 +1,9 @@
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { CaseState } from "../../src/shared/agent-state.ts";
-import { tokenFor } from "../helpers/api.ts";
-import { cmdFor, managerOf, rpc } from "../helpers/workflow.ts";
+import { env } from "cloudflare:workers";
+import { call, tokenFor } from "../helpers/api.ts";
+import { managerOf } from "../helpers/workflow.ts";
 
 type Msg = { type: string; state?: unknown; error?: string };
 
@@ -79,9 +80,14 @@ describe("live WebSocket subscriptions", () => {
     expect(c.status).toBe(101);
     await until(c.messages, (m) => m.type === "cf_agent_state");
     const before = c.messages.length;
-    // a command changes D1 and the agent pushes the new projection
-    const agent = await rpc("E132");
-    await agent.fixField("costCenter", "CC-4242", await cmdFor("C01"));
+    // the employee completes a checklist task through the API; the agent pushes the new projection
+    await env.DB.prepare(
+      "INSERT INTO tasks (id, employee_id, stage_id, kind, template_key, assignee, title, description, status, created_at) VALUES ('chk:E132:w4','E132','paperwork','checklist','w4','employee','W-4','d','open',?)",
+    )
+      .bind(new Date().toISOString())
+      .run();
+    const done = await call("/api/tasks/chk:E132:w4/complete", { as: "E132", body: {} });
+    expect(done.status).toBe(200);
     const pushed = await until(c.messages.slice(before), (m) => m.type === "cf_agent_state");
     expect((pushed.state as CaseState).employeeId).toBe("E132");
     // a client write is refused
