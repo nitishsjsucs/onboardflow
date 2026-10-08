@@ -38,3 +38,17 @@ export const Health = z.object({ ok: z.literal(true), authMode: z.enum(["access"
 export type ErrorEnvelope = { error: { code: string; message: string; requestId: string } };
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
+
+// Fault plans for the simulated systems (eval hooks and tests only).
+export const FaultPlanInput = z.object({
+  system: z.enum(["hr", "it", "facilities"]),
+  /** Simulator operation name without the system prefix, e.g. "order-device" or "get-device-order". */
+  operation: z.string().min(1),
+  /** null or omitted = any employee */
+  employeeRef: z.string().nullable().optional(),
+  fault: z.enum(["fail_503", "rate_limit_429", "timeout", "lost_response", "malformed", "stall", "conflict_409"]),
+  /** null or omitted = until cleared (sustained outage) */
+  remaining: z.number().int().min(1).nullable().optional(),
+  params: z.object({ retryAfterMs: z.number().int().min(0).optional() }).optional(),
+});
+export type FaultPlanInput = z.infer<typeof FaultPlanInput>;

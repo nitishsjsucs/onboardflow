@@ -62,3 +62,32 @@ export async function workerAndAccount(employeeRef: string, employmentType = "fu
   });
   return { workerId: w.body.id, accountId: a.body.id };
 }
+
+export type FaultPlan = {
+  system: "hr" | "it" | "facilities";
+  operation: string;
+  employeeRef?: string | null;
+  fault: "fail_503" | "rate_limit_429" | "timeout" | "lost_response" | "malformed" | "stall" | "conflict_409";
+  remaining?: number | null;
+  params?: { retryAfterMs?: number };
+};
+
+export async function setFault(plan: FaultPlan): Promise<number> {
+  const res = await sim("/admin/faults", { body: plan });
+  if (res.status !== 201) throw new Error(`setFault failed: ${res.status} ${await res.text()}`);
+  return ((await res.json()) as { id: number }).id;
+}
+
+export async function clearFaults(employeeRef?: string): Promise<number> {
+  const res = await exports.default.fetch(
+    new Request(`http://localhost/sim/admin/faults${employeeRef ? `?employeeRef=${employeeRef}` : ""}`, {
+      method: "DELETE",
+      headers: { "X-Sim-Api-Key": env.SIM_API_KEY },
+    }),
+  );
+  return ((await res.json()) as { cleared: number }).cleared;
+}
+
+export async function faultRemaining(id: number): Promise<number | null> {
+  return (await env.DB.prepare("SELECT remaining FROM sim_fault_plans WHERE id = ?").bind(id).first<{ remaining: number | null }>())!.remaining;
+}
