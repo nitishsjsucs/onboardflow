@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 17 of 25 (Tier 1) done.
+Current: commit 18 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -26,8 +26,8 @@ Current: commit 17 of 25 (Tier 1) done.
 | 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | done |
 | 16 | feat(api): REST routes | done |
 | 17 | feat(api): dev eval hooks | done |
-| 18 | feat(web): app shell, dev login, routing, API client, employee portal | next |
-| 19 | feat(web): approvals, queue, cases, case detail with audit trail | todo |
+| 18 | feat(web): app shell, dev login, routing, API client, employee portal | done |
+| 19 | feat(web): approvals, queue, cases, case detail with audit trail | next |
 | 20 | feat(web): live dashboard | todo |
 | 21 | feat(eval): 60-scenario catalog | todo |
 | 22 | feat(eval): harness, standard and scale modes, metrics | todo |
@@ -38,7 +38,7 @@ Current: commit 17 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (29 files, 247 tests)
+- `npm test`: pass (31 files, 257 tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 

@@ -1,0 +1,68 @@
+/* Design tokens: neutral palette, light and dark schemes, system font stack. */
+:root {
+  color-scheme: light dark;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius: 8px;
+  --gap: 16px;
+
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --surface-2: #f0f1f3;
+  --border: #dcdee3;
+  --text: #1c1e22;
+  --muted: #5d636e;
+  --accent: #2f5bd3;
+  --accent-text: #ffffff;
+  --ok: #1d7a46;
+  --ok-bg: #e3f4ea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf1d8;
+  --bad: #b3261e;
+  --bad-bg: #fbe4e2;
+  --info: #2f5bd3;
+  --info-bg: #e5ecfb;
+  --idle-bg: #eceef1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121316;
+    --surface: #1b1d21;
+    --surface-2: #23262b;
+    --border: #33373e;
+    --text: #e8e9ec;
+    --muted: #9aa0ab;
+    --accent: #7d9bf0;
+    --accent-text: #0e1117;
+    --ok: #6fcf97;
+    --ok-bg: #18301f;
+    --warn: #f0c060;
+    --warn-bg: #33290f;
+    --bad: #f28b82;
+    --bad-bg: #3a1b19;
+    --info: #8fb0ff;
+    --info-bg: #1b2440;
+    --idle-bg: #26292e;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #121316;
+  --surface: #1b1d21;
+  --surface-2: #23262b;
+  --border: #33373e;
+  --text: #e8e9ec;
+  --muted: #9aa0ab;
+  --accent: #7d9bf0;
+  --accent-text: #0e1117;
+  --ok: #6fcf97;
+  --ok-bg: #18301f;
+  --warn: #f0c060;
+  --warn-bg: #33290f;
+  --bad: #f28b82;
+  --bad-bg: #3a1b19;
+  --info: #8fb0ff;
+  --info-bg: #1b2440;
+  --idle-bg: #26292e;
+}

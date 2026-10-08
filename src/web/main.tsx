@@ -1,15 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-
-function Placeholder() {
-  return <main><h1>OnboardFlow</h1></main>;
-}
+import { App } from "./App.tsx";
+import "./styles/tokens.css";
+import "./styles/app.css";
 
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <Placeholder />
+      <App />
     </StrictMode>,
   );
 }
