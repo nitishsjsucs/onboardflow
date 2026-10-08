@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 16 of 25 (Tier 1) done.
+Current: commit 17 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -25,8 +25,8 @@ Current: commit 16 of 25 (Tier 1) done.
 | 14 | feat(agents): blocker rules, nudges, follow-up drafting, scheduled scans | done |
 | 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | done |
 | 16 | feat(api): REST routes | done |
-| 17 | feat(api): dev eval hooks | next |
-| 18 | feat(web): app shell, dev login, routing, API client, employee portal | todo |
+| 17 | feat(api): dev eval hooks | done |
+| 18 | feat(web): app shell, dev login, routing, API client, employee portal | next |
 | 19 | feat(web): approvals, queue, cases, case detail with audit trail | todo |
 | 20 | feat(web): live dashboard | todo |
 | 21 | feat(eval): 60-scenario catalog | todo |
@@ -38,7 +38,7 @@ Current: commit 16 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (28 files, 240 tests)
+- `npm test`: pass (29 files, 247 tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -65,6 +65,8 @@ Current: commit 16 of 25 (Tier 1) done.
 13. `ops-hub-agent.test.ts` compares the hub's domain fields with `computeHubDomain()` (the function `/api/dashboard/summary` serves) until the route exists in commit 16, which adds the HTTP comparison. Hub rollups count `revision_requested` stages as `waiting`; incidents use open `integration_outage` and `provisioning_stalled` blockers detected in the last 15 minutes, grouped by system.
 
 14. API details the SPEC leaves open: `PATCH /api/employees/:id` takes exactly one field per request (each correction is its own audited change); `/api/me/checklist` also returns the employee's open `blockers` for the portal; approval list items carry `resubmittable`; People Ops coordinators see closeout approvals plus rejected approvals of both checkpoints; every response carries `X-Request-Id` (the audit test correlates audit rows by it). `cases.scan` writes no user audit row of its own (what it opens or resolves is audited as agent actions), so the audit test excludes it with that reason.
+
+15. Eval hooks: the `/api/dev/*` guard runs before authentication so the paths are plain 404s outside dev mode; every hook mutation goes through the same Idempotency-Key wrapper (a replayed clock advance does not advance twice). Profile corruption is audited as `eval.fault_set` with `detail.corrupt`, since the closed AuditAction catalog has no separate corruption action. The hooks are not in `API_ROUTES` (that registry lists the product API the role matrix covers); `eval-hooks.test.ts` checks they are admin only.
 
 ## Environment notes
 

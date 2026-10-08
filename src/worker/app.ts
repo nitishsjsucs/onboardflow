@@ -18,6 +18,7 @@ import { blockerRoutes } from "./routes/blockers.ts";
 import { caseRoutes } from "./routes/cases.ts";
 import { dashboardRoutes } from "./routes/dashboard.ts";
 import { employeeRoutes } from "./routes/employees.ts";
+import { evalHookRoutes, evalHooksEnabled } from "./routes/eval-hooks.ts";
 import { followupRoutes } from "./routes/followups.ts";
 import { integrationRoutes } from "./routes/integrations.ts";
 import { meRoutes } from "./routes/me.ts";
@@ -73,6 +74,7 @@ export function createApp() {
   app.use("/agents/*", requireUser);
   app.route("/agents", agentRoutes());
 
+  app.use("/api/dev/*", evalHooksEnabled);
   app.use("/api/*", requireUser);
   app.use("/api/*", requireSameOrigin);
   app.use("/api/*", requireIdempotencyKey);
@@ -86,6 +88,7 @@ export function createApp() {
   app.route("/api/dashboard", dashboardRoutes());
   app.route("/api/integrations", integrationRoutes());
   app.route("/api/audit", auditRoutes());
+  app.route("/api/dev", evalHookRoutes());
 
   app.notFound((c) => apiError(c, 404, "not_found", "not found"));
   app.onError((err, c) => {

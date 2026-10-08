@@ -73,3 +73,19 @@ describe("signing key is only needed by /dev/login", () => {
     expect(me.status).toBe(200);
   });
 });
+
+describe("eval hooks exist only in dev mode", () => {
+  it("returns 404 for /api/dev/* and /sim/admin/* when AUTH_MODE=access, before any authentication", async () => {
+    for (const [path, method] of [
+      ["/api/dev/eval/hub", "GET"],
+      ["/api/dev/faults", "POST"],
+      ["/api/dev/clock/advance", "POST"],
+      ["/api/dev/agents/case/E001/evict", "POST"],
+    ] as const) {
+      const res = await appFetch(`http://localhost${path}`, method === "POST" ? post("http://localhost", {}) : {}, ACCESS);
+      expect(res.status, path).toBe(404);
+    }
+    const sim = await appFetch("http://localhost/sim/admin/ledger", { headers: { "X-Sim-Api-Key": env.SIM_API_KEY } }, ACCESS);
+    expect(sim.status).toBe(404);
+  });
+});

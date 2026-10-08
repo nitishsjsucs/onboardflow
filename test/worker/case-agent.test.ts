@@ -83,7 +83,9 @@ describe("startCase", () => {
     await stub.startCase(await cmdFor("A01"));
     const state = await stub.getSnapshot();
     const fromD1 = await projectCase(DB, "E042", null, state.projectedAt);
-    expect({ ...state, workflow: { ...state.workflow, status: null } }).toEqual(fromD1);
+    // asOfSeq is the global audit high-water mark; other cases may have advanced it since the refresh
+    expect({ ...state, workflow: { ...state.workflow, status: null }, asOfSeq: 0 }).toEqual({ ...fromD1, asOfSeq: 0 });
+    expect(state.asOfSeq).toBeLessThanOrEqual(fromD1!.asOfSeq);
     expect(state.stages).toHaveLength(8);
     expect(state.status).toBe("in_progress");
     const schedules = await runInDurableObject(stub, async (agent: CaseAgent) => (await agent.listSchedules({ type: "interval" })).map((s) => s.callback));
