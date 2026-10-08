@@ -11,6 +11,7 @@ import {
   rpc,
   stageRow,
   startCase,
+  waitFor,
   waitForCase,
   waitForStage,
 } from "../helpers/workflow.ts";
@@ -35,6 +36,14 @@ describe("approval checkpoints", () => {
       expect((await decide("E100", "manager_approval", "reject", manager)).status).toBe(200);
       await waitForStage("E100", "manager_approval", "revision_requested");
       expect((await DB.prepare("SELECT status FROM cases WHERE employee_id = 'E100'").first())).toEqual({ status: "blocked" });
+      const blocker = await waitFor(
+        () => DB.prepare("SELECT id, owner_department, subject FROM blockers WHERE employee_id = 'E100' AND kind = 'approval_rejected'").first<{ id: string; owner_department: string; subject: string }>(),
+        { what: "approval_rejected blocker" },
+      );
+      expect(blocker).toMatchObject({ owner_department: "people_ops", subject: "apr:E100:manager_approval:1" });
+      const fu = await DB.prepare("SELECT title, assignee FROM tasks WHERE blocker_id = ?").bind(blocker.id).first<{ title: string; assignee: string }>();
+      expect(fu!.assignee).toBe("people_ops");
+      expect(fu!.title).toMatch(/^Revise and resubmit/);
       const agent = await rpc("E100");
       // resubmitting a round that is not the rejected one is refused
       expect((await agent.resubmitApproval("apr:E100:manager_approval:1", await cmdFor("C01"), "revised")).status).toBe(202);
@@ -47,6 +56,7 @@ describe("approval checkpoints", () => {
         { id: "apr:E100:manager_approval:2", round: 2, status: "approved", decided_on_behalf_of: null },
       ]);
       expect((await stageRow("E100", "manager_approval"))!.round).toBe(2);
+      expect(await DB.prepare("SELECT status FROM blockers WHERE employee_id = 'E100' AND kind = 'approval_rejected'").first()).toEqual({ status: "resolved" });
       const resub = await DB.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E100' AND action IN ('approval.resubmitted','approval.resubmit_rejected') GROUP BY action ORDER BY action").all<{ n: number }>();
       expect(resub.results.map((r) => r.n)).toEqual([1, 1]);
     } finally {

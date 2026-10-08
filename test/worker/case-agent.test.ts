@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { projectCase } from "../../src/worker/agents/projection.ts";
 import type { CaseAgent } from "../../src/worker/agents/case-agent.ts";
 import type { WorkflowControl } from "../../src/worker/agents/workflow-control.ts";
+import { FollowUpDrafter } from "../../src/worker/agents/followups.ts";
+import { StubLlmProvider } from "../../src/worker/llm/stub.ts";
 import { caseAgent, cmdFor } from "../helpers/workflow.ts";
 
 const DB = env.DB;
@@ -234,5 +236,58 @@ describe("guarded commands", () => {
     });
     expect(control.calls).toContain("ensure:onb-E053-2");
     expect(await count("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'case.revision_created' AND employee_id = 'E053'")).toBe(1);
+  });
+});
+
+describe("blocker scans", () => {
+  async function blockStage(employeeId: string, stage: string, reason: Record<string, unknown>) {
+    const stub = await withControl(employeeId, fakeControl());
+    await stub.startCase(await cmdFor("C01"));
+    await DB.prepare("UPDATE case_stages SET status = 'blocked', blocked_reason_json = ? WHERE employee_id = ? AND stage_id = ?")
+      .bind(JSON.stringify({ round: 1, ...reason }), employeeId, stage)
+      .run();
+    return stub;
+  }
+
+  it("opens a blocker and a follow-up for the owning department once; a second scan opens nothing new", async () => {
+    const stub = await blockStage("E054", "it_provisioning", { class: "retryable", system: "it", operation: "it.order-device", httpStatus: 503 });
+    expect(await stub.scanBlockers()).toEqual({ opened: 1, autoResolved: 0, nudged: 0 });
+    expect(await stub.scanBlockers()).toEqual({ opened: 0, autoResolved: 0, nudged: 0 });
+    const blockers = await DB.prepare("SELECT id, kind, owner_department, status FROM blockers WHERE employee_id = 'E054'").all<{ id: string }>();
+    expect(blockers.results).toEqual([expect.objectContaining({ kind: "integration_outage", owner_department: "it", status: "open" })]);
+    const fu = await DB.prepare("SELECT id, assignee, kind, status, drafted_by, llm_suggested_category FROM tasks WHERE blocker_id = ?").bind(blockers.results[0]!.id).first();
+    expect(fu).toEqual({ id: `fu:${blockers.results[0]!.id}`, assignee: "it", kind: "followup", status: "open", drafted_by: "stub", llm_suggested_category: "integration_outage" });
+    const audits = await DB.prepare("SELECT action FROM audit_events WHERE employee_id = 'E054' AND action IN ('blocker.opened','followup.created') ORDER BY seq").all<{ action: string }>();
+    expect(audits.results.map((a) => a.action)).toEqual(["blocker.opened", "followup.created"]);
+    const state = await stub.getSnapshot();
+    expect(state.openBlockers).toHaveLength(1);
+    expect(state.openTasks.departments.it).toBe(1);
+  });
+
+  it("routes data issues to the field owner", async () => {
+    const stub = await blockStage("E055", "facilities_setup", { class: "fatal", system: "facilities", operation: "facilities.issue-badge", httpStatus: 422, field: "photoOnFile" });
+    await stub.scanBlockers();
+    expect(await DB.prepare("SELECT kind, owner_department FROM blockers WHERE employee_id = 'E055'").first()).toEqual({ kind: "data_issue", owner_department: "facilities" });
+    expect(await DB.prepare("SELECT assignee FROM tasks WHERE employee_id = 'E055' AND kind = 'followup'").first()).toEqual({ assignee: "facilities" });
+  });
+
+  it("serializes interleaved scans (slow drafter): no duplicate blocker or follow-up, no errors", async () => {
+    const stub = await blockStage("E056", "intake", { class: "fatal", system: "hr", operation: "hr.create-worker", httpStatus: 422, field: "costCenter" });
+    await runInDurableObject(stub, (agent: CaseAgent) => {
+      const inner = new StubLlmProvider();
+      agent.drafter = new FollowUpDrafter({
+        id: "stub",
+        completeJson: async (req) => {
+          await new Promise((r) => setTimeout(r, 150));
+          return inner.completeJson(req);
+        },
+      });
+    });
+    const results = await Promise.all([stub.scanBlockers(), stub.scanBlockers(), stub.scanBlockers()]);
+    expect(results.map((r) => r.opened).reduce((a, b) => a + b, 0)).toBe(1);
+    expect(await count("SELECT COUNT(*) AS n FROM blockers WHERE employee_id = 'E056'")).toBe(1);
+    expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE employee_id = 'E056' AND kind = 'followup'")).toBe(1);
+    const runs = await runInDurableObject(stub, (agent: CaseAgent) => agent.scanRuns());
+    expect(runs.filter((r) => r.error !== null)).toEqual([]);
   });
 });

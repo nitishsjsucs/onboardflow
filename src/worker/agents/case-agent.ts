@@ -9,16 +9,20 @@ import type { CaseState } from "../../shared/agent-state.ts";
 import { emptyCaseState } from "../../shared/agent-state.ts";
 import type { EmployeeProfileDto } from "../../shared/api.ts";
 import type { FixableField, WakeReason } from "../../shared/domain.ts";
-import { auditIds, instanceId as buildInstanceId, userStamp } from "../../shared/ids.ts";
+import { auditIds, blockerId, instanceId as buildInstanceId, userStamp } from "../../shared/ids.ts";
 import { type StageId } from "../../shared/stages.ts";
 import { parseConfig } from "../config.ts";
 import { auditInsertWhen, type AuditInput, stamped } from "../db/audit.ts";
+import { openBlockerStatements } from "../db/blockers.ts";
 import { loadClock, type Clock } from "../db/clock.ts";
 import { runGuarded } from "../db/guarded.ts";
 import { getApproval, getBlocker, getEmployee, getTask, toApprovalView, toBlockerView, toTaskView } from "../db/repo.ts";
 import type { Principal } from "../http.ts";
 import { errorMessage, isEngineAbort } from "../integrations/errors.ts";
-import { projectCase } from "./projection.ts";
+import { createLlmProvider } from "../llm/provider.ts";
+import { detectBlockers, nudgeTargets, resolvedBlockers } from "./blocker-rules.ts";
+import { FollowUpDrafter } from "./followups.ts";
+import { loadScanSnapshot, projectCase } from "./projection.ts";
 import { Serial } from "./serial.ts";
 import { SdkWorkflowControl, type WorkflowControl } from "./workflow-control.ts";
 
@@ -480,12 +484,110 @@ export class CaseAgent extends Agent<Env, CaseState> {
     }
   }
 
-  /** Blocker detection and follow-ups arrive with the rule engine; until then a scan only refreshes. */
+  /** Replaceable in tests (for example a slow drafter to force interleaving). */
+  drafter: FollowUpDrafter | null = null;
+
+  #drafter(): FollowUpDrafter {
+    if (!this.drafter) this.drafter = new FollowUpDrafter(createLlmProvider(this.config, this.env));
+    return this.drafter;
+  }
+
+  /**
+   * Scan (serialized): open blockers and follow-ups for new rule candidates,
+   * auto-resolve blockers whose condition cleared, nudge waiting stages whose
+   * gate already holds in D1, refresh. Idempotent: running it twice opens nothing new.
+   */
   async scanBlockers(): Promise<ScanResult> {
     return this.#serial.run(async () => {
-      await this.#refreshNow();
-      return { opened: 0, autoResolved: 0, nudged: 0 };
+      const db = this.env.DB;
+      const clock = await this.clock();
+      const startedAt = clock.nowIso();
+      const result: ScanResult = { opened: 0, autoResolved: 0, nudged: 0 };
+      let candidates = 0;
+      let wakeFailures = 0;
+      let error: string | null = null;
+      try {
+        const snapshot = await loadScanSnapshot(db, this.employeeId);
+        if (snapshot) {
+          const nowMs = clock.nowMs();
+          const open = new Set(snapshot.openBlockers.map((b) => b.dedupeKey));
+          const fresh = detectBlockers(snapshot, nowMs).filter((c) => !open.has(c.dedupeKey));
+          candidates = fresh.length;
+          const actor = { type: "agent" as const, id: `case-agent/${this.employeeId}` };
+          for (const c of fresh) {
+            // Draft first (LLM or template), then write blocker + follow-up + audits in one batch.
+            const draft = await this.#drafter().draft(c, { employeeName: snapshot.employeeName });
+            const detectedAt = clock.nowIso();
+            const id = blockerId(c.dedupeKey, Date.parse(detectedAt));
+            const results = await db.batch(
+              openBlockerStatements(
+                db,
+                { id, employeeId: this.employeeId, stageId: c.stageId, kind: c.kind, severity: c.severity, ownerDepartment: c.ownerDepartment, subject: c.subject, dedupeKey: c.dedupeKey, detail: c.detail, detectedAt },
+                {
+                  title: draft.title,
+                  description: draft.description,
+                  assignee: c.ownerDepartment,
+                  dueAt: new Date(Date.parse(detectedAt) + 86_400_000).toISOString(),
+                  draftedBy: draft.draftedBy,
+                  llmSuggestedCategory: draft.suggestedCategory,
+                },
+                actor,
+              ),
+            );
+            if ((results[0]?.meta.changes ?? 0) > 0) result.opened++;
+          }
+          for (const r of resolvedBlockers(snapshot, nowMs)) {
+            const now = clock.nowIso();
+            const stamp = `ag:${this.employeeId}:auto-resolve:${r.blockerId}`;
+            const { applied } = await runGuarded({
+              db,
+              mutation: db
+                .prepare("UPDATE blockers SET status = 'resolved', resolved_at = ?, resolved_by = ?, resolution = ?, last_mutation_id = ? WHERE id = ? AND status = 'open'")
+                .bind(now, actor.id, `auto: ${r.reason}`, stamp, r.blockerId),
+              applied: stamped("blockers", "id = ?", [r.blockerId], stamp),
+              onApplied: (when) => [
+                db.prepare(`UPDATE tasks SET status = 'cancelled', last_mutation_id = ? WHERE blocker_id = ? AND status = 'open' AND ${when.sql}`).bind(stamp, r.blockerId, ...when.binds),
+                auditInsertWhen(
+                  db,
+                  {
+                    id: auditIds.agent(this.employeeId, "blocker.auto_resolved", r.blockerId),
+                    occurredAt: now,
+                    actorType: "agent",
+                    actorId: actor.id,
+                    action: "blocker.auto_resolved",
+                    entityType: "blocker",
+                    entityId: r.blockerId,
+                    employeeId: this.employeeId,
+                    detail: { kind: r.kind, reason: r.reason },
+                  },
+                  when,
+                ),
+              ],
+            });
+            if (applied) result.autoResolved++;
+          }
+          for (const stage of nudgeTargets(snapshot, nowMs, this.config.gates.nudgeAfterS)) {
+            if (await this.wake(stage, "nudge")) result.nudged++;
+            else wakeFailures++;
+          }
+        }
+        await this.#refreshNow();
+      } catch (err) {
+        error = errorMessage(err);
+        console.error(`scan ${this.employeeId}: ${error}`);
+      }
+      try {
+        this.sql`INSERT INTO scan_runs (started_at, finished_at, candidates, opened, resolved, nudged, wake_failures, error)
+          VALUES (${startedAt}, ${new Date().toISOString()}, ${candidates}, ${result.opened}, ${result.autoResolved}, ${result.nudged}, ${wakeFailures}, ${error})`;
+      } catch {
+        // observability only
+      }
+      return result;
     });
+  }
+
+  scanRuns(): Array<Record<string, string | number | null>> {
+    return this.sql`SELECT * FROM scan_runs ORDER BY id`;
   }
 
   async scheduledScan(): Promise<void> {

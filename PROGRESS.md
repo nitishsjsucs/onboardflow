@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 13 of 25 (Tier 1) done.
+Current: commit 14 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -22,8 +22,8 @@ Current: commit 13 of 25 (Tier 1) done.
 | 11 | feat(agents): CaseAgent commands, wake-ups, workflow control, callbacks | done |
 | 12 | feat(workflow): D1 gates and the eight stages end to end | done |
 | 13 | feat(workflow): recovery, approvals, restart, terminate, fallbacks | done |
-| 14 | feat(agents): blocker rules, nudges, follow-up drafting, scheduled scans | next |
-| 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | todo |
+| 14 | feat(agents): blocker rules, nudges, follow-up drafting, scheduled scans | done |
+| 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | next |
 | 16 | feat(api): REST routes | todo |
 | 17 | feat(api): dev eval hooks | todo |
 | 18 | feat(web): app shell, dev login, routing, API client, employee portal | todo |
@@ -38,7 +38,7 @@ Current: commit 13 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (21 files, 169 tests)
+- `npm test`: pass (23 files, 190 tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -58,6 +58,9 @@ Current: commit 13 of 25 (Tier 1) done.
 8. Commit 12 already contains the code paths for recovery rounds and approval reject/resubmit (the stage runner and approval loop are one mechanism with their happy path); commit 13 adds their tests (workflow-retries, -recovery, -approvals, -restart) and any fixes they force.
 9. Test and eval seam: `CaseAgent.startCase(cmd, limits)` passes tighter loop bounds (for example `waitBudget: 2`) to the workflow, which honors them only when `EVAL_HOOKS=on`. Used by the wait-budget test so it runs in seconds instead of 120 bounded waits.
 10. Task gates mark the stage `waiting_on_employee` inside the first failed gate check step and ping the CaseAgent with non-durable `reportProgress`, instead of a separate step plus `sendEvent`; this keeps the worst-case step count at the SPEC's 561.
+
+11. Blocker rule details the SPEC leaves open: `employee_task_overdue` is one blocker per waiting stage (subject `checklist:<stage>`, detail lists the overdue task ids) rather than one per task; integration and data-issue blockers auto-resolve only once the blocked operation succeeds after the blocker opened (or the stage completes), which is what R13 expects; auto-resolved and manually resolved blockers cancel their open follow-up. The stub provider records `drafted_by = "stub"` (not `llm:`), so the LLM rate metric stays honest.
+12. The Workers AI provider (Tier 2) is not built; `LLM_PROVIDER=workers-ai` yields a provider that always fails, so drafting falls back to templates.
 
 ## Environment notes
 
