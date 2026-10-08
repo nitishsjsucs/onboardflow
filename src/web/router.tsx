@@ -6,6 +6,7 @@ import { RoleGate } from "./components/RoleGate.tsx";
 import { ApprovalsPage } from "./pages/ApprovalsPage.tsx";
 import { CaseDetailPage } from "./pages/CaseDetailPage.tsx";
 import { CasesPage } from "./pages/CasesPage.tsx";
+import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { EmployeePortalPage } from "./pages/EmployeePortalPage.tsx";
 import { QueuePage } from "./pages/QueuePage.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
@@ -65,6 +66,14 @@ export const routes: RouteObject[] = [
             ),
           },
           { path: "/cases/:id", element: <CaseDetailPage /> },
+          {
+            path: "/dashboard",
+            element: (
+              <RoleGate roles={["coordinator", "admin"]}>
+                <DashboardPage />
+              </RoleGate>
+            ),
+          },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

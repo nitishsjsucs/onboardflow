@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 19 of 25 (Tier 1) done.
+Current: commit 20 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -28,8 +28,8 @@ Current: commit 19 of 25 (Tier 1) done.
 | 17 | feat(api): dev eval hooks | done |
 | 18 | feat(web): app shell, dev login, routing, API client, employee portal | done |
 | 19 | feat(web): approvals, queue, cases, case detail with audit trail | done |
-| 20 | feat(web): live dashboard | next |
-| 21 | feat(eval): 60-scenario catalog | todo |
+| 20 | feat(web): live dashboard | done |
+| 21 | feat(eval): 60-scenario catalog | next |
 | 22 | feat(eval): harness, standard and scale modes, metrics | todo |
 | 23 | ci | todo |
 | 24 | docs: README, CONTEXT.md, ADRs | todo |
@@ -38,7 +38,7 @@ Current: commit 19 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (34 files, 264 tests)
+- `npm test`: pass (35 files, 265 tests)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
