@@ -23,7 +23,8 @@ export function printRun(run: EvalRun): string {
 
 /** The README Results block, rendered from recorded runs only. */
 export function renderResults(runs: EvalRun[]): string {
-  const sorted = [...runs].sort((a, b) => a.mode.localeCompare(b.mode));
+  const rank = (m: string) => (m === "standard" ? 0 : m === "scale" ? 1 : 2);
+  const sorted = [...runs].sort((a, b) => rank(a.mode) - rank(b.mode) || a.mode.localeCompare(b.mode));
   const out: string[] = [];
   for (const r of sorted) {
     const date = r.startedAt.slice(0, 10);

@@ -53,7 +53,8 @@ describe("migrations", () => {
   it("seed the 8 stages, 10 checklist templates and the sim clock row", async () => {
     expect((await DB.prepare("SELECT COUNT(*) AS n FROM stages").first<{ n: number }>())?.n).toBe(8);
     expect((await DB.prepare("SELECT COUNT(*) AS n FROM task_templates").first<{ n: number }>())?.n).toBe(10);
-    expect(await DB.prepare("SELECT offset_ms FROM sim_clock WHERE id = 1").first()).toEqual({ offset_ms: 0 });
+    // the migration inserts offset 0; the test setup then pins the simulated clock to the seed's reference date
+    expect((await DB.prepare("SELECT COUNT(*) AS n FROM sim_clock WHERE id = 1").first<{ n: number }>())?.n).toBe(1);
   });
 
   it("enforce foreign keys", async () => {

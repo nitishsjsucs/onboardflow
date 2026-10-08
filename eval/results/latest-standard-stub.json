@@ -1,0 +1,3676 @@
+{
+  "runId": "2026-10-08T23-02-02-186Z-standard",
+  "startedAt": "2026-10-08T23:02:09.018Z",
+  "gitSha": "1a1887303687048011472e6da8d1853af47bc483",
+  "mode": "standard",
+  "llmProvider": "stub",
+  "seeds": [],
+  "environment": {
+    "runtime": "local wrangler dev (Miniflare/workerd)",
+    "wrangler": "4.149.0",
+    "workerd": "1.20261006.1",
+    "node": "v25.9.0",
+    "machine": "darwin 25.5.0, 10 cpus"
+  },
+  "config": {
+    "retryLimit": 4,
+    "retryBaseDelayMs": 20,
+    "pollIntervalMs": 20,
+    "pollMax": 12,
+    "integrationTimeoutMs": 2000,
+    "gateWaitTimeoutMs": 3000,
+    "concurrency": 6
+  },
+  "simulatedNow": "2026-10-08T12:00:00.000Z",
+  "totals": {
+    "startedCases": 60,
+    "scenarios": 60,
+    "completed": 60,
+    "completionRate": 1,
+    "passed": 60,
+    "passRate": 1
+  },
+  "byCategory": {
+    "onboarding": {
+      "scenarios": 20,
+      "completed": 20,
+      "passed": 20
+    },
+    "integration_failure": {
+      "scenarios": 24,
+      "completed": 24,
+      "passed": 24
+    },
+    "recovery": {
+      "scenarios": 16,
+      "completed": 16,
+      "passed": 16
+    }
+  },
+  "integration": {
+    "calls": 1284,
+    "retriedCalls": 60,
+    "replays": 28,
+    "duplicateSideEffects": 0,
+    "bySystem": {
+      "hr": {
+        "calls": 458,
+        "ok": 433,
+        "retryable": 11,
+        "fatal": 3,
+        "timeouts": 1,
+        "replayed": 10
+      },
+      "it": {
+        "calls": 484,
+        "ok": 444,
+        "retryable": 26,
+        "fatal": 1,
+        "timeouts": 1,
+        "replayed": 12
+      },
+      "facilities": {
+        "calls": 342,
+        "ok": 313,
+        "retryable": 20,
+        "fatal": 1,
+        "timeouts": 1,
+        "replayed": 6
+      }
+    }
+  },
+  "regression": {
+    "blockers": {
+      "expected": 20,
+      "detected": 20,
+      "truePositives": 20,
+      "precision": 1,
+      "recall": 1
+    },
+    "audit": {
+      "auditableActions": 2529,
+      "auditedActions": 2529,
+      "coverage": 1,
+      "completedCasesWithFull8StageTrail": 60
+    },
+    "hubConsistency": {
+      "matchesReconcile": true,
+      "diffs": []
+    }
+  },
+  "followups": {
+    "created": 20,
+    "correctDepartmentRate": 1,
+    "draftedByLlmRate": 0,
+    "llmSchemaValidRate": null,
+    "llmCategoryAgreement": null,
+    "llmLatencyP50Ms": null
+  },
+  "timing": {
+    "scenarioP50Ms": 4276,
+    "scenarioP95Ms": 6011,
+    "totalMs": 51393
+  },
+  "failures": [],
+  "chaos": null,
+  "scenarios": [
+    {
+      "scenarioId": "O01",
+      "category": "onboarding",
+      "employeeId": "E011",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5434,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "O02",
+      "category": "onboarding",
+      "employeeId": "E009",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5496,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "O03",
+      "category": "onboarding",
+      "employeeId": "E003",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5432,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O04",
+      "category": "onboarding",
+      "employeeId": "E001",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5408,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O05",
+      "category": "onboarding",
+      "employeeId": "E006",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5429,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O06",
+      "category": "onboarding",
+      "employeeId": "E002",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5430,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O07",
+      "category": "onboarding",
+      "employeeId": "E008",
+      "completed": true,
+      "passed": true,
+      "durationMs": 6105,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O08",
+      "category": "onboarding",
+      "employeeId": "E018",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5447,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O09",
+      "category": "onboarding",
+      "employeeId": "E014",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5230,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "O10",
+      "category": "onboarding",
+      "employeeId": "E017",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2120,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "O11",
+      "category": "onboarding",
+      "employeeId": "E020",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5237,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O12",
+      "category": "onboarding",
+      "employeeId": "E023",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5591,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O13",
+      "category": "onboarding",
+      "employeeId": "E042",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5530,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O14",
+      "category": "onboarding",
+      "employeeId": "E028",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4276,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O15",
+      "category": "onboarding",
+      "employeeId": "E004",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4273,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O16",
+      "category": "onboarding",
+      "employeeId": "E026",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4671,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O17",
+      "category": "onboarding",
+      "employeeId": "E036",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5253,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O18",
+      "category": "onboarding",
+      "employeeId": "E032",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4825,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O19",
+      "category": "onboarding",
+      "employeeId": "E035",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4765,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "O20",
+      "category": "onboarding",
+      "employeeId": "E024",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2942,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "F-hr-transient",
+      "category": "integration_failure",
+      "employeeId": "E038",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3067,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 21,
+        "retriedCalls": 2,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 9,
+            "ok": 7,
+            "retryable": 2,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 41,
+        "auditedActions": 41,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-hr-rate-limit",
+      "category": "integration_failure",
+      "employeeId": "E041",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3450,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-hr-timeout",
+      "category": "integration_failure",
+      "employeeId": "E044",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4795,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 1,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-hr-lost-response",
+      "category": "integration_failure",
+      "employeeId": "E047",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3015,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 1,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 8,
+            "ok": 6,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 1
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-hr-malformed",
+      "category": "integration_failure",
+      "employeeId": "E050",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3114,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-hr-validation",
+      "category": "integration_failure",
+      "employeeId": "E053",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2454,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 1,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 42,
+        "auditedActions": 42,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "data_issue",
+            "stage": "intake"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "data_issue",
+          "stage": "intake"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-hr-outage",
+      "category": "integration_failure",
+      "employeeId": "E056",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5427,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 24,
+        "retriedCalls": 5,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 12,
+            "ok": 7,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 46,
+        "auditedActions": 46,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "integration_outage",
+            "stage": "intake"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "integration_outage",
+          "stage": "intake"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-hr-stall",
+      "category": "integration_failure",
+      "employeeId": "E059",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3758,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 32,
+        "retriedCalls": 0,
+        "replays": 1,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 20,
+            "ok": 19,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 1
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 54,
+        "auditedActions": 54,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "provisioning_stalled",
+            "stage": "paperwork"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "provisioning_stalled",
+          "stage": "paperwork"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-it-transient",
+      "category": "integration_failure",
+      "employeeId": "E062",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3069,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 21,
+        "retriedCalls": 2,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 9,
+            "ok": 7,
+            "retryable": 2,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 41,
+        "auditedActions": 41,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-it-rate-limit",
+      "category": "integration_failure",
+      "employeeId": "E065",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2973,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-it-timeout",
+      "category": "integration_failure",
+      "employeeId": "E068",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5484,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 1,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-it-lost-response",
+      "category": "integration_failure",
+      "employeeId": "E071",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3100,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 1,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 8,
+            "ok": 6,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 1
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-it-malformed",
+      "category": "integration_failure",
+      "employeeId": "E074",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2763,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-it-validation",
+      "category": "integration_failure",
+      "employeeId": "E005",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2868,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 8,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 1,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 42,
+        "auditedActions": 42,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "data_issue",
+            "stage": "it_provisioning"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "data_issue",
+          "stage": "it_provisioning"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-it-outage",
+      "category": "integration_failure",
+      "employeeId": "E077",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5741,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 24,
+        "retriedCalls": 5,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 12,
+            "ok": 7,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 46,
+        "auditedActions": 46,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "integration_outage",
+            "stage": "it_provisioning"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "integration_outage",
+          "stage": "it_provisioning"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-it-stall",
+      "category": "integration_failure",
+      "employeeId": "E080",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4316,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 32,
+        "retriedCalls": 0,
+        "replays": 1,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 20,
+            "ok": 19,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 1
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 54,
+        "auditedActions": 54,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "provisioning_stalled",
+            "stage": "it_provisioning"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "provisioning_stalled",
+          "stage": "it_provisioning"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-facilities-transient",
+      "category": "integration_failure",
+      "employeeId": "E083",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2939,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 21,
+        "retriedCalls": 2,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 7,
+            "ok": 5,
+            "retryable": 2,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 41,
+        "auditedActions": 41,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-facilities-rate-limit",
+      "category": "integration_failure",
+      "employeeId": "E086",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4104,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 6,
+            "ok": 5,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-facilities-timeout",
+      "category": "integration_failure",
+      "employeeId": "E089",
+      "completed": true,
+      "passed": true,
+      "durationMs": 6511,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 6,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 1,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-facilities-lost-response",
+      "category": "integration_failure",
+      "employeeId": "E092",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4441,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 1,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 6,
+            "ok": 4,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 1
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-facilities-malformed",
+      "category": "integration_failure",
+      "employeeId": "E095",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4055,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 1,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 6,
+            "ok": 5,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "F-facilities-validation",
+      "category": "integration_failure",
+      "employeeId": "E098",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4447,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 6,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 1,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 42,
+        "auditedActions": 42,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "data_issue",
+            "stage": "facilities_setup"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "data_issue",
+          "stage": "facilities_setup"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-facilities-outage",
+      "category": "integration_failure",
+      "employeeId": "E101",
+      "completed": true,
+      "passed": true,
+      "durationMs": 6011,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 24,
+        "retriedCalls": 5,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 10,
+            "ok": 5,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 46,
+        "auditedActions": 46,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "integration_outage",
+            "stage": "facilities_setup"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "integration_outage",
+          "stage": "facilities_setup"
+        }
+      ]
+    },
+    {
+      "scenarioId": "F-facilities-stall",
+      "category": "integration_failure",
+      "employeeId": "E104",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4740,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 32,
+        "retriedCalls": 0,
+        "replays": 1,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 18,
+            "ok": 17,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 1
+          }
+        },
+        "auditableActions": 54,
+        "auditedActions": 54,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "provisioning_stalled",
+            "stage": "facilities_setup"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "provisioning_stalled",
+          "stage": "facilities_setup"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R01",
+      "category": "recovery",
+      "employeeId": "E107",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3388,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 43,
+        "auditedActions": 43,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "approval_rejected",
+            "stage": "manager_approval"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "approval_rejected",
+          "stage": "manager_approval"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R02",
+      "category": "recovery",
+      "employeeId": "E110",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2116,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 41,
+        "auditedActions": 41,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "approval_overdue",
+            "stage": "manager_approval"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "approval_overdue",
+          "stage": "manager_approval"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R03",
+      "category": "recovery",
+      "employeeId": "E029",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2310,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 41,
+        "auditedActions": 41,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "employee_task_overdue",
+            "stage": "paperwork"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "employee_task_overdue",
+          "stage": "paperwork"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R04",
+      "category": "recovery",
+      "employeeId": "E113",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3228,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 43,
+        "auditedActions": 43,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "approval_rejected",
+            "stage": "closeout"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "approval_rejected",
+          "stage": "closeout"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R05",
+      "category": "recovery",
+      "employeeId": "E116",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5552,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 28,
+        "retriedCalls": 5,
+        "replays": 4,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 9,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 2
+          },
+          "it": {
+            "calls": 14,
+            "ok": 7,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 2
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 50,
+        "auditedActions": 50,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "integration_outage",
+            "stage": "it_provisioning"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "integration_outage",
+          "stage": "it_provisioning"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R06",
+      "category": "recovery",
+      "employeeId": "E119",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3024,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 30,
+        "retriedCalls": 0,
+        "replays": 8,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 11,
+            "ok": 8,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 3
+          },
+          "it": {
+            "calls": 11,
+            "ok": 8,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 3
+          },
+          "facilities": {
+            "calls": 8,
+            "ok": 6,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 2
+          }
+        },
+        "auditableActions": 50,
+        "auditedActions": 50,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "R07",
+      "category": "recovery",
+      "employeeId": "E122",
+      "completed": true,
+      "passed": true,
+      "durationMs": 2233,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "R08",
+      "category": "recovery",
+      "employeeId": "E125",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3206,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "R09",
+      "category": "recovery",
+      "employeeId": "E128",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3202,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 21,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 9,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 2,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 43,
+        "auditedActions": 43,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "data_issue",
+            "stage": "intake"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "data_issue",
+          "stage": "intake"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R10",
+      "category": "recovery",
+      "employeeId": "E131",
+      "completed": true,
+      "passed": true,
+      "durationMs": 7725,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 29,
+        "retriedCalls": 10,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 12,
+            "ok": 7,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 10,
+            "ok": 5,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 53,
+        "auditedActions": 53,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "integration_outage",
+            "stage": "it_provisioning"
+          },
+          {
+            "kind": "integration_outage",
+            "stage": "facilities_setup"
+          }
+        ],
+        "followups": {
+          "created": 2,
+          "correctDepartment": 2,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "integration_outage",
+          "stage": "it_provisioning"
+        },
+        {
+          "kind": "integration_outage",
+          "stage": "facilities_setup"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R11",
+      "category": "recovery",
+      "employeeId": "E134",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3474,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 33,
+        "retriedCalls": 1,
+        "replays": 2,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 21,
+            "ok": 18,
+            "retryable": 1,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 2
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 55,
+        "auditedActions": 55,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "provisioning_stalled",
+            "stage": "it_provisioning"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "provisioning_stalled",
+          "stage": "it_provisioning"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R12",
+      "category": "recovery",
+      "employeeId": "E137",
+      "completed": true,
+      "passed": true,
+      "durationMs": 5068,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 24,
+        "retriedCalls": 5,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 10,
+            "ok": 5,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 46,
+        "auditedActions": 46,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "integration_outage",
+            "stage": "facilities_setup"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "integration_outage",
+          "stage": "facilities_setup"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R13",
+      "category": "recovery",
+      "employeeId": "E140",
+      "completed": true,
+      "passed": true,
+      "durationMs": 4911,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 24,
+        "retriedCalls": 5,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 12,
+            "ok": 7,
+            "retryable": 5,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 47,
+        "auditedActions": 47,
+        "full8StageTrail": true,
+        "blockersDetected": [
+          {
+            "kind": "integration_outage",
+            "stage": "it_provisioning"
+          }
+        ],
+        "followups": {
+          "created": 1,
+          "correctDepartment": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": [
+        {
+          "kind": "integration_outage",
+          "stage": "it_provisioning"
+        }
+      ]
+    },
+    {
+      "scenarioId": "R14",
+      "category": "recovery",
+      "employeeId": "E143",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3623,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 19,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 39,
+        "auditedActions": 39,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    },
+    {
+      "scenarioId": "R15",
+      "category": "recovery",
+      "employeeId": "E007",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3503,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 20,
+        "retriedCalls": 0,
+        "replays": 0,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "it": {
+            "calls": 7,
+            "ok": 7,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          },
+          "facilities": {
+            "calls": 6,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
+          }
+        },
+        "auditableActions": 40,
+        "auditedActions": 40,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": []
+    },
+    {
+      "scenarioId": "R16",
+      "category": "recovery",
+      "employeeId": "E146",
+      "completed": true,
+      "passed": true,
+      "durationMs": 3306,
+      "failures": [],
+      "failureReason": null,
+      "facts": {
+        "completed": true,
+        "failedReason": null,
+        "calls": 30,
+        "retriedCalls": 0,
+        "replays": 8,
+        "duplicateSideEffects": 0,
+        "bySystem": {
+          "hr": {
+            "calls": 11,
+            "ok": 8,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 3
+          },
+          "it": {
+            "calls": 11,
+            "ok": 8,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 3
+          },
+          "facilities": {
+            "calls": 8,
+            "ok": 6,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 2
+          }
+        },
+        "auditableActions": 50,
+        "auditedActions": 50,
+        "full8StageTrail": true,
+        "blockersDetected": [],
+        "followups": {
+          "created": 0,
+          "correctDepartment": 0,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0
+        }
+      },
+      "expectedBlockers": null
+    }
+  ]
+}

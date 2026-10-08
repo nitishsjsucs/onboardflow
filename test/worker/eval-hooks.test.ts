@@ -49,8 +49,9 @@ describe("eval hooks", () => {
     expect(await DB.prepare("SELECT fault, remaining FROM sim_fault_plans WHERE id = ?").bind(f.body.id).first()).toEqual({ fault: "fail_503", remaining: 2 });
     expect((await api("/api/dev/faults?employeeRef=E031", { as: "A01", method: "DELETE" })).body).toEqual({ cleared: 1 });
 
+    const before = (await env.DB.prepare("SELECT offset_ms FROM sim_clock WHERE id = 1").first<{ offset_ms: number }>())!.offset_ms;
     const clock = await api("/api/dev/clock/advance", { as: "A01", body: { ms: 49 * 3600_000 } });
-    expect(clock.body).toEqual({ offsetMs: 49 * 3600_000 });
+    expect(clock.body).toEqual({ offsetMs: before + 49 * 3600_000 });
     // the same key replays instead of advancing twice
     const k = crypto.randomUUID();
     const once = await api("/api/dev/clock/advance", { as: "A01", body: { ms: 1000 }, idempotencyKey: k });

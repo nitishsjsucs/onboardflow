@@ -96,8 +96,40 @@ Read the standard numbers for what they are: every scenario is designed so a cor
 
 ## Results
 
+Everything below is rendered by `npm run results:readme` from `eval/results/latest-*.json`, the files the harness wrote; a test fails if this block drifts from them. These are local measurements on `wrangler dev` (Miniflare/workerd) on a laptop, with the simulated systems and the stub LLM provider, not production numbers. Standard mode is the regression suite described above: its completion rate is close to guaranteed by construction and is not a measure of how often onboarding succeeds under uncontrolled failures.
+
 <!-- results:start -->
-No eval results have been recorded yet.
+#### Standard mode (regression suite, scripted recovery)
+
+Command `npm run eval:ci`, run 2026-10-08 (git 1a18873), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+
+| Metric | Value |
+|---|---|
+| Cases started | 60 |
+| Completed | 60/60 (100.0%) |
+| Passed (completed and every expectation held) | 60/60 |
+| onboarding | 20/20 passed |
+| integration failure | 24/24 passed |
+| recovery | 16/16 passed |
+| Integration calls (retried, replayed) | 1284 (60, 28) |
+| Duplicate side effects in the simulated systems | 0 |
+| Audit coverage (regression check) | 1 |
+| Live hub equals D1 reconcile after the run | yes |
+| Scenario time p50 / p95, wall time | 4.3 s / 6.0 s, 51 s |
+
+#### Scale mode (all 150 synthetic employees, no faults)
+
+Command `npm run eval:scale`, run 2026-10-08 (git 1a18873), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
+
+| Metric | Value |
+|---|---|
+| Cases started | 150 |
+| Completed | 150/150 (100.0%) |
+| Integration calls (retried, replayed) | 2850 (0, 0) |
+| Duplicate side effects in the simulated systems | 0 |
+| Audit coverage (regression check) | 1 |
+| Live hub equals D1 reconcile after the run | yes |
+| Scenario time p50 / p95, wall time | 6.1 s / 15.8 s, 105 s |
 <!-- results:end -->
 
 ## Deploy (Cloudflare account required)
