@@ -23,13 +23,21 @@ export function printRun(run: EvalRun): string {
 
 /** The README Results block, rendered from recorded runs only. */
 export function renderResults(runs: EvalRun[]): string {
-  const rank = (m: string) => (m === "standard" ? 0 : m === "scale" ? 1 : 2);
+  const rank = (m: string) => ["standard", "chaos", "scale", "ablation-idempotency", "ablation-retries"].indexOf(m) + 1 || 9;
   const sorted = [...runs].sort((a, b) => rank(a.mode) - rank(b.mode) || a.mode.localeCompare(b.mode));
   const out: string[] = [];
   for (const r of sorted) {
     const date = r.startedAt.slice(0, 10);
-    const cmd = r.mode === "standard" ? "npm run eval:ci" : r.mode === "scale" ? "npm run eval:scale" : `node eval/harness/run.ts --mode ${r.mode}`;
-    out.push(`#### ${r.mode === "standard" ? "Standard mode (regression suite, scripted recovery)" : r.mode === "scale" ? "Scale mode (all 150 synthetic employees, no faults)" : r.mode}`);
+    const cmd =
+      r.mode === "standard" ? "npm run eval:ci" : r.mode === "scale" ? "npm run eval:scale" : r.mode === "chaos" ? "npm run eval:chaos" : `node eval/harness/run.ts --mode ${r.mode}`;
+    const titles: Record<string, string> = {
+      standard: "Standard mode (regression suite, scripted recovery)",
+      scale: "Scale mode (all 150 synthetic employees, no faults)",
+      chaos: `Chaos mode (seeded faults and policy bots, ${r.seeds.length} seeds)`,
+      "ablation-idempotency": "Ablation: Idempotency-Key handling switched off in the simulated systems",
+      "ablation-retries": "Ablation: step retries switched off (RETRY_LIMIT=0)",
+    };
+    out.push(`#### ${titles[r.mode] ?? r.mode}`);
     out.push("");
     out.push(`Command \`${cmd}\`, run ${date} (git ${r.gitSha.slice(0, 7)}), provider \`${r.llmProvider}\`, ${r.environment.runtime}, concurrency ${r.config.concurrency}.`);
     out.push("");
@@ -37,7 +45,13 @@ export function renderResults(runs: EvalRun[]): string {
     out.push("|---|---|");
     out.push(`| Cases started | ${r.totals.startedCases} |`);
     out.push(`| Completed | ${r.totals.completed}/${r.totals.scenarios} (${pct(r.totals.completionRate)}) |`);
-    if (r.mode === "standard") {
+    if (r.chaos) {
+      out.push(`| Completion per seed (mean, min, max) | ${pct(r.chaos.meanCompletion)}, ${pct(r.chaos.minCompletion)}, ${pct(r.chaos.maxCompletion)} |`);
+      for (const s of r.chaos.perSeed) {
+        out.push(`| Seed ${s.seed} | ${s.completed}/${s.cases}; not completed: ${s.failures.case_failed} failed, ${s.failures.bot_patience} bot patience, ${s.failures.deadline} deadline |`);
+      }
+    }
+    if (r.mode === "standard" || r.mode.startsWith("ablation")) {
       out.push(`| Passed (completed and every expectation held) | ${r.totals.passed}/${r.totals.scenarios} |`);
       for (const [k, c] of Object.entries(r.byCategory)) out.push(`| ${k.replace("_", " ")} | ${c.passed}/${c.scenarios} passed |`);
     }

@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commit 26 (chaos mode) done; next is commit 27 (ablations). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commits 26 (chaos mode) and 27 (ablations) done; next is commit 28 (Workers AI provider, llama eval mode, LLM metrics, llm:smoke). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -38,8 +38,8 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 | (extra) | test(agents): push a live state frame on an employee task completion | done |
 | (extra) | fix(workflow): apply exponential retry backoff once, not compounded by the engine | done |
 | 26 | feat(eval): chaos mode with seeded fault schedules and policy bots (T2) | done |
-| 27 | feat(eval): idempotency and retry ablations (T2) | next |
-| 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | todo |
+| 27 | feat(eval): idempotency and retry ablations (T2) | done |
+| 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | next |
 | 29 | feat(web): integrations and audit explorer pages (T2) | todo |
 | 30 | feat(scripts): demo driver (T2) | todo |
 | 31 | chore(eval): record chaos, ablation and llama results (T2) | todo |
@@ -89,6 +89,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 
 20. Chaos mode choices (also in `eval/results/CHANGELOG.md`): chaos runs use the production retry base (2 s) and a 1 s poll interval (`CHAOS_VARS`), because its faults, outage windows and bots run in real seconds; and instead of SPEC 12.3's single 4-day clock advance (which cannot make any committed-seed task overdue from the pinned 2026-10-08) the harness jumps 90 days at a seeded 5 to 15 s and then advances 3 days every 20 s. Faultable operations are the nine POST operations; `stall` applies to the three polled resources. The orchestrator (not a bot) clears a stall a seeded 5 to 30 s after its stage starts and applies photo corruption after paperwork (as in F6). Coordinator bots retry or give up only when the case shows the stage blocked. People Ops also signs off closeouts after a seeded delay (SPEC 12.3 does not say who does). Chaos case failures are classified `case_failed`, `bot_patience` (a bot gave up on one of its blockers) or `deadline`.
 21. `DELETE /api/dev/faults` also accepts `ids` (chaos ends outage windows and stalls by id).
+22. Ablations (`npm run eval:ablate`) rerun the 60 scripted scenarios with `IDEMPOTENCY_KEYS=off` (simulator key handling off; API keys stay on) or `RETRY_LIMIT=0`, without a gate. Trial (not recorded): with keys off, F-it-lost-response wrote 2 device orders and R11 3; with retries off, F-it-transient stayed blocked.
 
 ## Known noise and caveats
 

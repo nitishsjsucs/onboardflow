@@ -111,7 +111,11 @@ async function main() {
     },
   });
   const mode = values.mode ?? "standard";
-  if (mode !== "standard" && mode !== "scale" && mode !== "chaos") throw new Error(`mode ${mode} is not built in this version (standard, scale and chaos)`);
+  const MODES = ["standard", "scale", "chaos", "ablation-idempotency", "ablation-retries"];
+  if (!MODES.includes(mode)) throw new Error(`unknown mode ${mode} (${MODES.join(", ")})`);
+  // Ablations (SPEC 12.4) rerun the 60 scripted scenarios with one mechanism switched off,
+  // to show that the mechanism, not luck, produces the standard results.
+  const ablation: Record<string, string> = mode === "ablation-idempotency" ? { IDEMPOTENCY_KEYS: "off" } : mode === "ablation-retries" ? { RETRY_LIMIT: "0" } : {};
   if (values.llm !== "stub") throw new Error("--llm llama is Tier 2 and not built in this version; use --llm stub");
   const concurrency = Number(values.concurrency ?? (mode === "scale" ? 10 : 6));
 
@@ -130,7 +134,7 @@ async function main() {
     envFile,
     port: Number(values.port),
     inspectorPort: Number(values["inspector-port"]),
-    vars: { ...EVAL_VARS, LLM_PROVIDER: "stub" },
+    vars: { ...EVAL_VARS, ...ablation, LLM_PROVIDER: "stub" },
   });
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
@@ -175,7 +179,7 @@ async function main() {
         machine: `${platform()} ${release()}, ${cpus().length} cpus`,
       },
       config: {
-        retryLimit: 4,
+        retryLimit: Number(ablation.RETRY_LIMIT ?? 4),
         retryBaseDelayMs: Number(EVAL_VARS.RETRY_BASE_DELAY_MS),
         pollIntervalMs: Number(EVAL_VARS.POLL_INTERVAL_MS),
         pollMax: 12,

@@ -89,11 +89,14 @@ npm run build
 npm run eval:ci       # 60 scripted scenarios, CI gate
 npm run eval:scale    # all 150 synthetic employees, no faults
 npm run eval:chaos    # 60 employees x 5 seeds, seeded faults and policy bots (about 20 minutes)
+npm run eval:ablate   # the 60 scenarios with Idempotency-Key handling off, then with retries off
 ```
 
 The harness creates a fresh local D1 per run (migrations and the committed seed), generates fresh secrets into that run's own `.dev.vars`, starts `wrangler dev` (port 8781 by default, `--port` to change), pins the simulated clock to 2026-10-08 (the seed's reference date, so results do not drift with the calendar), and plays each scenario over HTTP as the real personas. Results are written to `eval/results/`.
 
 Read the standard numbers for what they are: every scenario is designed so a correct system finishes the case, with failures recovered automatically (retries, idempotent replay) or by the scripted action a real coordinator would take. Standard mode is therefore a regression suite (CI requires 60/60), not an estimate of completion under uncontrolled conditions.
+
+The two ablations rerun the same scenarios with one mechanism switched off (Idempotency-Key handling in the simulated systems, or step retries), to show that the mechanism, not luck, produces the standard results.
 
 Chaos mode is the informative measurement: `npm run eval:chaos` runs the same 60 employees for 5 seeds, each on a fresh local D1 and server, with no per-scenario script. A seeded injector faults about 30% of (employee, operation) pairs (some beyond the retry budget), opens 0 to 2 sustained outage windows of 10 to 60 s per system, and corrupts validated fields; generic seeded bots play the employees, managers, the three department coordinators and an admin, acting only on what the API shows them, with limited patience. Each case has 180 s. The fault table and policies are in `eval/harness/policies.ts`; decisions taken before the first recorded run, and the trial runs behind them, are logged in `eval/results/CHANGELOG.md`.
 
@@ -164,7 +167,7 @@ docs/adr/          architecture decision records 0001 to 0008
 
 ## Not built in this version
 
-From the specification's Tier 2: the idempotency and retry ablations, the llama eval run and LLM quality metrics, the Workers AI provider, the Integrations and Audit explorer pages, and the demo driver. The OpenAI-compatible provider exists and is unit tested, but no eval run with a real model has been recorded.
+From the specification's Tier 2: the llama eval run and LLM quality metrics, the Workers AI provider, the Integrations and Audit explorer pages, and the demo driver. The OpenAI-compatible provider exists and is unit tested, but no eval run with a real model has been recorded.
 
 ## Troubleshooting
 
