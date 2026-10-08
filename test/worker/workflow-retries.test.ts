@@ -46,6 +46,25 @@ describe("step retries", () => {
     }
   });
 
+  it("spaces retries exponentially from RETRY_BASE_DELAY_MS once (10, 20, 40, 80 ms), not compounded by the engine", async () => {
+    const intro = await fastWorkflows({ retryDelays: false });
+    try {
+      await setFault({ system: "hr", operation: "create-worker", employeeRef: "E083", fault: "fail_503", remaining: 4 });
+      const stub = await caseAgent("E083");
+      await stub.startCase(await cmdFor("C01"));
+      await waitForStage("E083", "paperwork", ["active", "waiting_on_employee"]);
+      const c = await calls("E083", "hr.create-worker");
+      expect(c.map((x) => x.outcome)).toEqual(["retryable_error", "retryable_error", "retryable_error", "retryable_error", "ok"]);
+      const t = c.map((x) => Date.parse(x.created_at));
+      // the last gap is 10 * 2^3 = 80 ms; compounded it would be 640 ms
+      expect(t[4]! - t[3]!).toBeGreaterThanOrEqual(70);
+      expect(t[4]! - t[3]!).toBeLessThan(400);
+      await stub.terminateCase("cleanup", await cmdFor("A01"));
+    } finally {
+      await intro.dispose();
+    }
+  });
+
   it("blocks the stage once the retry budget is spent (1 + RETRY_LIMIT attempts)", async () => {
     const intro = await fastWorkflows();
     try {

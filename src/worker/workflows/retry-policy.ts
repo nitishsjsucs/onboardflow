@@ -11,12 +11,17 @@ export function retryDelayMs(cfg: Pick<AppConfig, "retry">, attempt: number, mes
   return Math.min(Math.max(exponential, retryAfterFrom(message)), MAX_RETRY_DELAY_MS);
 }
 
-/** Integration steps: RETRY_LIMIT retries, exponential backoff, Retry-After aware. */
+/**
+ * Integration steps: RETRY_LIMIT retries, exponential backoff, Retry-After aware.
+ * The delay function computes the exponential itself, so the engine's backoff
+ * is "constant": with "exponential" the local engine multiplies the returned
+ * delay by 2^(attempt - 1) again (observed: 2, 8, 32, 128 s for a 2 s base).
+ */
 export function retryPolicy(cfg: AppConfig) {
   return {
     retries: {
       limit: cfg.retry.limit,
-      backoff: "exponential" as const,
+      backoff: "constant" as const,
       delay: ({ ctx, error }: { ctx: { attempt: number }; error: Error }) => retryDelayMs(cfg, ctx.attempt, error?.message ?? ""),
     },
     timeout: "2 minutes" as const,
