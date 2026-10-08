@@ -4,10 +4,29 @@ import { env } from "cloudflare:workers";
 import { getAgentByName } from "agents";
 import type { Cmd } from "../../src/worker/agents/case-agent.ts";
 import { loadPrincipal } from "../../src/worker/auth/middleware.ts";
+import type { StageId } from "../../src/shared/stages.ts";
 import { emailOf } from "./auth.ts";
 
 export function caseAgent(employeeId: string) {
   return getAgentByName(env.CASE_AGENT, employeeId);
+}
+
+type Result = { status: number; body: Record<string, any> };
+/** The CaseAgent RPC surface with plain types (the generated stub types get too deep for tsc in places). */
+export type CaseRpc = {
+  startCase(cmd: Cmd, limits?: Record<string, number>): Promise<Result>;
+  completeTask(taskId: string, cmd: Cmd, note?: string): Promise<Result>;
+  decideApproval(id: string, d: { decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean; onBehalfOf?: string }, cmd: Cmd): Promise<Result>;
+  resubmitApproval(id: string, cmd: Cmd, note?: string): Promise<Result>;
+  retryStage(stage: StageId, cmd: Cmd, note?: string): Promise<Result>;
+  fixField(field: "costCenter" | "licenseBundle" | "photoOnFile", value: string | boolean, cmd: Cmd): Promise<Result>;
+  resolveBlocker(id: string, resolution: string, cmd: Cmd): Promise<Result>;
+  restartCase(reason: string, cmd: Cmd): Promise<Result>;
+  terminateCase(reason: string, cmd: Cmd): Promise<Result>;
+  scanNow(cmd: Cmd): Promise<Result>;
+};
+export async function rpc(employeeId: string): Promise<CaseRpc> {
+  return (await caseAgent(employeeId)) as unknown as CaseRpc;
 }
 
 /** A command envelope as the API layer builds it, for a person id (E001, M01, C01, A01). */
@@ -138,4 +157,34 @@ export async function driveHappyPath(employeeId: string, opts: { privileged?: bo
 
 export async function auditActions(employeeId: string): Promise<Array<{ action: string; stage_id: string | null; detail_json: string; id: string; seq: number }>> {
   return (await DB().prepare("SELECT seq, id, action, stage_id, detail_json FROM audit_events WHERE employee_id = ? ORDER BY seq").bind(employeeId).all<{ action: string; stage_id: string | null; detail_json: string; id: string; seq: number }>()).results;
+}
+
+export async function managerOf(employeeId: string): Promise<string> {
+  return (await DB().prepare("SELECT manager_id FROM employees WHERE id = ?").bind(employeeId).first<{ manager_id: string }>())!.manager_id;
+}
+
+/** Starts the case and performs the human steps before IT provisioning (paperwork, manager approval). */
+export async function driveThroughManagerApproval(employeeId: string, limits?: Record<string, number>) {
+  await startCase(employeeId, limits);
+  await waitForStage(employeeId, "paperwork", "waiting_on_employee");
+  await completeEmployeeTasks(employeeId, "paperwork");
+  await decide(employeeId, "manager_approval", "approve", await managerOf(employeeId));
+}
+
+/** Performs the human steps after provisioning (orientation tasks, closeout approval) and waits for the end. */
+export async function finishFromOrientation(employeeId: string, closeoutRound = 1) {
+  await waitForStage(employeeId, "orientation", "waiting_on_employee");
+  await completeEmployeeTasks(employeeId, "orientation");
+  await decide(employeeId, "closeout", "approve", "C01", { round: closeoutRound });
+  return waitForCase(employeeId, ["complete", "failed"]);
+}
+
+export async function calls(employeeId: string, operation?: string) {
+  const sql = `SELECT run_no, step_name, operation, attempt, outcome, http_status, created_at FROM integration_calls WHERE employee_id = ?${operation ? " AND operation = ?" : ""} ORDER BY created_at, attempt`;
+  const binds = operation ? [employeeId, operation] : [employeeId];
+  return (await DB().prepare(sql).bind(...binds).all<{ run_no: number; step_name: string; operation: string; attempt: number; outcome: string; http_status: number | null; created_at: string }>()).results;
+}
+
+export async function retry(employeeId: string, stage: StageId, as: string) {
+  return (await rpc(employeeId)).retryStage(stage, await cmdFor(as));
 }
