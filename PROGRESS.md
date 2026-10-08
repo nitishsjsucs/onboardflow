@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: commit 6 of 25 (Tier 1) done.
+Current: commit 7 of 25 (Tier 1) done.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -15,8 +15,8 @@ Current: commit 6 of 25 (Tier 1) done.
 | 4 | feat(seed): deterministic synthetic dataset | done |
 | 5 | feat(auth): Access JWT verification, dev keys, persona login, CSRF | done |
 | 6 | feat(auth): role policy matrix and principal loading | done |
-| 7 | feat(sims): simulators with atomic idempotency | next |
-| 8 | feat(sims): ordered fault pipeline | todo |
+| 7 | feat(sims): simulators with atomic idempotency | done |
+| 8 | feat(sims): ordered fault pipeline | next |
 | 9 | feat(integrations): client | todo |
 | 10 | feat(db): guarded mutations and API idempotency store | todo |
 | 11 | feat(agents): CaseAgent commands, wake-ups, workflow control, callbacks | todo |
@@ -38,7 +38,7 @@ Current: commit 6 of 25 (Tier 1) done.
 ## Check status (last run)
 
 - `npm run typecheck`: pass
-- `npm test`: pass (node 2 files, worker 6 files)
+- `npm test`: pass (node 2 files, worker 8 files)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 
@@ -49,6 +49,8 @@ Current: commit 6 of 25 (Tier 1) done.
 3. `scripts/dev-keys.ts` exports `generateDevSecrets()`; `vitest.config.ts` imports it for the per-run test key pair (the spec's `makeTestKeys()`), and the eval harness will reuse it.
 
 4. `canRetryStage` falls back to the stage's owning department when the stage has no open blocker (SPEC 6.2 names only the blocker's department). Without it, a coordinator retrying a stage that is not blocked would get 403 instead of the guarded 409 that R14 expects.
+
+5. Simulated IT `assign-licenses` takes an optional `approvalRef` alongside `{ bundle, privileged }`: SPEC 9.1 requires a 422 for "privileged without approval flag" but the body it lists carries no approval field. IT reads the employment type from the simulated HR worker record for the bundle check.
 
 ## Environment notes
 

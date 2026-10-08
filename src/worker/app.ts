@@ -10,6 +10,7 @@ import { ConfigError, parseConfig } from "./config.ts";
 import { loadClock } from "./db/clock.ts";
 import { apiError, type AppEnv } from "./http.ts";
 import { meRoutes } from "./routes/me.ts";
+import { simApp } from "./sims/app.ts";
 
 export const APP_VERSION = "1.0.0";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -47,6 +48,9 @@ export function createApp() {
   });
   app.use("/dev/*", requireSameOrigin);
   app.route("/dev", devRoutes());
+
+  // Simulated HR, IT and Facilities systems, protected by X-Sim-Api-Key.
+  app.route("/sim", simApp());
 
   app.get("/api/health", (c) => c.json({ ok: true, authMode: c.get("config").authMode, version: APP_VERSION }));
 
