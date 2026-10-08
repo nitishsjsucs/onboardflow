@@ -37,3 +37,14 @@ export function homeFor(me: MeDto): string {
       return "/dashboard";
   }
 }
+
+/** Client mirror of the server policy (display only; the API enforces it). */
+export const can = {
+  retry: (me: MeDto | null, owner: string) => !!me && (me.role === "admin" || (me.role === "coordinator" && me.department === owner)),
+  resubmit: (me: MeDto | null) => !!me && (me.role === "admin" || (me.role === "coordinator" && me.department === "people_ops")),
+  workDepartment: (me: MeDto | null, owner: string) => !!me && (me.role === "admin" || (me.role === "coordinator" && me.department === owner)),
+  startCase: (me: MeDto | null) => !!me && (me.role === "admin" || (me.role === "coordinator" && me.department === "people_ops")),
+  restartOrTerminate: (me: MeDto | null) => me?.role === "admin",
+  fixField: (me: MeDto | null, field: "costCenter" | "licenseBundle" | "photoOnFile") =>
+    !!me && (me.role === "admin" || (me.role === "coordinator" && me.department === { costCenter: "people_ops", licenseBundle: "it", photoOnFile: "facilities" }[field])),
+};

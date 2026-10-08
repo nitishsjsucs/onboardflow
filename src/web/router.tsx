@@ -3,7 +3,11 @@ import { Navigate, Outlet, type RouteObject, createBrowserRouter } from "react-r
 import { homeFor, useSession } from "./auth/session.tsx";
 import { AppShell } from "./components/AppShell.tsx";
 import { RoleGate } from "./components/RoleGate.tsx";
+import { ApprovalsPage } from "./pages/ApprovalsPage.tsx";
+import { CaseDetailPage } from "./pages/CaseDetailPage.tsx";
+import { CasesPage } from "./pages/CasesPage.tsx";
 import { EmployeePortalPage } from "./pages/EmployeePortalPage.tsx";
+import { QueuePage } from "./pages/QueuePage.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
 import { NotFoundPage } from "./pages/NotFoundPage.tsx";
 
@@ -36,6 +40,31 @@ export const routes: RouteObject[] = [
               </RoleGate>
             ),
           },
+          {
+            path: "/approvals",
+            element: (
+              <RoleGate roles={["manager", "coordinator", "admin"]}>
+                <ApprovalsPage />
+              </RoleGate>
+            ),
+          },
+          {
+            path: "/queue",
+            element: (
+              <RoleGate roles={["coordinator", "admin"]}>
+                <QueuePage />
+              </RoleGate>
+            ),
+          },
+          {
+            path: "/cases",
+            element: (
+              <RoleGate roles={["manager", "coordinator", "admin"]}>
+                <CasesPage />
+              </RoleGate>
+            ),
+          },
+          { path: "/cases/:id", element: <CaseDetailPage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
       },
