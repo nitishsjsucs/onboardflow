@@ -1,0 +1,17 @@
+# Local development secrets. Do not edit by hand: run `npm run dev:keys`,
+# which generates a fresh RS256 key pair and a random SIM_API_KEY and writes
+# them to .dev.vars (gitignored). Tests pass these as Miniflare bindings and
+# the eval harness generates its own set per run, so neither reads .dev.vars.
+
+# Shared secret the IntegrationClient sends to the simulated systems under /sim/*.
+SIM_API_KEY=
+
+# Public JWKS ({"keys":[...]}, kid "dev-1") used by the dev key source to verify
+# the RS256 JWT minted by /dev/login. Same verification code path as Access.
+DEV_ACCESS_JWKS=
+
+# Private RS256 JWK used only by /dev/login to mint the CF_Authorization cookie.
+DEV_ACCESS_SIGNING_JWK=
+
+# Optional: bearer token for an OpenAI-compatible LLM server (llama-server needs none).
+# LLM_API_KEY=

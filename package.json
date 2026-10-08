@@ -1,0 +1,63 @@
+{
+  "name": "onboardflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agentic employee onboarding platform on Cloudflare Workers, Hono, D1, Agents SDK and Workflows",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "dev:keys": "node scripts/dev-keys.ts",
+    "db:migrate:local": "wrangler d1 migrations apply onboardflow --local -c wrangler.jsonc",
+    "db:seed:local": "wrangler d1 execute onboardflow --local -c wrangler.jsonc --file seed/seed.sql",
+    "db:reset:local": "rm -rf .wrangler/state && npm run db:migrate:local && npm run db:seed:local",
+    "seed:generate": "node scripts/seed.ts",
+    "seed:check": "node scripts/seed.ts --check",
+    "typegen": "wrangler types -c wrangler.jsonc --strict-vars=false worker-configuration.d.ts",
+    "typegen:check": "wrangler types -c wrangler.jsonc --strict-vars=false worker-configuration.d.ts --check",
+    "typecheck": "tsc -p tsconfig.worker.json && tsc -p tsconfig.web.json && tsc -p tsconfig.node.json",
+    "test": "vitest run",
+    "build": "vite build && node scripts/check-bundle.ts",
+    "serve:local": "wrangler dev --port 8787",
+    "preview": "vite preview",
+    "deploy:dry-run": "CLOUDFLARE_ENV=production vite build && wrangler deploy --dry-run",
+    "deploy": "node scripts/predeploy-check.ts && CLOUDFLARE_ENV=production vite build && wrangler deploy",
+    "eval": "node eval/harness/run.ts",
+    "eval:ci": "node eval/harness/run.ts --mode standard --llm stub --gate ci",
+    "eval:scale": "node eval/harness/run.ts --mode scale --llm stub",
+    "results:readme": "node scripts/results-to-readme.ts"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "0.9.1",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "@tanstack/react-query": "5.104.1",
+    "agents": "0.27.0",
+    "hono": "4.13.13",
+    "jose": "6.2.12",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "8.4.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.63.1",
+    "@cloudflare/vitest-plugin": "1.4.0",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "happy-dom": "20.14.5",
+    "jsonc-parser": "3.3.1",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "vitest": "4.1.11",
+    "wrangler": "4.149.0"
+  }
+}

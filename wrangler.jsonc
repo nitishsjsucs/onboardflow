@@ -1,0 +1,81 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "onboardflow",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/agents/*", "/sim/*", "/dev/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "CASE_AGENT", "class_name": "CaseAgent" },
+      { "name": "OPS_HUB_AGENT", "class_name": "OpsHubAgent" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CaseAgent", "OpsHubAgent"] }],
+  "workflows": [
+    { "name": "onboardflow-onboarding", "binding": "ONBOARDING_WORKFLOW", "class_name": "OnboardingWorkflow" }
+  ],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "onboardflow", "database_id": "00000000-0000-4000-8000-0000000000d1", "migrations_dir": "migrations" }
+  ],
+  "secrets": { "required": ["SIM_API_KEY", "DEV_ACCESS_JWKS", "DEV_ACCESS_SIGNING_JWK"] },
+  "vars": {
+    "AUTH_MODE": "dev",
+    "DEV_ISSUER": "http://localhost/dev-access",
+    "DEV_AUDIENCE": "onboardflow-dev",
+    "SIM_CLOCK": "off",
+    "EVAL_HOOKS": "off",
+    "LLM_PROVIDER": "stub",
+    "LLM_BASE_URL": "http://127.0.0.1:8080/v1",
+    "LLM_MODEL": "qwen3-1.7b",
+    "RETRY_LIMIT": "4",
+    "RETRY_BASE_DELAY_MS": "2000",
+    "POLL_INTERVAL_MS": "30000",
+    "POLL_MAX": "12",
+    "INTEGRATION_TIMEOUT_MS": "10000",
+    "GATE_WAIT_TIMEOUT_MS": "86400000",
+    "WAIT_BUDGET": "120",
+    "MAX_STAGE_ROUNDS": "4",
+    "MAX_RECOVERY_ROUNDS": "6",
+    "MAX_APPROVAL_ROUNDS": "3",
+    "BLOCKER_SCAN_INTERVAL_S": "900",
+    "NUDGE_AFTER_S": "60",
+    "HUB_DEBOUNCE_S": "2",
+    "APPROVAL_SLA_HOURS": "48",
+    "IDEMPOTENCY_KEYS": "on"
+  },
+  "env": {
+    "production": {
+      "secrets": { "required": ["SIM_API_KEY"] },
+      "vars": {
+        "AUTH_MODE": "access",
+        "TEAM_DOMAIN": "https://REPLACE-team.cloudflareaccess.com",
+        "POLICY_AUD": "REPLACE-with-access-aud-tag",
+        "SIM_CLOCK": "off",
+        "EVAL_HOOKS": "off",
+        "LLM_PROVIDER": "stub",
+        "LLM_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+        "AI_GATEWAY_ID": "onboardflow",
+        "RETRY_LIMIT": "4", "RETRY_BASE_DELAY_MS": "2000", "POLL_INTERVAL_MS": "30000", "POLL_MAX": "12",
+        "INTEGRATION_TIMEOUT_MS": "10000", "GATE_WAIT_TIMEOUT_MS": "86400000", "WAIT_BUDGET": "120",
+        "MAX_STAGE_ROUNDS": "4", "MAX_RECOVERY_ROUNDS": "6", "MAX_APPROVAL_ROUNDS": "3",
+        "BLOCKER_SCAN_INTERVAL_S": "900", "NUDGE_AFTER_S": "60", "HUB_DEBOUNCE_S": "2",
+        "APPROVAL_SLA_HOURS": "48", "IDEMPOTENCY_KEYS": "on"
+      },
+      "ai": { "binding": "AI" },
+      "durable_objects": { "bindings": [
+        { "name": "CASE_AGENT", "class_name": "CaseAgent" },
+        { "name": "OPS_HUB_AGENT", "class_name": "OpsHubAgent" }
+      ] },
+      "workflows": [
+        { "name": "onboardflow-onboarding-prod", "binding": "ONBOARDING_WORKFLOW", "class_name": "OnboardingWorkflow" }
+      ],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "onboardflow-prod", "database_id": "REPLACE-after-wrangler-d1-create", "migrations_dir": "migrations" }
+      ]
+    }
+  }
+}
