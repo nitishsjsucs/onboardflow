@@ -10,10 +10,10 @@ What "agents" means here: `CaseAgent` and `OpsHubAgent` are [Cloudflare Agents S
 
 - **Portal** (React 19, TypeScript, Vite): employee checklist with an 8-stage stepper, approvals, department queue, cases table, case detail with the audit trail, a live dashboard, integration health with per-case call logs, and an admin audit explorer. Four roles: employee, manager, coordinator (People Ops, IT or Facilities) and admin.
 - **API** (Hono on Workers): every mutation requires `Idempotency-Key`, `X-OnboardFlow: 1` and a same-origin `Origin`, is checked against a role policy, and is written as a guarded D1 batch with its audit row ([ADR 0008](docs/adr/0008-guarded-mutations.md)).
-- **Workflow** (Cloudflare Workflows): eight stages, retries with exponential backoff and Retry-After, polling of async resources, recovery rounds after a coordinator retries, two approval checkpoints with reject and resubmit, restart and terminate. Every wait is a D1 gate with a bounded timeout, so restarts and lost events cannot strand a case ([ADR 0002](docs/adr/0002-d1-gates-and-wake-up-events.md)).
+- **Workflow** (Cloudflare Workflows): eight stages, retries with exponential backoff and Retry-After, polling of async resources, recovery rounds after a coordinator retries, two approval checkpoints with reject and resubmit (up to 3 rounds; an admin restart after the final rejection opens one more round), restart and terminate. Every wait is a D1 gate with a bounded timeout, so restarts and lost events cannot strand a case ([ADR 0002](docs/adr/0002-d1-gates-and-wake-up-events.md)).
 - **Agents** (Agents SDK): one `CaseAgent` per employee (commands, wake-ups, blocker scans, follow-ups, read-only live state) and one `OpsHubAgent` (debounced reconcile of the dashboard from D1).
 - **Simulated systems** under `/sim/*`: HR, IT and Facilities with idempotency keys honored atomically, async state machines, genuine validation errors, and injectable faults (503, 429 with Retry-After, timeout, lost response, malformed body, stall, desk conflict) ([ADR 0005](docs/adr/0005-loopback-simulated-systems.md)).
-- **Auth**: Access-compatible RS256 JWT verification with `jose` (issuer and audience enforced), not yet exercised against a real Cloudflare Access application or team JWKS. Locally, the same verifier runs against a generated key and a persona picker ([ADR 0003](docs/adr/0003-hostname-access-jwt-verification.md)).
+- **Auth**: Access-compatible RS256 JWT verification with `jose` (issuer and audience enforced; `exp`, `iat` and `email` required), not yet exercised against a real Cloudflare Access application or team JWKS. Locally, the same verifier runs against a generated key and a persona picker ([ADR 0003](docs/adr/0003-hostname-access-jwt-verification.md)).
 - **Eval suite**: 60 scripted scenarios (20 onboarding, 24 integration failures, 16 recovery), a 150-employee scale run, a chaos mode (5 seeds of seeded faults and outages worked by generic policy bots), two ablations and an optional local-LLM run, all driven over HTTP as the real personas against `wrangler dev`.
 
 ## Architecture
@@ -38,7 +38,7 @@ Design decisions are recorded in [docs/adr](docs/adr) and the domain vocabulary 
 
 ## Local versus production
 
-| Concern | Local (this machine; CI once it runs) | Production (after deploy) |
+| Concern | Local (this machine, and GitHub Actions for the published copy) | Production (after deploy) |
 |---|---|---|
 | Worker runtime | workerd via `vite dev`, `wrangler dev` on the build, and `@cloudflare/vitest-plugin` (Miniflare) | Cloudflare Workers |
 | Front end | Vite dev server, or `dist/client` served by local assets | Workers static assets with SPA fallback |
@@ -54,11 +54,13 @@ Design decisions are recorded in [docs/adr](docs/adr) and the domain vocabulary 
 | Fault injection, eval hooks, eviction route | `EVAL_HOOKS=on` in eval runs | off; the routes answer 404 |
 | Eval suite | runs here against `wrangler dev` | not run (it needs the hooks and the simulated clock) |
 
-The deployment to Cloudflare has not been done yet; until it is, everything in this README was run locally (workerd through Miniflare and `wrangler dev`). The GitHub Actions workflow (`.github/workflows/ci.yml`) has not run either: nothing has been pushed, so it first runs after the first push.
+The deployment to Cloudflare has not been done yet; until it is, everything in this README was run locally (workerd through Miniflare and `wrangler dev`).
+
+CI: the copy of this repository published on GitHub runs `.github/workflows/ci.yml` in [GitHub Actions](https://github.com/nitishsjsucs/onboardflow/actions) on every push, on Node 24 (required) and Node 25 (allowed to fail), on ubuntu: typegen and seed checks, typecheck, tests, build, the standard eval with its CI gate, and a production deploy dry run. That copy is a rewrite of this history (different commit SHAs, no co-author trailers), and it was not pushed from this repository; [eval/results/published-sha-map.json](eval/results/published-sha-map.json) maps this history's SHAs to the published ones. Between 2026-10-08 23:14 UTC and 2026-10-09 19:10 UTC it ran 16 times: 11 green (in one of them the allowed-to-fail Node 25 job was red, from a hub debounce race fixed in the product since), one red on Node 24 because of an intermittent test race (fixed in the test since), both described in PROGRESS.md under "Known noise", and the last 4 red, because the SHA rewrite made for publishing changed the expected strings of two tests in `test/node/eval-metrics.test.ts` but not the fixture SHAs they derive from. Those fixtures now use synthetic SHAs that no rewrite touches, so main turns green again only once that change is published. The least-privilege token and SHA-pinned actions in the current `ci.yml` have not run in GitHub Actions yet.
 
 ## Run it locally
 
-Requirements: npm and Node. Tested on Node 25.9 (macOS); `engines` allows 22.18 or later and CI targets Node 24, neither of which has been exercised yet.
+Requirements: npm and Node. Developed and tested on Node 25.9 (macOS); GitHub Actions has run the checks of the published copy on Node 24 and 25 (ubuntu). `engines` allows 22.18 or later, but Node 22 has not been run.
 
 ```sh
 npm ci
@@ -71,7 +73,7 @@ Open the printed URL, pick a persona on the login page (three employees, three m
 
 To serve the production-like build instead: `npm run build && npm run serve:local` (wrangler dev on the built Worker).
 
-To see the dashboards with something on them, the demo driver fills the local state with a seeded mix of cases: it resets `.wrangler/state`, applies the migrations and the seed, starts `wrangler dev` on the build, pins the simulated clock, and drives all 150 employees over HTTP as the personas. 42 cases complete and the rest are held in each of the eight stages: 24 each at the four human checkpoints (paperwork, manager approval, orientation, closeout approval), and 3 each at intake, IT, Facilities and provisioning verification, where only a simulated outage (a sustained 503 for that one employee) can hold a case, so those 12 show real integration blockers. Then `npm run serve:local` serves that state (on the real clock, without the eval hooks).
+To see the dashboards with something on them, the demo driver fills the local state with a seeded mix of cases: it resets `.wrangler/state`, applies the migrations and the seed, starts `wrangler dev` on the build, pins the simulated clock, and drives all 150 employees over HTTP as the personas. Its seeded plan completes 42 cases and holds the rest in each of the eight stages: 24 each at the four human checkpoints (paperwork, manager approval, orientation, closeout approval), and 3 each at intake, IT, Facilities and provisioning verification, where only a simulated outage (a sustained 503 for that one employee) can hold a case, so those 12 show real integration blockers. At the end the driver reads every case back over the API, prints the mix it observed and exits non-zero if any case is not where the plan put it. Then `npm run serve:local` serves that state (on the real clock, without the eval hooks).
 
 ```sh
 npm run build && npm run dev:keys
@@ -112,7 +114,7 @@ Chaos mode is the informative measurement: `npm run eval:chaos` runs the same 60
 
 ## Results
 
-Everything below is rendered by `npm run results:readme` from `eval/results/latest-*.json`, the files the harness wrote; a test fails if this block drifts from them. These are local measurements on `wrangler dev` (Miniflare/workerd) on a laptop, with the simulated systems and the stub LLM provider (except the one run labeled as using a local LLM), not production numbers. Standard mode is the regression suite described above: its completion rate is close to guaranteed by construction and is not a measure of how often onboarding succeeds under uncontrolled failures.
+Everything below is rendered by `npm run results:readme` from `eval/results/latest-*.json`, the files the harness wrote, unedited in this repository; a test fails if this block drifts from them. (The copy published on GitHub rewrote the commit SHA fields of every `eval/results` file to point at its own history, in its commit d6df50f; the map above resolves them.) Runs from 2026-10-09 19:00 UTC on also record which build they served: the harness refuses a build that is not from the commit the run starts at, and hashes `dist/` at the start and end of the run. These are local measurements on `wrangler dev` (Miniflare/workerd) on a laptop, with the simulated systems and the stub LLM provider (except the one run labeled as using a local LLM), not production numbers. Standard mode is the regression suite described above: its completion rate is close to guaranteed by construction and is not a measure of how often onboarding succeeds under uncontrolled failures.
 
 <!-- results:start -->
 #### Standard mode (regression suite, scripted recovery)
@@ -271,15 +273,16 @@ docs/adr/          architecture decision records 0001 to 0008
 
 ## Not built in this version
 
-Every feature in the specification's Tier 1 and Tier 2 scope is built. These parts exist but have never been exercised, because they need a Cloudflare account or a push:
+Every feature in the specification's Tier 1 and Tier 2 scope is built. These parts exist but have never been exercised, because they need a Cloudflare account:
 
 - production Cloudflare Access (a real Access application and team JWKS; the verifier is tested only against locally generated keys), remote D1, and `npm run deploy`;
-- the Workers AI provider, which is unit tested against a fake binding only;
-- the GitHub Actions workflow, which first runs after the first push.
+- the Workers AI provider, which is unit tested against a fake binding only.
 
 Known limitations:
 
 - Live subscriptions are authorized when the WebSocket upgrades and re-checked before every state push (dashboard sockets at least once a minute, since the hub reconciles every 60 s): a socket whose Access token expired, or whose account was deactivated or lost the role, is closed then. A socket on a case that never changes is not re-checked until something changes.
+- An employee can complete the checklist tasks of a stage that has not started yet, including the four orientation tasks while provisioning is still running: tasks are created at intake and completion checks only ownership and open status. The scripted scenarios rely on early completion (O07 finishes paperwork before its gate is checked, and every scripted happy path completes orientation tasks right after the manager approves), so restricting it would change the measured behavior and needs a catalog change and new runs; it is not done in this version.
+- If the platform refuses a restart and creating the replacement instance then fails, the restart is already committed: the API answers 202 (a retry with the same Idempotency-Key replays it) and the CaseAgent retries the instance creation on a schedule (2 to 32 s, five attempts). If all five fail, the case shows `in_progress` with no running workflow until an admin restarts it again.
 - After the HR worker was created, a coordinator can still correct the cost center. If an admin then restarts the case, replaying the stored worker creation sends a different request under the same Idempotency-Key, which the simulated HR system refuses (422). The intake stage blocks as a data issue that no field correction can clear (only restoring the old value would); retries fail the same way until the stage's recovery rounds run out and the workflow fails the case with `recovery_rounds_exhausted` (audited). No second worker is created. Both paths are pinned by tests in `test/worker/workflow-restart.test.ts`.
 
 ## Troubleshooting

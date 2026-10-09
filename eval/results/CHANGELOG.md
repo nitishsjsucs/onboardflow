@@ -314,3 +314,12 @@ with its reason. Nothing here is tuned toward a target.
   carry no build field; for them the commit at start is the only link, so
   a build made during a run (the fifth chaos run overlapped the writing of
   9c55e58) cannot be ruled out from the file alone.
+- Published copy: the copy of this history on GitHub
+  (nitishsjsucs/onboardflow, a rewrite that was not pushed from this
+  repository) rewrote the `gitSha` and `provenance.headAtStart` fields of
+  every file in this directory, and the SHAs cited in this changelog, to
+  point at its own history (its commit d6df50f, "chore: point
+  measured-commit references at the published history"). The files in this
+  repository are the harness output, unedited.
+  `eval/results/published-sha-map.json` maps this history's SHAs to the
+  published ones.
