@@ -33,7 +33,11 @@ export function printRun(run: EvalRun): string {
 /** The README Results block, rendered from recorded runs only. */
 export function renderResults(runs: EvalRun[]): string {
   const rank = (m: string) => ["standard", "chaos", "scale", "ablation-idempotency", "ablation-retries"].indexOf(m) + 1 || 9;
-  const sorted = [...runs].sort((a, b) => rank(a.mode) - rank(b.mode) || a.llmProvider.localeCompare(b.llmProvider) || a.mode.localeCompare(b.mode));
+  // within a mode the stub run comes first: the stub standard run is the CI regression gate
+  const stubFirst = (p: string) => (p === "stub" ? 0 : 1);
+  const sorted = [...runs].sort(
+    (a, b) => rank(a.mode) - rank(b.mode) || stubFirst(a.llmProvider) - stubFirst(b.llmProvider) || a.llmProvider.localeCompare(b.llmProvider) || a.mode.localeCompare(b.mode),
+  );
   const out: string[] = [];
   for (const r of sorted) {
     const date = r.startedAt.slice(0, 10);

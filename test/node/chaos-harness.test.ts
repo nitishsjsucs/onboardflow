@@ -132,3 +132,35 @@ describe("chaos results rendering", () => {
     expect(seedRow()).toBe("| Seed 3 | 0/60; not completed: 5 failed, 0 bot patience, 55 deadline |");
   });
 });
+
+describe("results block order", () => {
+  const run = (mode: string, llmProvider: string) =>
+    ({
+      runId: "r",
+      startedAt: "2026-10-08T00:00:00.000Z",
+      gitSha: "abcdef0",
+      mode,
+      llmProvider,
+      seeds: [],
+      environment: { runtime: "local wrangler dev (Miniflare/workerd)" },
+      config: { concurrency: 6 },
+      totals: { startedCases: 60, scenarios: 60, completed: 60, completionRate: 1, passed: 60, passRate: 1 },
+      byCategory: {},
+      chaos: null,
+      integration: { calls: 0, retriedCalls: 0, replays: 0, duplicateSideEffects: 0 },
+      followups: { llmSchemaValidRate: null },
+      regression: { audit: { coverage: 1 }, hubConsistency: { matchesReconcile: true } },
+      timing: { scenarioP50Ms: 0, scenarioP95Ms: 0, totalMs: 0 },
+    }) as unknown as EvalRun;
+
+  it("lists the stub standard run (the CI regression gate) before the local-LLM standard run", () => {
+    const headings = renderResults([run("standard", "llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)"), run("scale", "stub"), run("standard", "stub")])
+      .split("\n")
+      .filter((l) => l.startsWith("#### "));
+    expect(headings).toEqual([
+      "#### Standard mode (regression suite, scripted recovery)",
+      "#### Standard mode with a local LLM drafting follow-up wording",
+      "#### Scale mode (all 150 synthetic employees, no faults)",
+    ]);
+  });
+});
