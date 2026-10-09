@@ -482,7 +482,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       const reason: ChaosFailure | null = verdict.completed ? null : verdict.reason;
       if (reason) failures[reason]++;
       else completed++;
-      const late = !isComplete && facts?.completed === true ? `; the case completed only after its ${CHAOS.caseDeadlineMs / 1000} s deadline` : "";
+      const late = !isComplete && facts?.completed === true ? `; the case was first seen complete only after its ${CHAOS.caseDeadlineMs / 1000} s deadline` : "";
       results.push({
         scenarioId: `chaos-${seed}-${sc.employeeId}`,
         category: sc.category,

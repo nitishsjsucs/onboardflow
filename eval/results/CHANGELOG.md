@@ -269,3 +269,7 @@ with its reason. Nothing here is tuned toward a target.
   are deadlines; none of those cases had completed by the end of the seed,
   and the slowest counted case took 170.5 s. No case failed and no bot
   gave up.
+- Harness wording only: a deadline miss whose case completed later is now
+  described as "first seen complete only after" the deadline, since the
+  exact completion time between two polls is unknown. The fifth run has no
+  such case, so its file is unaffected.
