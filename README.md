@@ -9,11 +9,11 @@ What "agents" means here: `CaseAgent` and `OpsHubAgent` are [Cloudflare Agents S
 ## What is in the box
 
 - **Portal** (React 19, TypeScript, Vite): employee checklist with an 8-stage stepper, approvals, department queue, cases table, case detail with the audit trail, a live dashboard, integration health with per-case call logs, and an admin audit explorer. Four roles: employee, manager, coordinator (People Ops, IT or Facilities) and admin.
-- **API** (Hono on Workers): every mutation requires `Idempotency-Key`, `X-OnboardFlow: 1` and a same-site `Origin`, is checked against a role policy, and is written as a guarded D1 batch with its audit row ([ADR 0008](docs/adr/0008-guarded-mutations.md)).
+- **API** (Hono on Workers): every mutation requires `Idempotency-Key`, `X-OnboardFlow: 1` and a same-origin `Origin`, is checked against a role policy, and is written as a guarded D1 batch with its audit row ([ADR 0008](docs/adr/0008-guarded-mutations.md)).
 - **Workflow** (Cloudflare Workflows): eight stages, retries with exponential backoff and Retry-After, polling of async resources, recovery rounds after a coordinator retries, two approval checkpoints with reject and resubmit, restart and terminate. Every wait is a D1 gate with a bounded timeout, so restarts and lost events cannot strand a case ([ADR 0002](docs/adr/0002-d1-gates-and-wake-up-events.md)).
 - **Agents** (Agents SDK): one `CaseAgent` per employee (commands, wake-ups, blocker scans, follow-ups, read-only live state) and one `OpsHubAgent` (debounced reconcile of the dashboard from D1).
 - **Simulated systems** under `/sim/*`: HR, IT and Facilities with idempotency keys honored atomically, async state machines, genuine validation errors, and injectable faults (503, 429 with Retry-After, timeout, lost response, malformed body, stall, desk conflict) ([ADR 0005](docs/adr/0005-loopback-simulated-systems.md)).
-- **Auth**: Cloudflare Access JWT verification with `jose` (RS256, issuer and audience enforced). Locally, the same verifier runs against a generated key and a persona picker ([ADR 0003](docs/adr/0003-hostname-access-jwt-verification.md)).
+- **Auth**: Access-compatible RS256 JWT verification with `jose` (issuer and audience enforced), not yet exercised against a real Cloudflare Access application or team JWKS. Locally, the same verifier runs against a generated key and a persona picker ([ADR 0003](docs/adr/0003-hostname-access-jwt-verification.md)).
 - **Eval suite**: 60 scripted scenarios (20 onboarding, 24 integration failures, 16 recovery), a 150-employee scale run, a chaos mode (5 seeds of seeded faults and outages worked by generic policy bots), two ablations and an optional local-LLM run, all driven over HTTP as the real personas against `wrangler dev`.
 
 ## Architecture
@@ -38,7 +38,7 @@ Design decisions are recorded in [docs/adr](docs/adr) and the domain vocabulary 
 
 ## Local versus production
 
-| Concern | Local (this machine, CI) | Production (after deploy) |
+| Concern | Local (this machine; CI once it runs) | Production (after deploy) |
 |---|---|---|
 | Worker runtime | workerd via `vite dev`, `wrangler dev` on the build, and `@cloudflare/vitest-plugin` (Miniflare) | Cloudflare Workers |
 | Front end | Vite dev server, or `dist/client` served by local assets | Workers static assets with SPA fallback |
@@ -54,11 +54,11 @@ Design decisions are recorded in [docs/adr](docs/adr) and the domain vocabulary 
 | Fault injection, eval hooks, eviction route | `EVAL_HOOKS=on` in eval runs | off; the routes answer 404 |
 | Eval suite | runs here against `wrangler dev` | not run (it needs the hooks and the simulated clock) |
 
-The deployment to Cloudflare has not been done yet; until it is, everything in this README was run locally (workerd through Miniflare and `wrangler dev`).
+The deployment to Cloudflare has not been done yet; until it is, everything in this README was run locally (workerd through Miniflare and `wrangler dev`). The GitHub Actions workflow (`.github/workflows/ci.yml`) has not run either: nothing has been pushed, so it first runs after the first push.
 
 ## Run it locally
 
-Requirements: Node 24 (22.18 or later works; this repository was built on Node 25), npm.
+Requirements: npm and Node. Tested on Node 25.9 (macOS); `engines` allows 22.18 or later and CI targets Node 24, neither of which has been exercised yet.
 
 ```sh
 npm ci
@@ -108,7 +108,7 @@ Read the standard numbers for what they are: every scenario is designed so a cor
 
 The two ablations rerun the same scenarios with one mechanism switched off (Idempotency-Key handling in the simulated systems, or step retries), to show that the mechanism, not luck, produces the standard results.
 
-Chaos mode is the informative measurement: `npm run eval:chaos` runs the same 60 employees for 5 seeds, each on a fresh local D1 and server, with no per-scenario script. A seeded injector faults about 30% of (employee, operation) pairs (some beyond the retry budget), opens 0 to 2 sustained outage windows of 10 to 60 s per system, and corrupts validated fields; generic seeded bots play the employees, managers, the three department coordinators and an admin, acting only on what the API shows them, with limited patience. Each case has 180 s. The fault table and policies are in `eval/harness/policies.ts`; decisions taken before the first recorded run, and the trial runs behind them, are logged in `eval/results/CHANGELOG.md`.
+Chaos mode is the informative measurement: `npm run eval:chaos` runs the same 60 employees for 5 seeds, each on a fresh local D1 and server, with no per-scenario script. A seeded injector faults about 30% of (employee, operation) pairs (some beyond the retry budget), opens 0 to 2 sustained outage windows of 10 to 60 s per system, and corrupts validated fields; generic seeded bots play the employees, managers, the three department coordinators and an admin, acting only on what the API shows them. Each case has 180 s: it counts as completed only if a poll saw it `complete` within that time, and the bots stop working a case once its deadline passes. The coordinator bots give up after 3 retries of one blocker, but the workflow's own limit comes first: a blocker stays open across rounds, so its third retry starts a stage's fourth round at the earliest, which is the last one, and if that round fails the workflow fails the case (at most 4 rounds per stage and 6 per case). So "bot patience" is 0 by construction, and the limit that applies is the workflow's recovery-round cap. The fault table and policies are in `eval/harness/policies.ts`; decisions taken before the first recorded run, and the trial runs behind them, are logged in `eval/results/CHANGELOG.md`.
 
 ## Results
 
@@ -271,10 +271,19 @@ docs/adr/          architecture decision records 0001 to 0008
 
 ## Not built in this version
 
-Every feature in the specification's Tier 1 and Tier 2 scope is built. The Workers AI provider exists and is unit tested against a fake binding, but it has never run against Cloudflare (it needs an account and the production AI binding).
+Every feature in the specification's Tier 1 and Tier 2 scope is built. These parts exist but have never been exercised, because they need a Cloudflare account or a push:
+
+- production Cloudflare Access (a real Access application and team JWKS; the verifier is tested only against locally generated keys), remote D1, and `npm run deploy`;
+- the Workers AI provider, which is unit tested against a fake binding only;
+- the GitHub Actions workflow, which first runs after the first push.
+
+Known limitations:
+
+- Live subscriptions are authorized when the WebSocket upgrades and re-checked before every state push (dashboard sockets at least once a minute, since the hub reconciles every 60 s): a socket whose Access token expired, or whose account was deactivated or lost the role, is closed then. A socket on a case that never changes is not re-checked until something changes.
+- After the HR worker was created, a coordinator can still correct the cost center. If an admin then restarts the case, replaying the stored worker creation sends a different request under the same Idempotency-Key, which the simulated HR system refuses (422). The intake stage blocks as a data issue that no field correction can clear (only restoring the old value would); retries fail the same way until the stage's recovery rounds run out and the workflow fails the case with `recovery_rounds_exhausted` (audited). No second worker is created. Both paths are pinned by tests in `test/worker/workflow-restart.test.ts`.
 
 ## Troubleshooting
 
 Worker test runs print `uncaught exception` lines such as `Aborting engine: User called restart`, `broken.outputGateBroken`, `eval-evict` and occasional "Worker's code had hung" messages. They come from steps that fail on purpose, restarts, terminations and evictions; tests assert outcomes, not log silence. The "Missing required secrets" warning during tests and builds is expected: tests pass secrets as Miniflare bindings.
 
-Under load, `wrangler dev`'s local ProxyWorker can drop its connection to the Worker. It retries a GET itself ("recovered on attempt 2 after a dropped connection to the UserWorker") and answers a POST with a plain-text 500, `Error: Network connection lost.` The eval harness retries such a request with the same Idempotency-Key and counts it in the results. A browser user would see the request fail and could repeat the action. Eval timeouts and chaos deadlines are wall-clock: run evals with the machine awake (lid open, on power), since every run records host stalls and the Results block flags them. Kept eval logs (`--keep`) also show "Worker's code had hung" errors that belong to no request; the passing 150/150 scale run logged 150 of them.
+Under load, `wrangler dev`'s local ProxyWorker can drop its connection to the Worker. It retries a GET itself ("recovered on attempt 2 after a dropped connection to the UserWorker") and answers a POST with a plain-text 500, `Error: Network connection lost.` The eval harness retries such a request with the same Idempotency-Key and counts it in the results. A browser user would see the request fail and could repeat the action. Eval timeouts and chaos deadlines are wall-clock: run evals with the machine awake (lid open, on power), since every run records host stalls and the Results block flags them. Kept eval logs (`--keep`) also show "Worker's code had hung" errors that belong to no request.

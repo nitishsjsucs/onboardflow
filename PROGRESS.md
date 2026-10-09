@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 26 to 31 done; the llama run of commit 31 was recorded by builder 2 in a follow-up commit once the machine was awake. Four extra harness fixes came out of the Tier 2 recording round, plus one README rendering fix; both ablations were then re-recorded without a host stall and chaos was run a fourth time (listed in the table and in `eval/results/CHANGELOG.md`). Every planned commit in SPEC Section 21 is done. Builder 3 re-ran every check from a clean tree, found the likely cause of the one intermittent test failure (a race in the test, not in the product) and fixed the test. Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 26 to 31 done; the llama run of commit 31 was recorded by builder 2 in a follow-up commit once the machine was awake. Four extra harness fixes came out of the Tier 2 recording round, plus one README rendering fix; both ablations were then re-recorded without a host stall and chaos was run a fourth time (listed in the table and in `eval/results/CHANGELOG.md`). Every planned commit in SPEC Section 21 is done. Builder 3 re-ran typecheck, tests and build from a clean tree, found the likely cause of the one intermittent test failure (a race in the test, not in the product) and fixed the test. A fixer round then worked through three independent reviews (correctness, security, honesty); every finding, its verdict and its commit are under "Review findings" below. The fixer round stopped before committing its fifth chaos run and its docs; builder 2 (second pass, 2026-10-09) re-ran every check, committed that run, recorded a standard run that includes every review fix, pinned the cost center restart limitation with two tests, and committed the docs. Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -24,6 +24,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 | 13 | feat(workflow): recovery, approvals, restart, terminate, fallbacks | done |
 | 14 | feat(agents): blocker rules, nudges, follow-up drafting, scheduled scans | done |
 | 15 | feat(agents): OpsHubAgent reconcile and read-only subscriptions | done |
+| (extra) | docs: README with status, architecture, design decisions, local setup and roadmap (cdb20da) | done; the only commit without the Co-Authored-By trailer (see deviation 27) |
 | 16 | feat(api): REST routes | done |
 | 17 | feat(api): dev eval hooks | done |
 | 18 | feat(web): app shell, dev login, routing, API client, employee portal | done |
@@ -51,21 +52,34 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 | 31 (cont.) | chore(eval): record the local-LLM run and update README results | done |
 | (extra) | chore(eval): re-record both ablations on an awake machine | done |
 | (extra) | chore(eval): record a fourth chaos run on an awake machine | done |
-| (extra) | fix(eval): watch chaos host stalls from a healthy server onward | done (typechecked; not yet exercised by a chaos run) |
+| (extra) | fix(eval): watch chaos host stalls from a healthy server onward | done; first exercised by the fifth chaos run (de6740d), which found no stall |
 | (extra) | test(workflow): wait for the first IT call row before comparing it with the manager decision | done (builder 3; see "Known noise and caveats") |
+| (extra) | fix(agents): refuse sub-agent paths and forged SDK headers on live subscriptions (a294819) | done (fixer, security review) |
+| (extra) | fix(workflow): block a completed stage when its replay fails after a restart (39840f1) | done (fixer, correctness review) |
+| (extra) | fix(integrations): replay the stored workspace preference on re-execution (68effc0) | done (fixer, correctness review) |
+| (extra) | fix(eval): count chaos completion only within the case deadline (edb495d) | done (fixer, honesty review) |
+| (extra) | feat(eval): record each run's command, commit at start and tree state (0459a03) | done (fixer, honesty review) |
+| (extra) | test(eval): cover chaos aggregates (eb514dc) | done (fixer, correctness review) |
+| (extra) | fix(api): fail closed on foreign cursors, internal errors and inconsistent accounts (2fdf494) | done (fixer, security review) |
+| (extra) | fix(agents): lock the license bundle once the manager's approval is requested (45198a2) | done (fixer, security review) |
+| (extra) | test(workflow): take the gate tests' check counts out of the timeout race (2760116) | done (fixer, correctness review) |
+| (extra) | chore(eval): record a standard run after the review fixes (6248014) | done |
+| (extra) | fix(agents): re-check live subscriptions before every state push (9c55e58) | done (fixer, security review) |
+| (extra) | chore(eval): record a fifth chaos run under the deadline rule (de6740d) | done (run by the fixer at 6248014, committed by builder 2) |
+| (extra) | fix(eval): describe a late chaos completion as first seen after the deadline (35ebbec) | done (wording only) |
+| (extra) | chore(eval): record a standard run after the last review fix (d8b4d20) | done (builder 2) |
+| (extra) | test(workflow): pin the cost center replay limitation after a restart (934fab2) | done (builder 2) |
+| (extra) | docs: README, PROGRESS and CHANGELOG after the review fixes | done (builder 2; the commit after 934fab2) |
 
-## Check status (last run, 2026-10-08 20:57 PDT, builder 3, at 9e24593)
+## Check status (last run, 2026-10-09, builder 2 second pass)
 
-- `npm run typecheck`: pass (worker, web, node projects)
-- `npm test`: pass (45 files, 335 tests: worker in workerd, node, web), twice: once at e78af45 before any change (20:53) and once after the test fix (20:56)
-- `npm run build`: pass (`check-bundle` ok)
-- `npm run typegen:check`: up to date (last run by builder 2)
-- `npm run seed:check`: ok (last run by builder 2) (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)
-- `npm run deploy:dry-run`: pass, last run by builder 2 (2182 KiB upload, 500 KiB gzip). It leaves a production-flattened dist/, so run `npm run build` again before any eval.
+- At the starting state (9c55e58 plus the fixer's uncommitted fifth chaos run and docs), 11:21 to 11:26 PDT: `npm run typecheck` pass; `npm test` pass (45 files, 362 tests); `npm run build` pass (`check-bundle` ok); `npm run typegen:check` up to date; `npm run seed:check` ok (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e); `npm run deploy:dry-run` pass (2190 KiB upload, 502 KiB gzip), followed by `npm run build` to restore the dev build.
+- At 934fab2 (the code of the final commit; the docs commit after it changes no code), 11:30 to 11:33 PDT: `npm run typecheck` pass; `npm test` pass (45 files, 364 tests: the 362 plus the two cost center restart tests); `npm run build` pass. `npx vitest run --project node` (93 tests, which include the README results drift test) passed at de6740d and 35ebbec, and the README results drift test at d8b4d20.
+- `npm run eval:ci` at 35ebbec (clean tree, 11:27 PDT): 60/60 completed and passed, CI gate passed (committed in d8b4d20).
 - Recorded results (all committed in `eval/results/`, rendered into the README by `npm run results:readme`; `test/node/readme-results.test.ts` guards drift; full account in `eval/results/CHANGELOG.md`):
-  - `npm run eval:ci` (git f5c8cfb, after the backoff fix): 60/60 completed, 60/60 passed, 0 duplicates, audit coverage 1, hub consistent, CI gate passed.
+  - `npm run eval:ci`: every standard run is 60/60 completed and passed with 0 duplicates, audit coverage 1, hub consistent, CI gate passed: git f5c8cfb (after the backoff fix), 2760116 (after the review fixes, 1 transport retry), and 35ebbec (latest, 2026-10-09 11:27 PDT, the first with 9c55e58, 0 transport retries, no host stall).
   - `npm run eval:scale` (git f5c8cfb): two runs, both committed. 148/150 (two harness requests got a local runtime plain-text 500), then 150/150 (latest).
-  - `npm run eval:chaos`, four runs on seeds 1 to 5, all committed. Run 1 (6f9a11d) 230/300, invalid seed 3 (outage window never ended, harness bug). Run 2 (a510536) 210/300, with 248 bot requests lost to dropped local proxy connections. Run 3 (5e2635b) 280/300: per-seed mean 0.933, min 0.85, max 1.0; seed 5 overlapped a system sleep, so seeds 1 to 4 (228/240) are its clean part. Run 4 (c04aeb7, latest, 20:22 PDT, lid open, 983 s) 287/300: per-seed 58, 57, 58, 58, 56 (mean 0.9567, min 0.9333, max 0.9667), 0 duplicates, 0 transport or control retries, 12 deadlines and 1 `case_failed` (seed 3 E059, `recovery_rounds_exhausted` at Facilities). Its detector counted one 5.8 s gap in seed 1, flagged in the README; the power log shows no sleep, and that watch window included the blocking `prepareDatabase` setup.
+  - `npm run eval:chaos`, five runs on seeds 1 to 5, all committed. Run 5 (6248014 at start, clean tree, 2026-10-08 21:30 PDT, AC power, lid open, 945 s; committed in de6740d; latest) is the first under the deadline rule and the first with the post-setup stall watch: 289/300, per-seed 57, 58, 60, 58, 56 (mean 0.9633, min 0.9333, max 1.0), 0 duplicates, 0 transport, control or bot request errors, no host stall, all 11 misses deadlines (none of those cases had completed by the end of its seed), no failed case, slowest counted case 170.5 s. It predates 9c55e58 (the harness opens no live subscription). Runs 1 to 4 were counted under the old rule (late completions counted; see the CHANGELOG). Run 1 (6f9a11d) 230/300, invalid seed 3 (outage window never ended, harness bug). Run 2 (a510536) 210/300, with 248 bot requests lost to dropped local proxy connections. Run 3 (5e2635b) 280/300: per-seed mean 0.933, min 0.85, max 1.0; seed 5 overlapped a system sleep, so seeds 1 to 4 (228/240) are its clean part. Run 4 (c04aeb7, 20:22 PDT, lid open, 983 s) 287/300: per-seed 58, 57, 58, 58, 56 (mean 0.9567, min 0.9333, max 0.9667), 0 duplicates, 0 transport or control retries, 12 deadlines and 1 `case_failed` (seed 3 E059, `recovery_rounds_exhausted` at Facilities). Its detector counted one 5.8 s gap in seed 1, flagged in the README; the power log shows no sleep, and that watch window included the blocking `prepareDatabase` setup.
   - `npm run eval:ablate`, two pairs, all committed. Latest (e082bc2, 20:14 PDT, no host stall, no transport retry): keys off 60/60 completed, 50/60 passed, 28 duplicate side effects, 39 s; retries off 44/60 completed, 43/60 passed, 0 duplicates, 205 s. First pair (5e2635b, through system sleep): keys off 59/60, 50/60, 27 duplicates (R05 timed out in a stall; R06 one duplicate fewer, a restart race); retries off identical counts.
   - `npm run eval:llama` (git 697c8fc, started 20:09 PDT, lid open, no host stall): 60/60 completed and passed, 0 duplicates, 20 follow-ups all drafted by Qwen3-1.7B, 100% schema-valid, category agreement 100%, p50 2874 ms. Validity and agreement are close to guaranteed (schema-constrained output, the prompt names the rule kind); the README says so.
 - No wrangler, workerd or llama process of this repo is left running; `eval/.state` is removed.
@@ -73,7 +87,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 ## How to continue
 
 1. Read SPEC.md Sections 12.3 (chaos), 12.4 (metrics) and 21, `eval/results/CHANGELOG.md`, then this file's deviations.
-2. Commit 31 is complete (the llama run is recorded), both ablations were re-recorded cleanly and chaos ran a fourth time. Optionally run `npm run eval:chaos` (about 17 minutes) again on a quiet machine on power for a run with no flagged seed; it is also the first run with the chaos stall watch starting after setup: the harness now records host stalls and transport retries, so a clean run is self-evidently clean. Commit every run (never only the better one), add a CHANGELOG line, then `npm run results:readme` and update the README's "Reading these results" notes to match. Builder 3 did not run it: at 20:53 PDT the Mac was on battery at 8% and discharging, with about 18 minutes left, which is shorter than the run, and a run cut by sleep or shutdown would only add another flagged result.
+2. Every planned commit is done and every review finding is fixed or pinned. The clean chaos run that was wanted exists (run 5, no flagged seed). Nothing else is required before the user's verification and push. If anyone records another run: commit every run (never only the better one), add a CHANGELOG line, then `npm run results:readme` and update the README's "Reading these results" notes to match. A chaos run takes about 16 minutes; run it on AC power with the lid open.
 3. Chaos mode lives in `eval/harness/chaos.ts` (orchestrator and bots) and `eval/harness/policies.ts` (pure seeded policies). The HTTP layer with same-key transport retries is `Harness` in `eval/harness/actions.ts`; the host stall detector is `eval/harness/host.ts`. Shared run helpers are in `eval/harness/server.ts` so `run.ts` and `chaos.ts` do not import each other (a top-level-await cycle deadlocks Node).
 4. Before any eval: `npm run build` (dev build). Use only port 8781 / inspector 9231 on this machine; the harness defaults to them and kills its process group at the end. Other repositories run their own test suites on this Mac at the same time; expect load.
 5. Never edit scenarios, fault tables or bot policies toward a target; log any harness change in `eval/results/CHANGELOG.md`.
@@ -110,6 +124,46 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 
 25. Eval harness transport handling (Tier 2 recording round, logged in `eval/results/CHANGELOG.md`): the harness HTTP layer retries a network error, or a 5xx whose body is not JSON, with the same Idempotency-Key for up to 75 s (wrangler dev's ProxyWorker drops connections under load and fails POSTs); chaos orchestrator control calls also retry 5xx and `409 idempotency_in_progress`; timed chaos actions no longer block the bots' loop; every run records transport retries and host stalls (`eval/harness/host.ts`). SPEC 12 does not describe transport handling; app answers are never retried.
 26. Commit 31 is split in two: chaos and ablations were recorded in 697c8fc, and the llama run in a later commit, because the machine was asleep with the lid closed on battery when it was first due. The README Results block lists the stub run of a mode before its local-LLM run (a rendering fix, so the CI gate stays first).
+
+27. Commit cdb20da (`docs: README with status, architecture, design decisions, local setup and roadmap`, 2026-10-08 15:11 PDT) sits between commits 15 and 16. It is not in the SPEC commit plan, its body only repeats the subject, and it is the only commit without the `Co-Authored-By: Claude Opus 5.5` trailer (checked by grepping every commit body). It was not rebased: a rebase would change every later SHA, and the committed `eval/results/*.json` files and the README Results cite those SHAs. Whether to keep the history as is (and how the trailer question of SPEC Section 20 row 6 is settled) is the user's decision before the first push.
+28. Fixer round (after three independent reviews). Product: `markBlocked` may move a `complete` stage to `blocked` (a replay after a restart can fail), and `runOp` fails the case as `workflow_error` if marking blocked changes nothing; the workspace step starts from the stored preference and treats a 422 `idempotency_key_reuse` as "try the next preference"; `fixField` refuses a `licenseBundle` change once a manager approval exists unless an open `data_issue` blocker is on that field (409 `field_locked_by_approval`); cursors are type-checked (400 `invalid_cursor`) and unexpected errors return a generic message; `loadPrincipal` refuses accounts whose role does not match the staff row (coordinators need a department); `/agents/*` accepts only `/agents/<class>/<name>`, strips SDK-internal headers, and both agents refuse sub-agents; agents re-check live subscriptions before every state push. Test seam: `RunLimits.gateWaitTimeoutMs` (EVAL_HOOKS only). Harness: chaos completion requires `complete` within the 180 s deadline and bots stop at the deadline; cases count as started only after an accepted start; runs record their command, commit at start and tree state. All logged in `eval/results/CHANGELOG.md`.
+
+## Review findings (fixer round, 2026-10-08)
+
+Each finding was checked before acting on it. "Verified" says how. Commits are listed in the table above.
+
+Correctness review:
+- Important, restart deadlock when a replay fails on a completed stage (run-context.ts markBlocked): verified, the new restart test timed out at "run 2 blocks intake" without the fix. Fixed in 39840f1 (also fails the case as `workflow_error` if marking blocked still changes nothing).
+- Important, workspace preference cannot be replayed after a desk conflict (facilities.ts): verified, the new restart test and a client-level test failed (422 key reuse) without the fix. Fixed in 68effc0. The same drift for `hr.create-worker` after a cost center correction followed by a restart is not fixed; it now ends as an audited data issue instead of hanging, and the README lists it under known limitations. Builder 2 pinned both paths with tests in 934fab2 (retries fail with 422 `idempotency_key_reuse` until `recovery_rounds_exhausted`, one worker; restoring the old cost center lets the replay through).
+- Important, no test for `chaosAggregate`: verified with grep. Fixed in eb514dc.
+- Minor, live-websocket frame test polled a frozen copy: verified by reading. Fixed in a294819 (polls the live list; checks the pushed frame shows the task completed).
+- Minor, request validation test skipped 404s: verified by reading. Fixed in 2fdf494 (inserts the pending approval; every probe must be 400).
+- Minor, workflow-gates exact check counts depend on the 1 s bounded wait: verified by reading the tests and `vitest.config.ts`. Fixed in 2760116 with an EVAL_HOOKS-only `gateWaitTimeoutMs` limit; the counts are unchanged.
+- Minor, restart test cleared the outage before run 2 had blocked: verified by reading. Fixed in 39840f1 (waits for the run 2 `stage.blocked` audit and 5 run 2 attempts).
+- Minor, approvals test compared call completion with the decision: verified (`integration_calls.created_at` is written after the fetch). Fixed in 45198a2 (asserts the pause directly, then compares the call start).
+- Minor, `startedCases` counted before the start ran: verified in run.ts (and chaos counted every case). Fixed in edb495d.
+- Minor, blocker-rules test never checked a not-started case: verified. Fixed in 2760116.
+
+Security review:
+- Blocking, sub-agent paths (`/agents/case-agent/E130/sub/ops-hub-agent/...`): verified, the new test got 101 without the fix. Fixed in a294819.
+- Blocking, forged `x-cf-agents-subagent-url` header: verified, the new test saw identity `ops-hub-agent` without the fix. Fixed in a294819 (forwarded request rebuilt without `x-cf-agents-*` and `x-agents-*` headers; agents refuse sub-agents in `onBeforeSubAgent`).
+- Minor, the approval is not bound to what is provisioned: verified by reading. Fixed differently from the suggested fix in 45198a2. Provisioning from the approved `request_json` was rejected because it would break the documented F6 IT correction flow (the approved bundle is the corrupted one, and the coordinator's correction must apply on retry). Instead the bundle is locked once a manager approval exists, except to correct an open data issue on it.
+- Minor, live subscriptions authorized only at the upgrade: verified by reading. Fixed in 9c55e58: the route passes the subscriber (email, token expiry) in a server-owned header, the agents store it on the connection, and before every state push (CaseAgent refresh, OpsHubAgent reconcile, which also runs every 60 s) they close sockets whose token expired (4401) or whose account no longer passes `canSubscribe` (4403). A socket on a case that never changes is re-checked only when that case or the hub next changes.
+- Minor, cursor decoding and leaked D1 error text: verified with the reviewer's probes as tests. Fixed in 2fdf494.
+- Minor, department scoping fails open for a coordinator without a department: verified by reading the schema and `loadPrincipal`. Fixed in 2fdf494.
+
+Honesty review:
+- Blocking, chaos counted cases that completed after their deadline: verified in the committed files (run 4 counts chaos-1-E017 at 180,528 ms and chaos-1-E020 at 180,401 ms; run 3 four such cases; run 2 thirty-six). Fixed in edb495d, covered by a fake-timeline test, and chaos was run again (fifth run, committed in de6740d). The old runs stay committed; the CHANGELOG lists what each counted.
+- Minor, "bot patience" is 0 by construction: verified (patience 3 retries per blocker, a blocker stays open across rounds, `MAX_STAGE_ROUNDS` 4 fails the case first). README and CHANGELOG now say so; the policy is unchanged.
+- Minor, README presented Access verification without the caveat: fixed in the README (Access-compatible wording; production Access, remote D1, deploy and CI listed as never exercised).
+- Minor, this file claimed builder 3 re-ran every check: corrected above; this round re-ran all of them (see check status).
+- Minor, commit cdb20da missing from this file and without the trailer: verified. Added to the table and as deviation 27; not rebased.
+- Minor, README numbers no script produced ("about 2 s" setup timing, "150 of them" hung messages): removed from the README; the CHANGELOG keeps the setup timing only as an ad hoc measurement.
+- Minor, the README command was inferred from the mode: fixed in 0459a03; older runs are labeled as inferred.
+- Minor, "same-site Origin": corrected to same-origin in the README.
+- Minor, Node 22.18 "works" and CI read as having run: README now says tested on Node 25.9 only and that CI first runs after the first push.
+
+Rejected findings: none. One fix differs from the suggestion (approval binding, above).
 
 ## Known noise and caveats
 

@@ -193,7 +193,9 @@ with its reason. Nothing here is tuned toward a target.
   flags that seed. `pmset -g log` shows no sleep or wake during the run.
   The per-seed watch in chaos mode started before `prepareDatabase`, whose
   two synchronous `wrangler d1` calls block the harness's event loop (timed
-  afterwards at about 2.1 s on a quieter machine); the file cannot say
+  afterwards by hand at about 2.1 s on the same laptop under less load, an
+  ad hoc timing with no recorded command; this wording was corrected in the
+  review round, it first said "a quieter machine"); the file cannot say
   whether the gap fell there or while cases ran.
 - Harness change (`fix(eval): watch chaos host stalls from a healthy server
   onward`): each chaos seed now starts its stall detector after its server
