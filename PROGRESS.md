@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 26 to 31 done; the llama run of commit 31 was recorded by builder 2 in a follow-up commit once the machine was awake. Four extra harness fixes came out of the Tier 2 recording round, plus one README rendering fix; both ablations were then re-recorded without a host stall and chaos was run a fourth time (listed in the table and in `eval/results/CHANGELOG.md`). Every planned commit in SPEC Section 21 is done. Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 26 to 31 done; the llama run of commit 31 was recorded by builder 2 in a follow-up commit once the machine was awake. Four extra harness fixes came out of the Tier 2 recording round, plus one README rendering fix; both ablations were then re-recorded without a host stall and chaos was run a fourth time (listed in the table and in `eval/results/CHANGELOG.md`). Every planned commit in SPEC Section 21 is done. Builder 3 re-ran every check from a clean tree, found the likely cause of the one intermittent test failure (a race in the test, not in the product) and fixed the test. Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -52,15 +52,16 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 | (extra) | chore(eval): re-record both ablations on an awake machine | done |
 | (extra) | chore(eval): record a fourth chaos run on an awake machine | done |
 | (extra) | fix(eval): watch chaos host stalls from a healthy server onward | done (typechecked; not yet exercised by a chaos run) |
+| (extra) | test(workflow): wait for the first IT call row before comparing it with the manager decision | done (builder 3; see "Known noise and caveats") |
 
-## Check status (last run, 2026-10-08 20:20 PDT)
+## Check status (last run, 2026-10-08 20:57 PDT, builder 3, at 295770f)
 
 - `npm run typecheck`: pass (worker, web, node projects)
-- `npm test`: pass (45 files, 335 tests: worker in workerd, node, web). One intermittent failure was seen once and not reproduced; see "Known noise and caveats".
+- `npm test`: pass (45 files, 335 tests: worker in workerd, node, web), twice: once at a212718 before any change (20:53) and once after the test fix (20:56)
 - `npm run build`: pass (`check-bundle` ok)
-- `npm run typegen:check`: up to date
-- `npm run seed:check`: ok (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)
-- `npm run deploy:dry-run`: pass (2182 KiB upload, 500 KiB gzip). It leaves a production-flattened dist/, so run `npm run build` again before any eval.
+- `npm run typegen:check`: up to date (last run by builder 2)
+- `npm run seed:check`: ok (last run by builder 2) (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)
+- `npm run deploy:dry-run`: pass, last run by builder 2 (2182 KiB upload, 500 KiB gzip). It leaves a production-flattened dist/, so run `npm run build` again before any eval.
 - Recorded results (all committed in `eval/results/`, rendered into the README by `npm run results:readme`; `test/node/readme-results.test.ts` guards drift; full account in `eval/results/CHANGELOG.md`):
   - `npm run eval:ci` (git 6dbf935, after the backoff fix): 60/60 completed, 60/60 passed, 0 duplicates, audit coverage 1, hub consistent, CI gate passed.
   - `npm run eval:scale` (git 6dbf935): two runs, both committed. 148/150 (two harness requests got a local runtime plain-text 500), then 150/150 (latest).
@@ -72,7 +73,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 ## How to continue
 
 1. Read SPEC.md Sections 12.3 (chaos), 12.4 (metrics) and 21, `eval/results/CHANGELOG.md`, then this file's deviations.
-2. Commit 31 is complete (the llama run is recorded), both ablations were re-recorded cleanly and chaos ran a fourth time. Optionally run `npm run eval:chaos` (about 17 minutes) again on a quiet machine on power for a run with no flagged seed; it is also the first run with the chaos stall watch starting after setup: the harness now records host stalls and transport retries, so a clean run is self-evidently clean. Commit every run (never only the better one), add a CHANGELOG line, then `npm run results:readme` and update the README's "Reading these results" notes to match.
+2. Commit 31 is complete (the llama run is recorded), both ablations were re-recorded cleanly and chaos ran a fourth time. Optionally run `npm run eval:chaos` (about 17 minutes) again on a quiet machine on power for a run with no flagged seed; it is also the first run with the chaos stall watch starting after setup: the harness now records host stalls and transport retries, so a clean run is self-evidently clean. Commit every run (never only the better one), add a CHANGELOG line, then `npm run results:readme` and update the README's "Reading these results" notes to match. Builder 3 did not run it: at 20:53 PDT the Mac was on battery at 8% and discharging, with about 18 minutes left, which is shorter than the run, and a run cut by sleep or shutdown would only add another flagged result.
 3. Chaos mode lives in `eval/harness/chaos.ts` (orchestrator and bots) and `eval/harness/policies.ts` (pure seeded policies). The HTTP layer with same-key transport retries is `Harness` in `eval/harness/actions.ts`; the host stall detector is `eval/harness/host.ts`. Shared run helpers are in `eval/harness/server.ts` so `run.ts` and `chaos.ts` do not import each other (a top-level-await cycle deadlocks Node).
 4. Before any eval: `npm run build` (dev build). Use only port 8781 / inspector 9231 on this machine; the harness defaults to them and kills its process group at the end. Other repositories run their own test suites on this Mac at the same time; expect load.
 5. Never edit scenarios, fault tables or bot policies toward a target; log any harness change in `eval/results/CHANGELOG.md`.
@@ -112,7 +113,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 
 ## Known noise and caveats
 
-- Intermittent, unexplained: once (2026-10-08 about 20:46 PDT), a full `npm test` under heavy load (two other repositories' wrangler and llama servers running, battery near 12%) failed `test/worker/workflow-approvals.test.ts > does not start provisioning before the manager decides`. The failure message was not captured. The next full run and 12 isolated runs of that file passed. The test asserts that the first IT `integration_calls.created_at` for E104 is not earlier than the manager approval's `decided_at`; both come from `Date.now()` plus the D1 `sim_clock` offset, loaded fresh per command (CaseAgent) and per operation (workflow), and worker test files run serially, so no cause is known. The test is unchanged. If it recurs, capture the assertion output (`npx vitest run --project worker test/worker/workflow-approvals.test.ts`) before changing anything.
+- Intermittent test, probable cause fixed in 295770f: once (2026-10-08 about 20:46 PDT), a full `npm test` under heavy load (two other repositories' wrangler and llama servers running, battery near 12%) failed `test/worker/workflow-approvals.test.ts > does not start provisioning before the manager decides`, without its message captured. The test read `MIN(created_at)` of E104's IT calls as soon as `it_provisioning` was `active`. `startStage` marks the stage active in its own step, and `IntegrationClient` writes a call row only when the call returns, so the query can return NULL in between; `Date.parse(null)` is NaN and the ordering assertion fails. Load widens that window. This was found by reading the code, not reproduced. The test now waits for the first IT row and keeps the same ordering assertion, so a real ordering bug would still fail it. If it ever fails again, capture the assertion output (`npx vitest run --project worker test/worker/workflow-approvals.test.ts`) before changing anything.
 
 - Worker tests print `uncaught exception` lines (`Aborting engine: ...`, `broken.outputGateBroken`, `eval-evict`, occasional "Worker's code had hung"); they come from intentional failures, restarts, terminations and evictions. Tests assert outcomes.
 - "Missing required secrets" warnings during tests and builds are expected (tests pass secrets as Miniflare bindings).
