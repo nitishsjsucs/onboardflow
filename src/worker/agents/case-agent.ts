@@ -316,11 +316,33 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const stamp = userStamp(cmd.requestId);
     const after: EmployeeProfileDto = { ...before, [field]: value } as EmployeeProfileDto;
     const conflictBody = errorBody("field_changed", "the field changed concurrently; reload and retry", cmd.requestId);
+    // The manager approves a request that names the license bundle (approvals.request_json), and the IT step
+    // provisions the bundle on the employee row. Once that approval has been requested, the bundle may change
+    // only as the correction of an open data_issue blocker on it (the simulated IT system rejected the value);
+    // any other change would provision something the manager never saw. Checked inside the guarded UPDATE.
+    const approvedGuard =
+      field === "licenseBundle"
+        ? {
+            sql: ` AND (NOT EXISTS (SELECT 1 FROM approvals WHERE employee_id = ? AND checkpoint = 'manager_approval')
+                    OR EXISTS (SELECT 1 FROM blockers WHERE employee_id = ? AND kind = 'data_issue' AND status = 'open' AND json_extract(detail_json, '$.field') = 'licenseBundle'))`,
+            binds: [id, id],
+          }
+        : { sql: "", binds: [] };
+    if (approvedGuard.sql) {
+      const locked = await db
+        .prepare(`SELECT 1 AS locked WHERE NOT (1 = 1${approvedGuard.sql})`)
+        .bind(...approvedGuard.binds)
+        .first<{ locked: number }>();
+      if (locked) {
+        const lockedBody = errorBody("field_locked_by_approval", "the license bundle was part of the manager's approval request; it can change only to correct an open data issue", cmd.requestId);
+        return { status: 409, body: lockedBody };
+      }
+    }
     const result = await runGuarded({
       db,
       mutation: db
-        .prepare(`UPDATE employees SET ${col} = ?, updated_at = ?, last_mutation_id = ? WHERE id = ? AND ${col} = ?`)
-        .bind(sqlValue, now, stamp, id, sqlBefore),
+        .prepare(`UPDATE employees SET ${col} = ?, updated_at = ?, last_mutation_id = ? WHERE id = ? AND ${col} = ?${approvedGuard.sql}`)
+        .bind(sqlValue, now, stamp, id, sqlBefore, ...approvedGuard.binds),
       applied: stamped("employees", "id = ?", [id], stamp),
       onApplied: (when) => [
         auditInsertWhen(db, this.#userAudit(cmd, now, "employee.field_corrected", "employee", id, { field, before: beforeValue, after: value }), when),

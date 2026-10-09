@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import { api } from "../helpers/api.ts";
 import {
   cmdFor,
   completeEmployeeTasks,
@@ -9,6 +10,7 @@ import {
   finishFromOrientation,
   managerOf,
   rpc,
+  sleep,
   stageRow,
   startCase,
   waitFor,
@@ -135,20 +137,55 @@ describe("approval checkpoints", () => {
   it("does not start provisioning before the manager decides", async () => {
     const intro = await fastWorkflows();
     try {
-      await driveThroughManagerApproval("E104");
-      // driveThroughManagerApproval approved; provisioning follows
-      await waitForStage("E104", "it_provisioning", ["active", "complete"]);
-      // The stage turns active in its own step, and a call row is written only
-      // when that call returns, so wait for the first IT row instead of reading
-      // MIN(created_at) while it can still be NULL.
-      const before = await waitFor(async () => {
-        const r = await DB.prepare("SELECT MIN(created_at) AS t FROM integration_calls WHERE employee_id = 'E104' AND operation LIKE 'it.%'").first<{ t: string | null }>();
-        return r?.t ? r.t : null;
-      }, { what: "E104 first IT call" });
+      await toManagerApproval("E104");
+      // paused at the checkpoint: give the workflow well over one bounded wait (1 s in tests) to move on wrongly
+      await sleep(2500);
+      const early = await DB.prepare("SELECT COUNT(*) AS n FROM integration_calls WHERE employee_id = 'E104' AND operation LIKE 'it.%'").first<{ n: number }>();
+      expect(early!.n).toBe(0);
+      expect((await stageRow("E104", "it_provisioning"))!.status).toBe("pending");
+      expect((await stageRow("E104", "manager_approval"))!.status).toBe("awaiting_approval");
+
+      expect((await decide("E104", "manager_approval", "approve", await managerOf("E104"))).status).toBe(200);
+      const first = await waitFor(
+        () => DB.prepare("SELECT created_at, latency_ms FROM integration_calls WHERE employee_id = 'E104' AND operation LIKE 'it.%' ORDER BY created_at LIMIT 1").first<{ created_at: string; latency_ms: number }>(),
+        { what: "E104 first IT call" },
+      );
       const decided = await DB.prepare("SELECT decided_at FROM approvals WHERE id = 'apr:E104:manager_approval:1'").first<{ decided_at: string | null }>();
       expect(decided?.decided_at).toBeTruthy();
-      expect(Date.parse(before)).toBeGreaterThanOrEqual(Date.parse(decided!.decided_at!));
+      // a call row is written when the call returns, so compare the call's start (created_at - latency) with the decision
+      expect(Date.parse(first.created_at) - first.latency_ms).toBeGreaterThanOrEqual(Date.parse(decided!.decided_at!));
       await (await rpc("E104")).terminateCase("cleanup", await cmdFor("A01"));
+    } finally {
+      await intro.dispose();
+    }
+  });
+
+  it("locks the license bundle once the manager's approval is requested, except to correct an open data issue", async () => {
+    const intro = await fastWorkflows();
+    const fix = (value: string) => api("/api/employees/E105", { as: "C03", method: "PATCH", body: { licenseBundle: value } });
+    try {
+      // before any approval request the IT coordinator may change it (here to a bundle the IT system will reject)
+      expect((await fix("contractor-basic")).status).toBe(200);
+      await toManagerApproval("E105");
+      const locked = await fix("ft-engineering");
+      expect(locked.status).toBe(409);
+      expect(locked.body.error.code).toBe("field_locked_by_approval");
+
+      expect((await decide("E105", "manager_approval", "approve", await managerOf("E105"))).status).toBe(200);
+      expect((await fix("ft-engineering")).status).toBe(409);
+      // the IT system rejects the approved bundle; the scan opens a data_issue blocker on it, and only then may it be corrected
+      await waitForStage("E105", "it_provisioning", "blocked");
+      await (await rpc("E105")).scanNow(await cmdFor("A01"));
+      await waitFor(() => DB.prepare("SELECT 1 AS ok FROM blockers WHERE employee_id = 'E105' AND kind = 'data_issue' AND status = 'open'").first(), { what: "E105 data issue" });
+      expect((await fix("ft-standard")).status).toBe(200);
+      expect((await api("/api/cases/E105/stages/it_provisioning/retry", { as: "C03", body: {} })).status).toBe(202);
+      await waitForStage("E105", "it_provisioning", "complete");
+      await waitFor(() => DB.prepare("SELECT 1 AS ok FROM blockers WHERE employee_id = 'E105' AND kind = 'data_issue' AND status <> 'open'").first(), { what: "E105 data issue resolved" });
+      expect((await fix("ft-engineering")).status).toBe(409);
+
+      const corrected = await DB.prepare("SELECT detail_json FROM audit_events WHERE employee_id = 'E105' AND action = 'employee.field_corrected' ORDER BY seq").all<{ detail_json: string }>();
+      expect(corrected.results.map((r) => (JSON.parse(r.detail_json) as { after: string }).after)).toEqual(["contractor-basic", "ft-standard"]);
+      await (await rpc("E105")).terminateCase("cleanup", await cmdFor("A01"));
     } finally {
       await intro.dispose();
     }
