@@ -342,3 +342,17 @@ with its reason. Nothing here is tuned toward a target.
   calls, 0 retried, 0 duplicate side effects, audit coverage 1, hub
   consistent, 0 transport retries, no host stall, 98 s. The earlier scale
   runs (git f5c8cfb) predate both review rounds.
+- Chaos mode after the second review round (`npm run eval:chaos`, git
+  676a939, clean tree, built from that commit with `dist/` unchanged,
+  started 2026-10-09 12:30 PDT on AC power, 1018 s, no host stall over
+  5 s, 2 transport retries that then succeeded): 265/300 completed,
+  per-seed 59, 57, 59, 53, 37 (mean 0.8833, min 0.6167, max 0.9833), 0
+  duplicate side effects, hub consistent, no bot gave up. 34 deadlines (6
+  of those cases first seen complete only after the deadline, 23 of the 34
+  in seed 5) and 1 failed case (seed 3 E059, `recovery_rounds_exhausted`
+  at Facilities, as in the fourth run). Other repositories' builds loaded
+  the machine heavily (load average 16 on 10 cores at the start, 20 at the
+  end; about 5 during the standard run). The workflow did the same work as
+  in the fifth run (10,044 calls, 4,250 retried, against 9,966 and 4,138);
+  the scenario p50 rose from 103 s to 131 s. Fault tables, seeds and bot
+  policies are unchanged.
