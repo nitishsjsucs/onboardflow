@@ -20,7 +20,7 @@ import { mergeStalls, watchHost } from "./host.ts";
 import { ensureLlama, LLAMA_BASE_URL } from "./llama.ts";
 import { printRun } from "./report.ts";
 import { writeRunSecrets } from "./secrets.ts";
-import { assertDevBuild, EVAL_VARS, hubConsistency, pool, prepareDatabase, ROOT, runProvenance, SIMULATED_NOW, snapshot, startServer, versionOf } from "./server.ts";
+import { assertDevBuild, buildMismatch, EVAL_VARS, hashDist, hubConsistency, pool, prepareDatabase, readBuild, ROOT, runProvenance, SIMULATED_NOW, snapshot, startServer, versionOf } from "./server.ts";
 
 const CASE_DEADLINE_MS = 90_000;
 
@@ -125,6 +125,8 @@ async function main() {
       "inspector-port": { type: "string", default: "9231" },
       only: { type: "string" },
       keep: { type: "boolean", default: false },
+      // for local experiments only: serve a build that does not match HEAD (recorded as matchesHead: false)
+      "allow-unmatched-build": { type: "boolean", default: false },
     },
   });
   const mode = values.mode ?? "standard";
@@ -139,6 +141,10 @@ async function main() {
   const concurrency = Number(values.concurrency ?? (mode === "scale" ? 10 : 6));
 
   assertDevBuild(ROOT);
+  // tie the recorded commit to the code that runs: the build must come from HEAD with a clean tree
+  provenance.build = readBuild(ROOT, provenance.headAtStart);
+  const mismatch = buildMismatch(provenance.build, provenance.headAtStart);
+  if (mismatch && !values["allow-unmatched-build"]) throw new Error(`${mismatch} (or pass --allow-unmatched-build for an unrecorded experiment)`);
   if (mode === "chaos") {
     process.exit(await runChaosMode({ seeds: Number(values.seeds ?? 5), port: Number(values.port), inspectorPort: Number(values["inspector-port"]), keep: values.keep ?? false, provenance }));
   }
@@ -187,6 +193,7 @@ async function main() {
 
     const hub = await hubConsistency(h);
     const metrics = computeMetrics(results, { startedCases: started.size, totalMs: Date.now() - t0, hub });
+    provenance.build.distSha256AtEnd = hashDist(ROOT);
     const host = hostWatch.stop();
     const run: EvalRun = {
       runId,
@@ -260,6 +267,7 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
   const results = outcomes.flatMap((x) => x.results);
   const hub = { matchesReconcile: outcomes.every((x) => x.hub.matchesReconcile), diffs: outcomes.flatMap((x) => x.hub.diffs.map((d) => `seed ${x.seed}: ${d}`)) };
   const metrics = computeMetrics(results, { startedCases: outcomes.reduce((n, x) => n + x.started, 0), totalMs: Date.now() - t0, hub });
+  if (o.provenance.build) o.provenance.build.distSha256AtEnd = hashDist(ROOT);
   const run: EvalRun = {
     runId,
     startedAt,

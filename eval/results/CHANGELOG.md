@@ -304,3 +304,13 @@ with its reason. Nothing here is tuned toward a target.
   reasons, so only those runs' blocker precision would differ. The
   recorded files are left as written. No scenario, fault table, seed or
   bot policy changed.
+- Harness, all modes: run provenance now also ties the recorded commit to
+  the code that ran. `npm run build` stamps `dist/build-info.json` with the
+  commit and tree state it built from; the harness refuses a build that is
+  not from HEAD or came from a dirty tree (unless
+  `--allow-unmatched-build`, recorded as `matchesHead: false`), and records
+  the stamp plus a sha256 of `dist/client` and `dist/onboardflow` at run
+  start and at run end in `provenance.build`. Runs recorded before this
+  carry no build field; for them the commit at start is the only link, so
+  a build made during a run (the fifth chaos run overlapped the writing of
+  9c55e58) cannot be ruled out from the file alone.

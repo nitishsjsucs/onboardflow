@@ -45,7 +45,13 @@ export function describeInvocation(r: Pick<EvalRun, "mode" | "llmProvider" | "gi
   if (!p) return `Command \`${inferredCommand(r)}\` (inferred from the mode; this run predates recorded commands), run ${date} (git ${r.gitSha.slice(0, 7)}, read when the run ended)`;
   const via = p.npmScript ? ` (via \`npm run ${p.npmScript}\`)` : "";
   const tree = p.cleanTreeAtStart ? "clean tree" : "**uncommitted changes in the tree**";
-  return `Command \`${["node eval/harness/run.ts", ...p.argv].join(" ")}\`${via}, run ${date} (git ${p.headAtStart.slice(0, 7)} at start, ${tree})`;
+  const b = p.build;
+  const build = !b
+    ? ""
+    : b.matchesHead && b.distSha256AtEnd === b.distSha256AtStart
+      ? `, built from that commit, dist/ unchanged during the run`
+      : `, **build ${b.matchesHead ? "changed during the run" : `from ${b.commit.slice(0, 7)}${b.dirtyTree ? " with uncommitted changes" : ""}`}**`;
+  return `Command \`${["node eval/harness/run.ts", ...p.argv].join(" ")}\`${via}, run ${date} (git ${p.headAtStart.slice(0, 7)} at start, ${tree}${build})`;
 }
 
 /** The README Results block, rendered from recorded runs only. */

@@ -42,6 +42,20 @@ export type RunProvenance = {
   headAtStart: string;
   /** `git status --porcelain` was empty when the run started. */
   cleanTreeAtStart: boolean;
+  /** The build the run served. Absent in runs recorded before builds were stamped (2026-10-09). */
+  build?: BuildProvenance;
+};
+
+export type BuildProvenance = {
+  /** From dist/build-info.json, written by the build. */
+  commit: string;
+  dirtyTree: boolean;
+  builtAt: string;
+  /** sha256 over every file under dist/client and dist/onboardflow, at run start and at run end. */
+  distSha256AtStart: string;
+  distSha256AtEnd: string | null;
+  /** The build came from the commit the run started at, from a clean tree. */
+  matchesHead: boolean;
 };
 
 export type EvalRun = {

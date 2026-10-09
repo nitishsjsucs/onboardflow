@@ -1,4 +1,8 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { buildMismatch, hashDist, readBuild } from "../../eval/harness/server.ts";
 import { attemptsInFinalRound, caseFacts, evaluateExpectations, type Snapshot } from "../../eval/harness/assertions.ts";
 import { blockerScores, chaosAggregate, type ChaosSeedSummary, ciGate, completedInTime, computeMetrics, percentile, ratio, type ScenarioResult } from "../../eval/harness/metrics.ts";
 import { describeInvocation } from "../../eval/harness/report.ts";
@@ -216,5 +220,40 @@ describe("run invocation in the README", () => {
       "Command `node eval/harness/run.ts --mode scale --llm stub --keep` (via `npm run eval:scale`), run 2026-10-09 (git 2222222 at start, clean tree)",
     );
     expect(describeInvocation({ ...base, provenance: { ...provenance, npmScript: null, cleanTreeAtStart: false } }, "2026-10-09")).toContain("(git 2222222 at start, **uncommitted changes in the tree**)");
+  });
+
+  it("says whether the served build came from the recorded commit and stayed unchanged", () => {
+    const head = "2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    const provenance = { npmScript: "eval:ci", argv: ["--mode", "standard"], headAtStart: head, cleanTreeAtStart: true };
+    const build = { commit: head, dirtyTree: false, builtAt: "2026-10-09T19:00:00.000Z", distSha256AtStart: "h1", distSha256AtEnd: "h1", matchesHead: true };
+    expect(describeInvocation({ ...base, provenance: { ...provenance, build } }, "2026-10-09")).toContain("(git 2222222 at start, clean tree, built from that commit, dist/ unchanged during the run)");
+    expect(describeInvocation({ ...base, provenance: { ...provenance, build: { ...build, distSha256AtEnd: "h2" } } }, "2026-10-09")).toContain("**build changed during the run**");
+    expect(describeInvocation({ ...base, provenance: { ...provenance, build: { ...build, commit: "3333333c", dirtyTree: true, matchesHead: false } } }, "2026-10-09")).toContain(
+      "**build from 3333333 with uncommitted changes**",
+    );
+  });
+
+  it("refuses a build that is not from HEAD or came from a dirty tree, and hashes dist/ by content", () => {
+    const head = "2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    expect(buildMismatch({ commit: head, dirtyTree: false }, head)).toBeNull();
+    expect(buildMismatch({ commit: "3333333cccc", dirtyTree: false }, head)).toMatch(/built from 3333333, but HEAD is 2222222/);
+    expect(buildMismatch({ commit: head, dirtyTree: true }, head)).toMatch(/uncommitted changes/);
+    const root = mkdtempSync(join(tmpdir(), "onboardflow-dist-"));
+    try {
+      mkdirSync(join(root, "dist/onboardflow"), { recursive: true });
+      mkdirSync(join(root, "dist/client/assets"), { recursive: true });
+      writeFileSync(join(root, "dist/onboardflow/index.js"), "export default {}");
+      writeFileSync(join(root, "dist/client/assets/app.js"), "console.log(1)");
+      writeFileSync(join(root, "dist/build-info.json"), JSON.stringify({ commit: head, dirtyTree: false, builtAt: "x" }));
+      const first = readBuild(root, head);
+      expect(first).toMatchObject({ commit: head, matchesHead: true, distSha256AtEnd: null });
+      expect(hashDist(root)).toBe(first.distSha256AtStart);
+      writeFileSync(join(root, "dist/build-info.json"), JSON.stringify({ commit: head, dirtyTree: false, builtAt: "y" }));
+      expect(hashDist(root)).toBe(first.distSha256AtStart); // the stamp itself is not part of the hash
+      writeFileSync(join(root, "dist/onboardflow/index.js"), "export default { changed: true }");
+      expect(hashDist(root)).not.toBe(first.distSha256AtStart);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

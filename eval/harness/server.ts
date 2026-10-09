@@ -2,12 +2,13 @@
 // committed seed) per run, then `wrangler dev` on the built Worker with eval
 // timings, killed as a process group at the end.
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, openSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Harness } from "./actions.ts";
 import type { Snapshot } from "./assertions.ts";
-import type { RunProvenance } from "./metrics.ts";
+import type { BuildProvenance, RunProvenance } from "./metrics.ts";
 
 export type ServerOptions = {
   stateDir: string;
@@ -32,6 +33,50 @@ export function assertDevBuild(root: string): void {
   if (cfg.ai || cfg.vars?.AUTH_MODE === "access") {
     throw new Error("dist/ holds a production-flattened build; run `npm run build` again before evaluating");
   }
+}
+
+/** sha256 over the relative path and content of every file under dist/client and dist/onboardflow (sorted). */
+export function hashDist(root: string): string {
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else files.push(p);
+    }
+  };
+  walk(join(root, "dist/client"));
+  walk(join(root, "dist/onboardflow"));
+  const h = createHash("sha256");
+  for (const f of files.map((x) => relative(root, x)).sort()) {
+    h.update(`${f}\0`);
+    h.update(readFileSync(join(root, f)));
+    h.update("\0");
+  }
+  return h.digest("hex");
+}
+
+/** The build stamp (dist/build-info.json) and a hash of dist/, checked against the commit the run starts at. */
+export function readBuild(root: string, headAtStart: string): BuildProvenance {
+  const path = join(root, "dist/build-info.json");
+  if (!existsSync(path)) throw new Error("dist/build-info.json is missing: run `npm run build` (this build predates build stamps)");
+  const info = JSON.parse(readFileSync(path, "utf8")) as { commit: string; dirtyTree: boolean; builtAt: string };
+  return {
+    commit: info.commit,
+    dirtyTree: info.dirtyTree,
+    builtAt: info.builtAt,
+    distSha256AtStart: hashDist(root),
+    distSha256AtEnd: null,
+    matchesHead: info.commit === headAtStart && !info.dirtyTree,
+  };
+}
+
+/** Why a build does not stand for the commit a run records, or null when it does. */
+export function buildMismatch(b: Pick<BuildProvenance, "commit" | "dirtyTree">, headAtStart: string): string | null {
+  if (b.commit !== headAtStart) return `dist/ was built from ${b.commit.slice(0, 7)}, but HEAD is ${headAtStart.slice(0, 7)}: run \`npm run build\``;
+  if (b.dirtyTree) return "dist/ was built from a tree with uncommitted changes: commit, then run `npm run build`";
+  return null;
 }
 
 export function prepareDatabase(root: string, stateDir: string): void {
