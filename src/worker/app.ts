@@ -28,7 +28,15 @@ import { simApp } from "./sims/app.ts";
 
 export const APP_VERSION = "1.0.0";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const GUARDED_PREFIXES = ["/api/", "/agents/", "/dev/"];
+
+/**
+ * The only Worker paths dev mode may serve to a non-loopback host: the simulated systems, which
+ * SIM_API_KEY protects. Judged on Hono's routing path (percent-decoded), the same path the router
+ * matches, so `/%61pi/...` or `/%64ev/login` cannot slip past the guard and still reach a route.
+ */
+function servedToPublicHostInDevMode(routingPath: string): boolean {
+  return routingPath === "/sim" || routingPath.startsWith("/sim/");
+}
 
 export function createApp() {
   const app = new Hono<AppEnv>();
@@ -46,11 +54,12 @@ export function createApp() {
     return next();
   });
 
-  // Dev auth is only ever served to a local host (SPEC 5.2 guard 1).
+  // Dev auth is only ever served to a local host (SPEC 5.2 guard 1). Inverted for safety: on any
+  // other host, dev mode refuses every path that reaches the Worker except /sim/* (static assets are
+  // served by the assets layer and never reach it; wrangler.jsonc run_worker_first).
   app.use("*", async (c, next) => {
     const url = new URL(c.req.url);
-    const guarded = GUARDED_PREFIXES.some((p) => url.pathname.startsWith(p) || url.pathname === p.slice(0, -1));
-    if (guarded && c.get("config").authMode === "dev" && !LOCAL_HOSTS.has(url.hostname)) {
+    if (c.get("config").authMode === "dev" && !LOCAL_HOSTS.has(url.hostname) && !servedToPublicHostInDevMode(c.req.path)) {
       return apiError(c, 500, "dev_auth_on_public_host", "AUTH_MODE=dev is only served on localhost");
     }
     c.set("clock", await loadClock(c.get("config"), c.env.DB));

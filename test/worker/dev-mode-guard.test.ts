@@ -48,9 +48,25 @@ describe("dev auth is never served to a public host", () => {
     }
   });
 
-  it("does not cover /sim/* or other paths", async () => {
-    for (const path of ["/sim/hr/v1/workers/x", "/"]) {
-      const res = await appFetch(`https://onboardflow.example.workers.dev${path}`);
+  it("judges the path the router uses: percent-encoded prefixes are refused too", async () => {
+    const host = "https://onboardflow.example.workers.dev";
+    const login = await appFetch(`${host}/%64ev/login`, post(host, { email: await emailOf("A01") }));
+    expect(login.status).toBe(500);
+    expect(await login.json()).toMatchObject({ error: { code: "dev_auth_on_public_host" } });
+    for (const path of ["/%64ev/personas", "/%61pi/me", "/%61pi/health", "/%61pi/audit", "/%61gents/case-agent/E001", "/a%70i/me"]) {
+      const res = await appFetch(`${host}${path}`);
+      expect(res.status, path).toBe(500);
+      expect(await res.json(), path).toMatchObject({ error: { code: "dev_auth_on_public_host" } });
+    }
+  });
+
+  it("refuses every other Worker path on a public host too, except /sim/* (static assets never reach the Worker)", async () => {
+    const host = "https://onboardflow.example.workers.dev";
+    for (const path of ["/", "/unknown", "/API/me"]) {
+      expect((await appFetch(`${host}${path}`)).status, path).toBe(500);
+    }
+    for (const path of ["/sim/hr/v1/workers/x", "/%73im/hr/v1/workers/x"]) {
+      const res = await appFetch(`${host}${path}`);
       expect(res.status, path).not.toBe(500);
     }
   });
