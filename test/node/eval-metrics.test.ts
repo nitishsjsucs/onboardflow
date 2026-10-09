@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { attemptsInFinalRound, caseFacts, evaluateExpectations, type Snapshot } from "../../eval/harness/assertions.ts";
-import { blockerScores, ciGate, computeMetrics, percentile, ratio, type ScenarioResult } from "../../eval/harness/metrics.ts";
+import { blockerScores, chaosAggregate, type ChaosSeedSummary, ciGate, computeMetrics, percentile, ratio, type ScenarioResult } from "../../eval/harness/metrics.ts";
 import { describeInvocation } from "../../eval/harness/report.ts";
 import type { Scenario } from "../../eval/scenarios/types.ts";
 import { STAGE_IDS } from "../../src/shared/stages.ts";
@@ -154,6 +154,27 @@ describe("run metrics", () => {
     expect(percentile([5, 1, 3, 2, 4], 50)).toBe(3);
     expect(percentile([5, 1, 3, 2, 4], 95)).toBe(5);
     expect(percentile([], 50)).toBe(0);
+  });
+});
+
+describe("chaos aggregates", () => {
+  const seed = (n: number, completed: number, cases = 60): ChaosSeedSummary => ({ seed: n, completed, cases, failures: { bot_patience: 0, deadline: cases - completed, case_failed: 0 } });
+
+  it("reports the mean, min and max of the per-seed completion rates, rounded to 4 places", () => {
+    const perSeed = [seed(1, 58), seed(2, 57), seed(3, 58), seed(4, 58), seed(5, 56)];
+    const a = chaosAggregate(perSeed);
+    expect(a).toMatchObject({ meanCompletion: 0.9567, minCompletion: 0.9333, maxCompletion: 0.9667 });
+    expect(a.perSeed).toBe(perSeed);
+  });
+
+  it("averages over seeds, not over pooled cases", () => {
+    // pooled would be 10/12 = 0.8333; the per-seed mean is (0.5 + 0.9) / 2
+    expect(chaosAggregate([seed(1, 1, 2), seed(2, 9, 10)])).toMatchObject({ meanCompletion: 0.7, minCompletion: 0.5, maxCompletion: 0.9 });
+  });
+
+  it("counts a seed with no cases as 0, and an empty run as all zeros", () => {
+    expect(chaosAggregate([seed(1, 60), seed(2, 0, 0)])).toMatchObject({ meanCompletion: 0.5, minCompletion: 0, maxCompletion: 1 });
+    expect(chaosAggregate([])).toEqual({ perSeed: [], meanCompletion: 0, minCompletion: 0, maxCompletion: 0 });
   });
 });
 
