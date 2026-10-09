@@ -1,19 +1,12 @@
 {
   "note": "Maps commit SHAs of this repository (the history the builders committed) to the SHAs of the copy published on GitHub (nitishsjsucs/onboardflow, main), which is a rewrite of this history that was not pushed from this repository (its commits carry no Co-Authored-By trailers, and it has one extra commit). SHAs cited in this repository, including eval/results files and commit messages, are this history's; on GitHub, resolve them through this map. Published commits are paired with local ones by author date and subject.",
-  "generatedAt": "2026-10-09T19:22:38Z",
+  "generatedAt": "2026-10-09T23:43:53Z",
   "source": "GitHub API repos/nitishsjsucs/onboardflow/commits?sha=main, compared with git log of this repository",
   "publishedOnly": {
     "d6df50fb474efcc16b3b0e80da462e5723953860": "chore: point measured-commit references at the published history"
   },
   "notYetPublished": [
-    "68429a3b51c7819ceccea53083eeade7fe3ffa85",
-    "4e0446c1444c4c03345baf8bba2971bb515a5f80",
-    "25571584cf1fd2000cf51ff1a72cc148659cf52d",
-    "f4208331d3339d20e3a14ce51166346127dbafad",
-    "c61517fa1c7f9cf96894fae16c2a6ce132cc18eb",
-    "f23651b0a324a4094f24e05aecc2dcd6d2a0564c",
-    "99ee919d8beee876cb7262514687f226118dfda0",
-    "ac066dd1556181d1acb80dca0fc0584c21ca850f"
+    "dc97b22b1c6597b8ab704762c045a64d01b289a6"
   ],
   "map": {
     "f6e1b051bd874416fbf35a94c87cf8351672c70b": "f6e1b051bd874416fbf35a94c87cf8351672c70b",
@@ -83,6 +76,20 @@
     "f25b018269b1c1b818a39a4f7ad930477e869480": "f25b018269b1c1b818a39a4f7ad930477e869480",
     "447aa023051c5bb9c02ba6564441fdcbb2bf6a28": "447aa023051c5bb9c02ba6564441fdcbb2bf6a28",
     "fa9aaecbaa5fefdffbe86efc44e1046b0cd4c18e": "fa9aaecbaa5fefdffbe86efc44e1046b0cd4c18e",
-    "2ded851601c2b602823d1b6607e3ec9a28486df7": "2ded851601c2b602823d1b6607e3ec9a28486df7"
+    "2ded851601c2b602823d1b6607e3ec9a28486df7": "2ded851601c2b602823d1b6607e3ec9a28486df7",
+    "68429a3b51c7819ceccea53083eeade7fe3ffa85": "68429a3b51c7819ceccea53083eeade7fe3ffa85",
+    "4e0446c1444c4c03345baf8bba2971bb515a5f80": "4e0446c1444c4c03345baf8bba2971bb515a5f80",
+    "25571584cf1fd2000cf51ff1a72cc148659cf52d": "25571584cf1fd2000cf51ff1a72cc148659cf52d",
+    "f4208331d3339d20e3a14ce51166346127dbafad": "f4208331d3339d20e3a14ce51166346127dbafad",
+    "c61517fa1c7f9cf96894fae16c2a6ce132cc18eb": "c61517fa1c7f9cf96894fae16c2a6ce132cc18eb",
+    "f23651b0a324a4094f24e05aecc2dcd6d2a0564c": "f23651b0a324a4094f24e05aecc2dcd6d2a0564c",
+    "99ee919d8beee876cb7262514687f226118dfda0": "99ee919d8beee876cb7262514687f226118dfda0",
+    "ac066dd1556181d1acb80dca0fc0584c21ca850f": "ac066dd1556181d1acb80dca0fc0584c21ca850f",
+    "3646803dd01d301b2cc2b462d09f0870fc86e459": "3646803dd01d301b2cc2b462d09f0870fc86e459",
+    "7a61947f3b81a058108494dbc710fccce04bc4c7": "7a61947f3b81a058108494dbc710fccce04bc4c7",
+    "676a939bfcbef8fd92abf607cefd5129d239e79c": "676a939bfcbef8fd92abf607cefd5129d239e79c",
+    "9ed2003278a9f3591be0f62e15d0aa17da94c3f3": "9ed2003278a9f3591be0f62e15d0aa17da94c3f3",
+    "d90973f6114343c2c4e4cbe3c9a6470a456a426b": "d90973f6114343c2c4e4cbe3c9a6470a456a426b",
+    "ea190b83904bafe18a4eebc9be2ae6d23d03f2b4": "ea190b83904bafe18a4eebc9be2ae6d23d03f2b4"
   }
 }
