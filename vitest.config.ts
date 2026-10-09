@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 import { unstable_splitSqlQuery as splitSql } from "wrangler";
 import { generateDevSecrets } from "./scripts/dev-keys.ts";
+import { WORKER_TEST_VARS } from "./test/setup/worker-vars.ts";
 
 export default defineConfig(async () => {
   const migrations = await readD1Migrations("./migrations");
@@ -25,15 +26,7 @@ export default defineConfig(async () => {
                   DEV_ACCESS_JWKS: secrets.DEV_ACCESS_JWKS,
                   DEV_ACCESS_SIGNING_JWK: secrets.DEV_ACCESS_SIGNING_JWK,
                   SIM_API_KEY: secrets.SIM_API_KEY,
-                  EVAL_HOOKS: "on",
-                  SIM_CLOCK: "on",
-                  RETRY_BASE_DELAY_MS: "10",
-                  POLL_INTERVAL_MS: "10",
-                  INTEGRATION_TIMEOUT_MS: "2000",
-                  GATE_WAIT_TIMEOUT_MS: "1000",
-                  NUDGE_AFTER_S: "1",
-                  HUB_DEBOUNCE_S: "1",
-                  BLOCKER_SCAN_INTERVAL_S: "3600",
+                  ...WORKER_TEST_VARS,
                 },
               },
             }),

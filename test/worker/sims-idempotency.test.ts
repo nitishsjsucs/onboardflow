@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { ledger, sim, simJson, workerAndAccount, workerBody } from "../helpers/sims.ts";
 
@@ -103,25 +103,69 @@ for (const c of CASES) {
       expect(await ops(c.system, c.operation, ref)).toHaveLength(1);
     });
 
-    it("leaves all three rows or none when the caller aborts mid-flight", async () => {
-      const refs: string[] = [];
-      let aborted = 0;
-      for (let i = 0; i < 8; i++) {
-        const ref = R(10 + i);
-        refs.push(ref);
-        const path = await c.path(ref);
-        await sim(path, { body: c.good(ref), key: `${ref}:${c.operation}`, signal: AbortSignal.timeout(i) }).catch(() => aborted++);
-      }
-      // the probe is only meaningful if some calls really were cut off
-      expect(aborted).toBeGreaterThan(0);
-      await new Promise((r) => setTimeout(r, 200));
-      for (const ref of refs) {
+    // What this checks: a caller that gives up never leaves a partial set of rows (idempotency row,
+    // resource, ledger row). Three timings: aborted before dispatch, aborted after dispatch while the
+    // request body is being read (the body is held open half sent), and not aborted. An
+    // abort cannot be timed to land inside the commit itself (workerd's clock does not advance during
+    // execution, and the commit is one D1 batch call); atomicity there is the batch transaction's.
+    it("leaves all three rows or none when the caller aborts before dispatch, while its body is read, or not at all", async () => {
+      const rowsOf = async (ref: string) => {
         const key = `${ref}:${c.operation}`;
         const idem = await env.DB.prepare("SELECT COUNT(*) AS n FROM sim_idempotency WHERE system = ? AND idempotency_key = ?").bind(c.system, key).first<{ n: number }>();
         const led = await ops(c.system, c.operation, ref);
         const res = await env.DB.prepare("SELECT COUNT(*) AS n FROM sim_resources s JOIN sim_side_effects l ON l.resource_id = s.id WHERE l.idempotency_key = ?").bind(key).first<{ n: number }>();
-        expect([idem?.n, led.length, res?.n], ref).toSatisfy((t: number[]) => t.every((x) => x === 0) || t.every((x) => x === 1));
-      }
+        return [idem?.n ?? -1, led.length, res?.n ?? -1];
+      };
+
+      // 1. aborted before dispatch
+      const before = R(10);
+      const beforePath = await c.path(before);
+      const ac = new AbortController();
+      ac.abort();
+      await expect(sim(beforePath, { body: c.good(before), key: `${before}:${c.operation}`, signal: ac.signal })).rejects.toThrow();
+
+      // 2. aborted mid-flight: the request is dispatched and its body is being read when the caller gives up
+      const mid = R(11);
+      const midPath = await c.path(mid);
+      const json = JSON.stringify(c.good(mid));
+      const enc = new TextEncoder();
+      let pulled = false;
+      const body = new ReadableStream<Uint8Array>({
+        start(ctrl) {
+          ctrl.enqueue(enc.encode(json.slice(0, Math.floor(json.length / 2))));
+        },
+        pull() {
+          pulled = true;
+          return new Promise<void>(() => {}); // the second half never comes
+        },
+      });
+      const midAbort = new AbortController();
+      const inFlight = exports.default.fetch(
+        new Request(`http://localhost/sim${midPath}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Sim-Api-Key": env.SIM_API_KEY, "Idempotency-Key": `${mid}:${c.operation}` },
+          body,
+        }),
+        { signal: midAbort.signal },
+      );
+      const settled = inFlight.then(
+        () => "answered",
+        () => "aborted",
+      );
+      // wait until the reader has pulled past the first chunk, then give up
+      for (let i = 0; i < 100 && !pulled; i++) await new Promise((r) => setTimeout(r, 10));
+      expect(pulled, "the request body was being read").toBe(true);
+      midAbort.abort();
+      expect(await settled).toBe("aborted");
+
+      // 3. not aborted
+      const done = R(12);
+      expect((await sim(await c.path(done), { body: c.good(done), key: `${done}:${c.operation}` })).status).toBeLessThan(300);
+
+      await new Promise((r) => setTimeout(r, 200));
+      expect(await rowsOf(before), before).toEqual([0, 0, 0]);
+      expect(await rowsOf(mid), mid).toEqual([0, 0, 0]);
+      expect(await rowsOf(done), done).toEqual([1, 1, 1]);
     });
   });
 }

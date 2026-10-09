@@ -2,16 +2,39 @@ import { readFileSync } from "node:fs";
 import { parse } from "jsonc-parser";
 import { describe, expect, it } from "vitest";
 import { FIRST_ROUND_OPERATIONS, POLLED_OPERATIONS, STAGES } from "../../src/shared/stages.ts";
+import { EVAL_VARS } from "../../eval/harness/server.ts";
+import { CHAOS_VARS } from "../../eval/harness/policies.ts";
+import { WORKER_TEST_VARS } from "../setup/worker-vars.ts";
 import {
   PRODUCTION_STEP_CONFIG,
   STEP_BUDGET_CEILING,
+  type StepBudgetConfig,
   STEP_LIMIT_FREE,
   stepBudgetBreakdown,
   worstCaseSteps,
 } from "../../src/shared/step-budget.ts";
 
-// Eval configuration (SPEC 12.1 and 11): same round and wait limits, fast timings.
-const EVAL_STEP_CONFIG = { ...PRODUCTION_STEP_CONFIG };
+type Vars = Record<string, string | undefined>;
+const wranglerVars = (parse(readFileSync("wrangler.jsonc", "utf8")) as { vars: Vars }).vars;
+
+/** The loop bounds a Worker reads from its vars (src/worker/config.ts), as a step budget input. */
+function stepConfigOf(vars: Vars): StepBudgetConfig {
+  const n = (k: string) => {
+    const v = Number(vars[k]);
+    if (!Number.isInteger(v) || v < 0) throw new Error(`${k} is ${vars[k]}`);
+    return v;
+  };
+  return { pollMax: n("POLL_MAX"), maxRecoveryRounds: n("MAX_RECOVERY_ROUNDS"), maxApprovalRounds: n("MAX_APPROVAL_ROUNDS"), waitBudget: n("WAIT_BUDGET") };
+}
+
+// The eval configurations as they run: wrangler.jsonc vars with each harness's overrides on top
+// (EVAL_VARS for standard, scale, ablations and the demo driver; CHAOS_VARS on top for chaos).
+// The worker tests run with WORKER_TEST_VARS on top (vitest.config.ts imports the same constant).
+const EVAL_CONFIGS: Array<[string, Vars]> = [
+  ["standard, scale, ablations, demo", { ...wranglerVars, ...EVAL_VARS }],
+  ["chaos", { ...wranglerVars, ...EVAL_VARS, ...CHAOS_VARS }],
+  ["worker tests", { ...wranglerVars, ...WORKER_TEST_VARS }],
+];
 
 describe("step budget", () => {
   it("matches the SPEC 8.3 table with production defaults (561 steps)", () => {
@@ -34,7 +57,15 @@ describe("step budget", () => {
   it("stays at or below 1,000 for production and eval configurations", () => {
     expect(STEP_BUDGET_CEILING).toBeLessThan(STEP_LIMIT_FREE);
     expect(worstCaseSteps(PRODUCTION_STEP_CONFIG)).toBeLessThanOrEqual(STEP_BUDGET_CEILING);
-    expect(worstCaseSteps(EVAL_STEP_CONFIG)).toBeLessThanOrEqual(STEP_BUDGET_CEILING);
+    for (const [name, vars] of EVAL_CONFIGS) {
+      expect(worstCaseSteps(stepConfigOf(vars)), name).toBeLessThanOrEqual(STEP_BUDGET_CEILING);
+    }
+  });
+
+  it("sees an override of a loop bound in any eval configuration", () => {
+    for (const [name, vars] of EVAL_CONFIGS) {
+      expect(worstCaseSteps(stepConfigOf({ ...vars, WAIT_BUDGET: "400" })), name).toBeGreaterThan(STEP_BUDGET_CEILING);
+    }
   });
 
   it("derives its inputs from the stage registry", () => {
