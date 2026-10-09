@@ -4,7 +4,7 @@
 // shape and go through this exact function with a local key source.
 import { jwtVerify, type JWTVerifyGetKey } from "jose";
 
-export type AccessClaims = { email: string; sub: string };
+export type AccessClaims = { email: string; sub: string; /** expiry, seconds since the epoch */ exp: number | null };
 
 export class AccessTokenError extends Error {
   constructor(message: string) {
@@ -30,7 +30,7 @@ export async function verifyAccessJwt(
   }
   const email = payload.email;
   if (typeof email !== "string" || email.length === 0) throw new AccessTokenError("token has no email claim");
-  return { email: email.toLowerCase(), sub: typeof payload.sub === "string" ? payload.sub : "" };
+  return { email: email.toLowerCase(), sub: typeof payload.sub === "string" ? payload.sub : "", exp: typeof payload.exp === "number" ? payload.exp : null };
 }
 
 export const ACCESS_HEADER = "Cf-Access-Jwt-Assertion";

@@ -14,10 +14,16 @@
 //   The request forwarded to the Durable Object is rebuilt without any
 //   `x-cf-agents-*` or `x-agents-*` header.
 // Both agent classes also refuse sub-agents in onBeforeSubAgent.
+//
+// The subscription is re-checked later as well: the forwarded request carries
+// the subscriber (email, token expiry), and each agent closes sockets whose
+// session expired or whose account no longer passes canSubscribe before it
+// pushes new state (agents/subscriptions.ts).
 import { routeAgentRequest } from "agents";
 import { Hono } from "hono";
 import { EMPLOYEE_ID_PATTERN } from "../../shared/ids.ts";
 import { HUB_NAME } from "../agents/ops-hub-agent.ts";
+import { encodeSubscriber, SUBSCRIBER_HEADER, type Subscriber } from "../agents/subscriptions.ts";
 import { canSubscribe } from "../auth/policy.ts";
 import { apiError, type AppEnv } from "../http.ts";
 
@@ -28,10 +34,15 @@ function isInternalAgentHeader(name: string): boolean {
   return h.startsWith("x-cf-agents-") || h.startsWith("x-agents-");
 }
 
-/** The request forwarded to the agent, without SDK-internal headers a client could forge. */
-export function sanitizedAgentRequest(request: Request): Request {
+/**
+ * The request forwarded to the agent: without SDK-internal headers a client
+ * could forge, and with the server-owned subscriber header (email and token
+ * expiry) the agent re-checks before every state push.
+ */
+export function sanitizedAgentRequest(request: Request, subscriber: Subscriber): Request {
   const clean = new Request(request);
-  for (const name of [...clean.headers.keys()]) if (isInternalAgentHeader(name)) clean.headers.delete(name);
+  for (const name of [...clean.headers.keys()]) if (isInternalAgentHeader(name) || name.toLowerCase() === SUBSCRIBER_HEADER) clean.headers.delete(name);
+  clean.headers.set(SUBSCRIBER_HEADER, encodeSubscriber(subscriber));
   return clean;
 }
 
@@ -46,6 +57,7 @@ export function agentRoutes() {
   const r = new Hono<AppEnv>();
   r.all("/*", async (c) => {
     const principal = c.get("principal");
+    const subscriber: Subscriber = { email: principal.email, exp: c.get("tokenExp") ?? null };
     const res = await routeAgentRequest(c.req.raw, c.env, {
       onBeforeRequest: () => forbidden("agents are reachable only through a WebSocket upgrade"),
       onBeforeConnect: async (request, route) => {
@@ -58,11 +70,11 @@ export function agentRoutes() {
           const emp = await c.env.DB.prepare("SELECT id, manager_id FROM employees WHERE id = ?").bind(route.name).first<{ id: string; manager_id: string }>();
           if (!emp) return forbidden("unknown case");
           if (!canSubscribe(principal, route.className, route.name, { employeeId: emp.id, managerId: emp.manager_id })) return forbidden("not allowed");
-          return sanitizedAgentRequest(request);
+          return sanitizedAgentRequest(request, subscriber);
         }
         if (route.className === "OPS_HUB_AGENT") {
           if (route.name !== HUB_NAME || !canSubscribe(principal, route.className, route.name)) return forbidden("not allowed");
-          return sanitizedAgentRequest(request);
+          return sanitizedAgentRequest(request, subscriber);
         }
         return forbidden("unknown agent");
       },

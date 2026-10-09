@@ -5,13 +5,15 @@
 // activity cannot be derived from case summaries, and summaries from 150
 // agents arrive out of order. asOfSeq stops an older read from overwriting a
 // newer one. Subscribers are coordinators and admins, read-only (ADR 0006).
-import { Agent } from "agents";
+import { Agent, type Connection, type ConnectionContext } from "agents";
+import { canSubscribe } from "../auth/policy.ts";
 import type { HubState } from "../../shared/agent-state.ts";
 import { parseConfig } from "../config.ts";
 import { loadClock } from "../db/clock.ts";
 import { errorMessage } from "../integrations/errors.ts";
 import { computeHubDomain, emptyHubState } from "./projection.ts";
 import { Serial } from "./serial.ts";
+import { rememberSubscriber, revokeStaleSubscriptions } from "./subscriptions.ts";
 
 export const HUB_NAME = "global";
 export const HUB_SAFETY_INTERVAL_S = 60;
@@ -29,6 +31,18 @@ export class OpsHubAgent extends Agent<Env, HubState> {
 
   override shouldConnectionBeReadonly(): boolean {
     return true;
+  }
+
+  // Remember who subscribed, so later state pushes can re-check them (agents/subscriptions.ts).
+  override onConnect(connection: Connection, ctx: ConnectionContext): void {
+    rememberSubscriber(connection, ctx.request);
+  }
+
+  /** Closes live subscriptions whose session expired or whose account may no longer see the dashboard. */
+  async revokeStaleSubscriptions(): Promise<number> {
+    const connections = [...this.getConnections()];
+    if (connections.length === 0) return 0;
+    return revokeStaleSubscriptions(connections, this.env.DB, Date.now(), (p) => canSubscribe(p, "OPS_HUB_AGENT", HUB_NAME));
   }
 
   // OnboardFlow uses no sub-agents: refuse every `/sub/<class>/<name>` facet
@@ -59,6 +73,8 @@ export class OpsHubAgent extends Agent<Env, HubState> {
         const clock = await loadClock(parseConfig(this.env), this.env.DB);
         const { domain, asOfSeq } = await computeHubDomain(this.env.DB, clock.nowIso());
         const current = this.state;
+        // before pushing new state (and at least every minute): drop subscribers that may no longer see it
+        await this.revokeStaleSubscriptions();
         if (!current || asOfSeq >= current.asOfSeq) {
           this.setState({ ...domain, asOfSeq, reconciledAt: clock.nowIso(), version: (current?.version ?? 0) + 1 });
         }

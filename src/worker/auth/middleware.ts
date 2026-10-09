@@ -51,8 +51,9 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!token) return apiError(c, 401, "unauthenticated", "Access token missing");
   const source = keySourceFor(c.get("config"));
   let email: string;
+  let exp: number | null;
   try {
-    ({ email } = await verifyAccessJwt(token, source.getKey, source));
+    ({ email, exp } = await verifyAccessJwt(token, source.getKey, source));
   } catch (err) {
     const message = err instanceof AccessTokenError ? err.message : "token verification failed";
     return apiError(c, 401, "unauthenticated", message);
@@ -74,6 +75,7 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
     return apiError(c, 403, "not_provisioned", "this email has no OnboardFlow account");
   }
   c.set("principal", principal);
+  c.set("tokenExp", exp);
   return next();
 };
 

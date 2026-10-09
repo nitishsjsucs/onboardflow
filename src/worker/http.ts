@@ -19,6 +19,8 @@ export type AppVariables = {
   config: AppConfig;
   clock: Clock;
   principal: Principal;
+  /** Expiry of the verified Access token (seconds since the epoch), for live subscriptions. */
+  tokenExp: number | null;
 };
 
 export type AppEnv = { Bindings: Env; Variables: AppVariables };

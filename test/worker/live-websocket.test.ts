@@ -3,23 +3,38 @@ import { describe, expect, it } from "vitest";
 import type { CaseState } from "../../src/shared/agent-state.ts";
 import { env } from "cloudflare:workers";
 import { call, tokenFor } from "../helpers/api.ts";
+import { emailOf, mintAccessToken } from "../helpers/auth.ts";
 import { managerOf } from "../helpers/workflow.ts";
 
 type Msg = { type: string; state?: unknown; error?: string; agent?: string; name?: string };
 
-async function connect(path: string, as: string, origin: string | null = "http://localhost", extra: Record<string, string> = {}) {
-  const headers: Record<string, string> = { ...extra, Upgrade: "websocket", "Cf-Access-Jwt-Assertion": await tokenFor(as) };
+async function connect(path: string, as: string, origin: string | null = "http://localhost", extra: Record<string, string> = {}, token?: string) {
+  const headers: Record<string, string> = { ...extra, Upgrade: "websocket", "Cf-Access-Jwt-Assertion": token ?? (await tokenFor(as)) };
   if (origin) headers.Origin = origin;
   const res = await exports.default.fetch(new Request(`http://localhost${path}`, { headers }));
   const ws = res.webSocket;
   const messages: Msg[] = [];
+  let closeCode: number | null = null;
   if (ws) {
     ws.accept();
     ws.addEventListener("message", (e) => {
       messages.push(JSON.parse(String(e.data)) as Msg);
     });
+    ws.addEventListener("close", (e) => {
+      closeCode = e.code;
+    });
   }
-  return { status: res.status, ws, messages };
+  return { status: res.status, ws, messages, closeCode: () => closeCode };
+}
+
+async function closedWith(c: { closeCode: () => number | null }, ms = 10_000): Promise<number> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const code = c.closeCode();
+    if (code !== null) return code;
+    if (Date.now() > end) throw new Error("socket still open");
+    await new Promise((r) => setTimeout(r, 20));
+  }
 }
 
 async function until(messages: Msg[], pred: (m: Msg) => boolean, ms = 5000): Promise<Msg> {
@@ -139,5 +154,45 @@ describe("live WebSocket subscriptions", () => {
     const err = await until(c.messages, (m) => m.type === "cf_agent_state_error");
     expect(err.type).toBe("cf_agent_state_error");
     c.ws?.close();
+  });
+
+  it("closes a case subscription once the account is deactivated, before pushing new state", async () => {
+    const c = await connect("/agents/case-agent/E133", "C06");
+    expect(c.status).toBe(101);
+    await until(c.messages, (m) => m.type === "cf_agent_state");
+    await env.DB.prepare("UPDATE app_users SET active = 0 WHERE email = ?").bind(await emailOf("C06")).run();
+    const frames = c.messages.filter((m) => m.type === "cf_agent_state").length;
+    // any change to the case refreshes its state; the agent re-checks subscribers first
+    expect((await call("/api/cases/E133/scan", { as: "A01", body: {} })).status).toBe(200);
+    expect(await closedWith(c)).toBe(4403);
+    expect(c.messages.filter((m) => m.type === "cf_agent_state")).toHaveLength(frames);
+    await env.DB.prepare("UPDATE app_users SET active = 1 WHERE email = ?").bind(await emailOf("C06")).run();
+  });
+
+  it("closes a subscription whose Access token expired", async () => {
+    const token = await mintAccessToken(await emailOf("E134"), { expiresInS: 2 });
+    const c = await connect("/agents/case-agent/E134", "E134", "http://localhost", {}, token);
+    expect(c.status).toBe(101);
+    await until(c.messages, (m) => m.type === "cf_agent_state");
+    await new Promise((r) => setTimeout(r, 2500));
+    expect((await call("/api/cases/E134/scan", { as: "A01", body: {} })).status).toBe(200);
+    expect(await closedWith(c)).toBe(4401);
+  });
+
+  it("closes a dashboard subscription when the coordinator loses the role, and keeps the others", async () => {
+    const stays = await connect("/agents/ops-hub-agent/global", "A02");
+    const goes = await connect("/agents/ops-hub-agent/global", "C04");
+    expect([stays.status, goes.status]).toEqual([101, 101]);
+    await until(goes.messages, (m) => m.type === "cf_agent_state");
+    // a coordinator demoted to a role without dashboard access (the staff row changes with it)
+    await env.DB.batch([
+      env.DB.prepare("UPDATE staff SET kind = 'manager', department = NULL WHERE id = 'C04'"),
+      env.DB.prepare("UPDATE app_users SET role = 'manager' WHERE staff_id = 'C04'"),
+    ]);
+    // a case change makes the hub reconcile (debounced), which re-checks subscribers before pushing
+    expect((await call("/api/cases/E135/scan", { as: "A01", body: {} })).status).toBe(200);
+    expect(await closedWith(goes)).toBe(4403);
+    expect(stays.closeCode()).toBeNull();
+    stays.ws?.close();
   });
 });

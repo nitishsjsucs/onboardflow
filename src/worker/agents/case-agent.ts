@@ -4,7 +4,7 @@
 // keeps a read-only live projection of the case for WebSocket subscribers
 // (ADR 0006), and reacts to workflow callbacks. Domain truth stays in D1
 // (ADR 0001). Decisions come from deterministic rules, not from an LLM.
-import { Agent, getAgentByName } from "agents";
+import { Agent, type Connection, type ConnectionContext, getAgentByName } from "agents";
 import type { CaseState } from "../../shared/agent-state.ts";
 import { emptyCaseState } from "../../shared/agent-state.ts";
 import type { EmployeeProfileDto } from "../../shared/api.ts";
@@ -18,6 +18,7 @@ import { loadClock, type Clock } from "../db/clock.ts";
 import { runGuarded } from "../db/guarded.ts";
 import { getApproval, getBlocker, getEmployee, getTask, toApprovalView, toBlockerView, toTaskView } from "../db/repo.ts";
 import type { Principal } from "../http.ts";
+import { canSubscribe } from "../auth/policy.ts";
 import { errorMessage, isEngineAbort } from "../integrations/errors.ts";
 import { createLlmProvider } from "../llm/provider.ts";
 import { detectBlockers, nudgeTargets, resolvedBlockers } from "./blocker-rules.ts";
@@ -25,6 +26,7 @@ import { FollowUpDrafter } from "./followups.ts";
 import { HUB_NAME } from "./ops-hub-agent.ts";
 import { loadScanSnapshot, projectCase } from "./projection.ts";
 import { Serial } from "./serial.ts";
+import { rememberSubscriber, revokeStaleSubscriptions } from "./subscriptions.ts";
 import { SdkWorkflowControl, type WorkflowControl } from "./workflow-control.ts";
 
 export type Cmd = { actor: Principal; requestId: string; idem: { actorEmail: string; key: string } | null };
@@ -80,6 +82,19 @@ export class CaseAgent extends Agent<Env, CaseState> {
   // Live state is a read-only subscription (ADR 0006).
   override shouldConnectionBeReadonly(): boolean {
     return true;
+  }
+
+  // Remember who subscribed, so later state pushes can re-check them (agents/subscriptions.ts).
+  override onConnect(connection: Connection, ctx: ConnectionContext): void {
+    rememberSubscriber(connection, ctx.request);
+  }
+
+  /** Closes live subscriptions whose session expired or whose account may no longer see this case. */
+  async revokeStaleSubscriptions(): Promise<number> {
+    const connections = [...this.getConnections()];
+    if (connections.length === 0) return 0;
+    const ref = await this.env.DB.prepare("SELECT id, manager_id FROM employees WHERE id = ?").bind(this.employeeId).first<{ id: string; manager_id: string }>();
+    return revokeStaleSubscriptions(connections, this.env.DB, Date.now(), (p) => ref !== null && canSubscribe(p, "CASE_AGENT", this.employeeId, { employeeId: ref.id, managerId: ref.manager_id }));
   }
 
   // OnboardFlow uses no sub-agents: refuse every `/sub/<class>/<name>` facet
@@ -649,6 +664,8 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const wfStatus = c?.workflow_instance_id ? ((this.getWorkflow(c.workflow_instance_id) as { status?: string } | undefined)?.status ?? null) : null;
     const next = await projectCase(this.env.DB, this.employeeId, wfStatus, new Date().toISOString());
     if (next) {
+      // before pushing new state: drop subscribers that are no longer allowed to see it
+      await this.revokeStaleSubscriptions().catch((err: unknown) => console.warn(`subscription check ${this.employeeId}: ${errorMessage(err)}`));
       this.applyProjection(next);
       // Best effort: the hub reconciles from D1 on a debounce and every minute anyway.
       try {
