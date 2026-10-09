@@ -273,3 +273,11 @@ with its reason. Nothing here is tuned toward a target.
   described as "first seen complete only after" the deadline, since the
   exact completion time between two polls is unknown. The fifth run has no
   such case, so its file is unaffected.
+- Standard mode after the last review fix (`npm run eval:ci`, git 35ebbec,
+  clean tree, 2026-10-09 11:27 PDT, AC power, lid open): the first recorded
+  run that includes 9c55e58 (live subscriptions re-checked before every
+  state push). 60/60 completed, 60/60 passed, 0 duplicate side effects,
+  audit coverage 1, hub consistent, 0 transport retries, no host stall, CI
+  gate passed, 40 s. Since the previous standard run (git 2760116) the
+  only product change is 9c55e58 and the only harness change is the
+  wording fix above; no scenario changed.

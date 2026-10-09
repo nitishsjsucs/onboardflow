@@ -117,7 +117,7 @@ Everything below is rendered by `npm run results:readme` from `eval/results/late
 <!-- results:start -->
 #### Standard mode (regression suite, scripted recovery)
 
-Command `node eval/harness/run.ts --mode standard --llm stub --gate ci` (via `npm run eval:ci`), run 2026-10-09 (git 2760116 at start, clean tree), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode standard --llm stub --gate ci` (via `npm run eval:ci`), run 2026-10-09 (git 35ebbec at start, clean tree), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -129,10 +129,10 @@ Command `node eval/harness/run.ts --mode standard --llm stub --gate ci` (via `np
 | recovery | 16/16 passed |
 | Integration calls (retried, replayed) | 1284 (60, 28) |
 | Duplicate side effects in the simulated systems | 0 |
-| Harness requests retried after a dropped local proxy connection (still failed) | 1 (0) |
+| Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 2.7 s / 3.6 s, 36 s |
+| Scenario time p50 / p95, wall time | 3.0 s / 4.5 s, 40 s |
 | Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Standard mode with a local LLM drafting follow-up wording
@@ -233,8 +233,9 @@ Command `node eval/harness/run.ts --mode ablation-retries` (inferred from the mo
 | Host stalls over 5 s (system sleep or a frozen harness) | none |
 <!-- results:end -->
 
-**Reading these results.** Dates in the block are UTC; every run above was made on the evening of 2026-10-08 Pacific time, on one laptop that was also running other repositories' test suites. All files, including the runs not shown, are committed in `eval/results/`, and every change between runs is logged in [eval/results/CHANGELOG.md](eval/results/CHANGELOG.md).
+**Reading these results.** Dates in the block are UTC. Every run above was made on the evening of 2026-10-08 Pacific time except the standard run, which was made on 2026-10-09 at 11:27 PDT; all ran on one laptop that was also running other repositories' test suites. All files, including the runs not shown, are committed in `eval/results/`, and every change between runs is logged in [eval/results/CHANGELOG.md](eval/results/CHANGELOG.md).
 
+- **Standard** (git 35ebbec, on AC power with the lid open, no host stall) is the first recorded run that includes every review fix, the live subscription re-check (9c55e58) among them. All five committed standard runs, one of them with the local LLM, completed and passed 60 of 60 with 0 duplicate side effects.
 - **Chaos** is the informative number. The run shown (git 6248014, started 21:30 PDT on AC power with the lid open, no host stall) is the first one recorded under the completion rule SPEC 12.4 defines: a case counts only if a poll saw it `complete` within its 180 s deadline, and the bots stop working a case once its deadline passes. It completed 289 of 300 cases across the 5 seeds: per-seed mean 96.3%, min 93.3%, max 100%, with 0 duplicate side effects, no transport or control retries, no failed case and no bot giving up. All 11 misses are deadlines (none of those cases had completed by the end of its seed; the slowest case that counted took 170.5 s). It is also the first chaos run whose stall watch starts once the server is healthy, and it found no stall. The run predates the last review fix (9c55e58, which re-checks live subscriptions before every state push); the harness opens no live subscription. Chaos runs in real time, so machine load moves it.
 - **Earlier chaos runs** on the same seeds are committed and not hidden, but they counted completion differently: the harness read it from a snapshot taken after the whole seed finished, and the bots kept working cases past their deadline, so a case that completed after its deadline was counted. An independent review found this; the fix and what each old run counted are in the CHANGELOG. The fourth run (git c04aeb7) reported 287 of 300 (per-seed mean 95.7%, min 93.3%); two of its counted cases were closed 180.4 and 180.5 s after their start, so under the deadline rule it is between 285 (mean 95.0%) and 287. It also had the first failed case of any run (seed 3's E059 used up the workflow's bounded recovery rounds at Facilities, as designed). The third (git 5e2635b) reported 280 of 300, counting four late cases, one of them in seed 5, which overlapped a system sleep (its longest case lasted 1077 s). The first (git 6f9a11d) reported 230 of 300, but in seed 3 the harness failed to end a Facilities outage window after a local runtime error (0/60 in that seed). The second (git a510536) reported 210 of 300, with 248 bot requests in seeds 3 and 4 lost to dropped connections in `wrangler dev`'s local proxy, and counted 36 late cases. Each of the first two led to a harness fix (the orchestrator retries its own control calls; the harness retries a dropped request with the same Idempotency-Key, which the API is designed for). Fault tables, seeds and bot policies did not change in any of these runs.
 - **Scale** also ran a first time at the same commit and completed 148 of 150: two harness requests got a plain-text 500 from the local runtime and the harness stopped driving those two cases. The 150/150 run is shown because it is the latest run, not because it is the better one.
