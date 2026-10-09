@@ -16,9 +16,9 @@ describe("AppShell navigation per role", () => {
   it.each([
     ["employee", ["My onboarding"]],
     ["manager", ["Approvals", "My team"]],
-    ["peopleOps", ["Queue", "Cases", "Dashboard", "Approvals"]],
-    ["it", ["Queue", "Cases", "Dashboard"]],
-    ["admin", ["Dashboard", "Cases", "Queue", "Approvals"]],
+    ["peopleOps", ["Queue", "Cases", "Dashboard", "Approvals", "Integrations"]],
+    ["it", ["Queue", "Cases", "Dashboard", "Integrations"]],
+    ["admin", ["Dashboard", "Cases", "Queue", "Approvals", "Integrations", "Audit"]],
   ])("%s sees %j", (persona, expected) => {
     renderWith(null, { me: PERSONAS[persona]!, routes: [{ path: "*", element: <AppShell />, children: [{ path: "*", element: <div /> }] }] });
     expect(navLinks()).toEqual(expected);

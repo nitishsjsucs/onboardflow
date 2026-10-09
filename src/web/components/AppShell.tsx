@@ -21,6 +21,7 @@ export function navFor(me: MeDto): NavItem[] {
         { to: "/cases", text: "Cases" },
         { to: "/dashboard", text: "Dashboard" },
         ...(me.department === "people_ops" ? [{ to: "/approvals", text: "Approvals" }] : []),
+        { to: "/integrations", text: "Integrations" },
       ];
     case "admin":
       return [
@@ -28,6 +29,8 @@ export function navFor(me: MeDto): NavItem[] {
         { to: "/cases", text: "Cases" },
         { to: "/queue", text: "Queue" },
         { to: "/approvals", text: "Approvals" },
+        { to: "/integrations", text: "Integrations" },
+        { to: "/audit", text: "Audit" },
       ];
   }
 }

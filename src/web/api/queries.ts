@@ -1,7 +1,7 @@
 // TanStack Query hooks over the API. Live agent state invalidates these keys.
 import { apiFetch, newIdempotencyKey } from "./client.ts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, MeDto, Page, TaskView } from "../../shared/api.ts";
+import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, TaskView } from "../../shared/api.ts";
 import type { HubState } from "../../shared/agent-state.ts";
 
 export const keys = {
@@ -157,4 +157,35 @@ export function useAdminCaseAction(kind: "restart" | "terminate") {
 
 export function useDashboardSummary(enabled = true) {
   return useQuery({ queryKey: keys.dashboard, queryFn: () => apiFetch<HubState>("/api/dashboard/summary"), enabled });
+}
+
+// ---------------------------------------------------------------------------
+// Integrations and audit explorer
+// ---------------------------------------------------------------------------
+export function useIntegrationHealth(window: "1h" | "24h" | "7d" | "all") {
+  return useQuery({ queryKey: ["integrations", "health", window], queryFn: () => apiFetch<HubState["integrationHealth"]>(`/api/integrations/health?window=${window}`) });
+}
+
+export function useCaseIntegrations(employeeId: string) {
+  return useInfiniteQuery({
+    queryKey: ["case", employeeId, "integrations"],
+    enabled: /^E\d{3}$/.test(employeeId),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => apiFetch<Page<IntegrationCallView>>(`/api/cases/${employeeId}/integrations?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`),
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+export type AuditFilters = { action?: string; actor?: string; employeeId?: string };
+
+export function useAuditExplorer(f: AuditFilters, pageSize = 50) {
+  const params = new URLSearchParams({ limit: String(pageSize) });
+  for (const [k, v] of Object.entries(f)) if (v) params.set(k, v);
+  const qs = params.toString();
+  return useInfiniteQuery({
+    queryKey: ["audit", qs],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => apiFetch<Page<AuditEventView>>(`/api/audit?${qs}${pageParam ? `&cursor=${pageParam}` : ""}`),
+    getNextPageParam: (last) => last.nextCursor,
+  });
 }

@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commits 26 (chaos), 27 (ablations) and 28 (Workers AI provider, llama eval mode, LLM metrics, llm:smoke) done; next is commit 29 (Integrations and Audit explorer pages). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commits 26 (chaos), 27 (ablations), 28 (Workers AI provider, llama eval mode, LLM metrics, llm:smoke) and 29 (Integrations and Audit pages) done; next is commit 30 (demo driver). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -40,14 +40,14 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 | 26 | feat(eval): chaos mode with seeded fault schedules and policy bots (T2) | done |
 | 27 | feat(eval): idempotency and retry ablations (T2) | done |
 | 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | done |
-| 29 | feat(web): integrations and audit explorer pages (T2) | next |
-| 30 | feat(scripts): demo driver (T2) | todo |
+| 29 | feat(web): integrations and audit explorer pages (T2) | done |
+| 30 | feat(scripts): demo driver (T2) | next |
 | 31 | chore(eval): record chaos, ablation and llama results (T2) | todo |
 
 ## Check status (last run, 2026-10-08)
 
 - `npm run typecheck`: pass (worker, web, node projects)
-- `npm test`: pass (41 files, 310 tests: worker in workerd, node, web)
+- `npm test`: pass (42 files, 315 tests: worker in workerd, node, web)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 - `npm run seed:check`: ok (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)
