@@ -8,7 +8,7 @@ Cloudflare's Worker-level Access integration does not support WebSocket connecti
 
 ## Decision
 
-Production puts a self-hosted (hostname) Access application in front of the Worker. The Worker verifies `Cf-Access-Jwt-Assertion` (or the `CF_Authorization` cookie) with `jose`: RS256 only, issuer and audience enforced, keys from `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`. In dev and tests the same `verifyAccessJwt` runs against a locally generated JWKS; `/dev/login` (localhost only) mints Access-shaped tokens.
+Production puts a self-hosted (hostname) Access application in front of the Worker. The Worker verifies `Cf-Access-Jwt-Assertion` (or the `CF_Authorization` cookie) with `jose`: RS256 only, issuer and audience enforced, `exp`, `iat` and `email` required (jose checks `exp` only when it is present), keys from `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`. In dev and tests the same `verifyAccessJwt` runs against a locally generated JWKS; `/dev/login` (localhost only) mints Access-shaped tokens.
 
 ## Consequences
 

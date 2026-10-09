@@ -9,7 +9,7 @@ Terms used in the code, the tests and the docs. All people are synthetic; HR, IT
 | Gate | A D1 predicate the workflow checks before every wait and after every wake-up or bounded timeout: tasks done, approval decided, resubmitted, retried (ADR 0002). |
 | Wake-up | A `wake_<stage>` workflow event sent by the CaseAgent after a command commits, or by the scan's nudge rule. It only makes the workflow re-check its gate; it never carries a decision. |
 | Checkpoint | A human approval inside the workflow: manager_approval (the employee's manager) and closeout (People Ops). Admins may decide on behalf, which is audited. |
-| Round | The attempt counter of a stage: approval rounds at checkpoints (at most 3), recovery rounds at operation stages. Retry and resubmit advance it. |
+| Round | The attempt counter of a stage: approval rounds at checkpoints (at most 3, plus one per admin restart after a final rejection), recovery rounds at operation stages. Closeout has both: its activation counts recovery rounds from the round its approval was granted in. Retry, resubmit and that restart advance it. |
 | Blocker | A rule-detected obstacle with a kind (integration_outage, data_issue, provisioning_stalled, approval_overdue, employee_task_overdue, approval_rejected), an owner department and a severity. At most one open blocker per dedupe key. |
 | Follow-up | The task created with each blocker for the owning department. Completing it does not unblock anything by itself; blockers auto-resolve only when their condition clears. |
 | Provisioning item | A resource in a simulated system tracked for the case (HR worker, documents, orientation; IT account, licenses, device; Facilities workspace, badge) with status and poll count. |
