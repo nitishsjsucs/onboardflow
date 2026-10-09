@@ -15,7 +15,7 @@ import { parseConfig } from "../config.ts";
 import { auditInsertWhen, type AuditInput, stamped } from "../db/audit.ts";
 import { openBlockerStatements } from "../db/blockers.ts";
 import { loadClock, type Clock } from "../db/clock.ts";
-import { runGuarded } from "../db/guarded.ts";
+import { replaceStoredResponse, runGuarded } from "../db/guarded.ts";
 import { getApproval, getBlocker, getEmployee, getTask, toApprovalView, toBlockerView, toTaskView } from "../db/repo.ts";
 import type { Principal } from "../http.ts";
 import { canSubscribe } from "../auth/policy.ts";
@@ -37,6 +37,10 @@ export type Decision = { decision: "approve" | "reject"; reason?: string | undef
 export type ScanResult = { opened: number; autoResolved: number; nudged: number };
 
 const WORKFLOW = "ONBOARDING_WORKFLOW" as const;
+/** A restart whose workflow control failed after its commit is retried after 2, 4, 8, 16 and 32 s. */
+const RESTART_RETRY_BASE_S = 2;
+const RESTART_RETRY_ATTEMPTS = 5;
+type RestartRetry = { runNo: number; fromInstanceId: string; actor: Principal; requestId: string; attempt: number };
 
 export const FIELD_COLUMNS: Record<FixableField, "cost_center" | "license_bundle" | "photo_on_file"> = {
   costCenter: "cost_center",
@@ -396,12 +400,27 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const db = this.env.DB;
     const id = this.employeeId;
     const now = (await this.clock()).nowIso();
-    const c = await db.prepare("SELECT workflow_instance_id, run_no FROM cases WHERE employee_id = ?").bind(id).first<{ workflow_instance_id: string | null; run_no: number }>();
+    const c = await db
+      .prepare("SELECT workflow_instance_id, run_no, status, failure_reason FROM cases WHERE employee_id = ?")
+      .bind(id)
+      .first<{ workflow_instance_id: string | null; run_no: number; status: string; failure_reason: string | null }>();
     if (!c) return { status: 404, body: errorBody("not_found", "no case", cmd.requestId) };
     if (!c.workflow_instance_id) return { status: 409, body: errorBody("not_started", "the case has not started", cmd.requestId) };
     const stamp = userStamp(cmd.requestId);
     const runNo = c.run_no + 1;
     const conflictBody = errorBody("restart_conflict", "the case changed concurrently", cmd.requestId);
+    // A case that ended on its final approval rejection is restarted into one more approval round:
+    // the rejected round stays rejected, so re-running it would only fail the case again (SPEC 6.1).
+    const reopen =
+      c.status === "failed" && c.failure_reason === "approval_rejected_final"
+        ? await db
+            .prepare("SELECT stage_id, round FROM case_stages WHERE employee_id = ? AND status = 'failed' AND stage_id IN ('manager_approval','closeout')")
+            .bind(id)
+            .first<{ stage_id: StageId; round: number }>()
+        : null;
+    // The response is stored in the restart's own batch (SPEC 9), so a retry with the same key replays
+    // it instead of restarting a second time. Workflow control runs after the commit and converges.
+    const okBody = { runNo, instanceId: c.workflow_instance_id };
     const result = await runGuarded({
       db,
       mutation: db
@@ -412,23 +431,106 @@ export class CaseAgent extends Agent<Env, CaseState> {
         .bind(now, stamp, id, c.run_no),
       applied: stamped("cases", "employee_id = ?", [id], stamp),
       onApplied: (when) => [
+        ...(reopen
+          ? [
+              db
+                .prepare(
+                  `UPDATE case_stages SET round = round + 1, status = 'active', updated_at = ?
+                    WHERE employee_id = ? AND stage_id = ? AND round = ? AND status = 'failed'
+                      AND EXISTS (SELECT 1 FROM approvals WHERE employee_id = ? AND stage_id = ? AND round = ? AND status = 'rejected') AND ${when.sql}`,
+                )
+                .bind(now, id, reopen.stage_id, reopen.round, id, reopen.stage_id, reopen.round, ...when.binds),
+            ]
+          : []),
         // A failed stage gets another go on the new run; complete stages stay complete.
         db.prepare(`UPDATE case_stages SET status = 'active', updated_at = ? WHERE employee_id = ? AND status = 'failed' AND ${when.sql}`).bind(now, id, ...when.binds),
-        auditInsertWhen(db, { ...this.#userAudit(cmd, now, "case.restarted", "case", id, { reason, instanceId: c.workflow_instance_id }), runNo }, when),
+        auditInsertWhen(
+          db,
+          {
+            ...this.#userAudit(cmd, now, "case.restarted", "case", id, {
+              reason,
+              instanceId: c.workflow_instance_id,
+              ...(reopen ? { reopenedApproval: { stageId: reopen.stage_id, round: reopen.round + 1 } } : {}),
+            }),
+            runNo,
+          },
+          when,
+        ),
       ],
+      ...(cmd.idem ? { idempotency: { ...cmd.idem, ok: { status: 202, body: okBody }, conflict: { status: 409, body: conflictBody } } } : {}),
     });
     if (!result.applied) return { status: 409, body: conflictBody };
 
-    let instanceId = c.workflow_instance_id;
-    try {
-      await this.control.restart(instanceId);
-    } catch (err) {
-      if (isEngineAbort(err)) throw err;
-      instanceId = await this.#newRevision(instanceId, cmd, errorMessage(err));
+    const instanceId = await this.#applyRestart(c.workflow_instance_id, runNo, cmd);
+    if (instanceId !== okBody.instanceId && cmd.idem) {
+      // The platform refused the restart and a new revision took over: replay the instance that runs.
+      await replaceStoredResponse(db, cmd.idem, { status: 202, body: okBody }, { status: 202, body: { runNo, instanceId } }).catch((err: unknown) =>
+        console.warn(`restart ${id}: stored response not updated: ${errorMessage(err)}`),
+      );
     }
     await this.scheduleEvery(this.config.blockerScanIntervalS, "scheduledScan");
     await this.refresh();
     return { status: 202, body: { runNo, instanceId } };
+  }
+
+  /**
+   * Workflow control after a committed restart. Never throws (except an engine abort): a failure is
+   * logged and retried by convergeRestart on a schedule, because the restart is already committed
+   * and its response stored, so the API must not release the key and let a retry restart twice.
+   */
+  async #applyRestart(fromInstanceId: string, runNo: number, cmd: Cmd): Promise<string> {
+    try {
+      await this.control.restart(fromInstanceId);
+      return fromInstanceId;
+    } catch (err) {
+      if (isEngineAbort(err)) throw err;
+      try {
+        return await this.#newRevision(fromInstanceId, cmd, errorMessage(err));
+      } catch (second) {
+        if (isEngineAbort(second)) throw second;
+        console.error(`restart ${this.employeeId} run ${runNo}: ${errorMessage(second)}; retrying on a schedule`);
+        await this.#scheduleRestartRetry({ runNo, fromInstanceId, actor: cmd.actor, requestId: cmd.requestId, attempt: 1 });
+        return (await this.currentInstanceId()) ?? fromInstanceId;
+      }
+    }
+  }
+
+  async #scheduleRestartRetry(p: RestartRetry): Promise<void> {
+    await this.schedule(RESTART_RETRY_BASE_S * 2 ** (p.attempt - 1), "convergeRestart", p);
+  }
+
+  /**
+   * Scheduled: finishes a committed restart whose workflow control failed. Does nothing once the case
+   * has moved on (a later restart, or the case finished). If a new revision was already recorded, its
+   * instance is created; otherwise the restart is tried again, with the same new-revision fallback.
+   */
+  async convergeRestart(p: RestartRetry): Promise<void> {
+    try {
+      const c = await this.env.DB.prepare("SELECT run_no, status, workflow_instance_id FROM cases WHERE employee_id = ?")
+        .bind(this.employeeId)
+        .first<{ run_no: number; status: string; workflow_instance_id: string | null }>();
+      if (!c?.workflow_instance_id || c.run_no !== p.runNo || c.status === "complete" || c.status === "failed") return;
+      if (c.workflow_instance_id !== p.fromInstanceId) {
+        await this.control.ensureInstance(c.workflow_instance_id, this.employeeId);
+      } else {
+        const cmd: Cmd = { actor: p.actor, requestId: p.requestId, idem: null };
+        try {
+          await this.control.restart(p.fromInstanceId);
+        } catch (err) {
+          if (isEngineAbort(err)) throw err;
+          await this.#newRevision(p.fromInstanceId, cmd, errorMessage(err));
+        }
+      }
+      await this.refresh();
+    } catch (err) {
+      if (isEngineAbort(err)) throw err;
+      if (p.attempt >= RESTART_RETRY_ATTEMPTS) {
+        console.error(`restart ${this.employeeId} run ${p.runNo}: giving up after ${p.attempt} attempts: ${errorMessage(err)}`);
+        return;
+      }
+      console.warn(`restart ${this.employeeId} run ${p.runNo}, attempt ${p.attempt}: ${errorMessage(err)}`);
+      await this.#scheduleRestartRetry({ ...p, attempt: p.attempt + 1 });
+    }
   }
 
   /** Restart refused by the platform: create a new instance id (revision + 1). Operations replay by key. */

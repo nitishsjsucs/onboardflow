@@ -13,8 +13,10 @@ import {
   driveThroughManagerApproval,
   fastWorkflows,
   finishFromOrientation,
+  managerOf,
   retry,
   rpc,
+  startCase,
   waitFor,
   waitForCase,
   waitForStage,
@@ -272,6 +274,49 @@ describe("restart", () => {
       expect(await ledger({ employeeRef: "E119", system: "hr", operation: "activate-worker" })).toHaveLength(1);
       expect((await DB.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E119' AND action = 'case.failed'").first<{ n: number }>())!.n).toBe(0);
       await expectOneSideEffectEach("E119");
+    } finally {
+      await intro.dispose();
+    }
+  });
+
+  it("restart after a final rejection reopens the checkpoint for one more round; a rejection there is final again", async () => {
+    const intro = await fastWorkflows();
+    try {
+      const manager = await managerOf("E120");
+      const agent = await rpc("E120");
+      await startCase("E120");
+      await waitForStage("E120", "paperwork", "waiting_on_employee");
+      await completeEmployeeTasks("E120", "paperwork");
+      for (let round = 1; round <= 3; round++) {
+        expect((await decide("E120", "manager_approval", "reject", manager, { round })).status).toBe(200);
+        if (round < 3) {
+          await waitForStage("E120", "manager_approval", "revision_requested");
+          expect((await agent.resubmitApproval(`apr:E120:manager_approval:${round}`, await cmdFor("C01"))).status).toBe(202);
+        }
+      }
+      expect((await waitForCase("E120", "failed")).failure_reason).toBe("approval_rejected_final");
+
+      // run 2 asks the manager once more (round 4); rejecting it ends the case the same way
+      expect(await agent.restartCase("manager asked to reconsider", await cmdFor("A01"))).toMatchObject({ status: 202, body: { runNo: 2 } });
+      expect(await stageRowOf("E120", "manager_approval")).toMatchObject({ round: 4 });
+      expect((await decide("E120", "manager_approval", "reject", manager, { round: 4 })).status).toBe(200);
+      expect(await waitForCase("E120", "failed")).toMatchObject({ failure_reason: "approval_rejected_final", run_no: 2 });
+
+      // run 3: round 5 approved, and the case completes
+      expect(await agent.restartCase("approved out of band", await cmdFor("A01"))).toMatchObject({ status: 202, body: { runNo: 3 } });
+      expect((await decide("E120", "manager_approval", "approve", manager, { round: 5 })).status).toBe(200);
+      expect((await finishFromOrientation("E120")).status).toBe("complete");
+
+      const statuses = await DB.prepare("SELECT round, status FROM approvals WHERE employee_id = 'E120' AND checkpoint = 'manager_approval' ORDER BY round").all<{ round: number; status: string }>();
+      expect(statuses.results.map((a) => `${a.round}:${a.status}`)).toEqual(["1:rejected", "2:rejected", "3:rejected", "4:rejected", "5:approved"]);
+      const restarts = await DB.prepare("SELECT detail_json FROM audit_events WHERE employee_id = 'E120' AND action = 'case.restarted' ORDER BY seq").all<{ detail_json: string }>();
+      expect(restarts.results.map((r) => (JSON.parse(r.detail_json) as { reopenedApproval?: unknown }).reopenedApproval)).toEqual([
+        { stageId: "manager_approval", round: 4 },
+        { stageId: "manager_approval", round: 5 },
+      ]);
+      const failures = await DB.prepare("SELECT run_no FROM audit_events WHERE employee_id = 'E120' AND action = 'case.failed' ORDER BY seq").all<{ run_no: number }>();
+      expect(failures.results.map((r) => r.run_no)).toEqual([1, 2]);
+      await expectOneSideEffectEach("E120");
     } finally {
       await intro.dispose();
     }

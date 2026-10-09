@@ -86,6 +86,56 @@ describe("Idempotency-Key on API mutations", () => {
     expect(sameActor.body).toMatchObject({ error: { code: "idempotency_key_reuse" } });
   });
 
+  it("stores the restart response in its batch: a failure after the commit is retried later and a same-key retry replays", async () => {
+    const intro = await fastWorkflows();
+    try {
+      const id = "E144";
+      expect((await api(`/api/cases/${id}/start`, { as: "C01", body: {} })).status).toBe(202);
+      await waitForStage(id, "paperwork", "waiting_on_employee");
+      const stub = await caseAgent(id);
+      await runInDurableObject(stub, (agent: CaseAgent) => {
+        const real = agent.control;
+        let failCreate = true;
+        agent.control = {
+          ensureInstance: async (instanceId, emp, limits) => {
+            if (failCreate) {
+              failCreate = false;
+              throw new Error("simulated create outage after the revision commit");
+            }
+            return real.ensureInstance(instanceId, emp, limits);
+          },
+          restart: async () => {
+            throw new Error("instance.cannot_restart: simulated platform refusal");
+          },
+          terminate: (instanceId) => real.terminate(instanceId),
+          status: (instanceId) => real.status(instanceId),
+        };
+      });
+      const first = await api(`/api/cases/${id}/restart`, { as: "A01", body: { reason: "operator restart" }, idempotencyKey: "k-restart" });
+      expect(first).toMatchObject({ status: 202, body: { runNo: 2, instanceId: `onb-${id}-2` } });
+      const second = await api(`/api/cases/${id}/restart`, { as: "A01", body: { reason: "operator restart" }, idempotencyKey: "k-restart" });
+      expect(second.status).toBe(202);
+      expect(second.headers.get("Idempotent-Replayed")).toBe("true");
+      expect(second.body).toEqual(first.body);
+      expect(await DB.prepare("SELECT run_no, revision, workflow_instance_id FROM cases WHERE employee_id = ?").bind(id).first()).toEqual({
+        run_no: 2,
+        revision: 2,
+        workflow_instance_id: `onb-${id}-2`,
+      });
+      expect(await auditCount(id, "case.restarted")).toBe(1);
+      expect(await auditCount(id, "case.revision_created")).toBe(1);
+      // the scheduled retry creates the new revision's instance, which replays the case under run 2
+      await waitFor(
+        () => DB.prepare("SELECT 1 AS ok FROM integration_calls WHERE employee_id = ? AND run_no = 2").bind(id).first(),
+        { what: "run 2 of the new revision", timeoutMs: 45_000 },
+      );
+      expect(await auditCount(id, "case.revision_created")).toBe(1);
+      await api(`/api/cases/${id}/terminate`, { as: "A01", body: { reason: "cleanup" } });
+    } finally {
+      await intro.dispose();
+    }
+  });
+
   it("releases the key after a 5xx so a retry with the same key executes", async () => {
     const stub = await caseAgent("E147");
     let fail = true;

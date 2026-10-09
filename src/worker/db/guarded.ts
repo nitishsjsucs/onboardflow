@@ -63,3 +63,16 @@ export async function runGuarded(spec: GuardedSpec): Promise<{ applied: boolean;
   const results = await db.batch(statements);
   return { applied: (results[0]?.meta.changes ?? 0) > 0, results };
 }
+
+/**
+ * Replaces a response this request already stored, for the one command whose final body is known only
+ * after its batch (a restart that fell back to a new workflow revision). Guarded on the stored body,
+ * so it never overwrites another response.
+ */
+export async function replaceStoredResponse(db: D1Database, t: { actorEmail: string; key: string }, from: StoredReply, to: StoredReply): Promise<boolean> {
+  const r = await db
+    .prepare("UPDATE api_idempotency SET status = ?, response_json = ? WHERE actor_email = ? AND key = ? AND state = 'complete' AND status = ? AND response_json = ?")
+    .bind(to.status, JSON.stringify(to.body), t.actorEmail, t.key, from.status, JSON.stringify(from.body))
+    .run();
+  return r.meta.changes === 1;
+}
