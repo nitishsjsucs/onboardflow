@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { getAgentByName } from "agents";
 import { describe, expect, it } from "vitest";
 import type { HubState } from "../../src/shared/agent-state.ts";
-import type { OpsHubAgent } from "../../src/worker/agents/ops-hub-agent.ts";
+import { notBefore, type OpsHubAgent } from "../../src/worker/agents/ops-hub-agent.ts";
 import { computeHubDomain } from "../../src/worker/agents/projection.ts";
 import { api } from "../helpers/api.ts";
 import { waitFor } from "../helpers/workflow.ts";
@@ -33,6 +33,8 @@ describe("OpsHubAgent", () => {
     for (const [id, seq] of [["E121", 9], ["E120", 3], ["E121", 7], ["E120", 12], ["E122", 1]] as const) await stub.caseChanged(id, seq);
     const meta = await runInDurableObject(stub, (a: OpsHubAgent) => a.meta());
     expect(meta).toEqual({ dirty: 1, debounce_pending: 1 });
+    // nothing has reconciled yet: the debounce waits at least HUB_DEBOUNCE_S
+    expect((await stub.getSnapshot()).version).toBe(0);
     // the debounced reconcile fires on the Agent's alarm after HUB_DEBOUNCE_S (1 s in tests)
     // the property (SPEC 8.2): once quiet, the debounced reconcile equals a fresh read of D1
     const state = await waitFor(async () => {
@@ -49,6 +51,15 @@ describe("OpsHubAgent", () => {
     expect(state.byStage).toHaveLength(8);
     expect(state.byStage.find((b) => b.stage === "it_provisioning")?.blocked).toBe(1);
     expect(await runInDurableObject(stub, (a: OpsHubAgent) => a.meta())).toEqual({ dirty: 0, debounce_pending: 0 });
+    // exactly one reconcile served the whole burst (storage is isolated per file; nothing else reconciles here)
+    expect((await stub.getSnapshot()).version).toBe(1);
+    expect(state.version).toBe(1);
+  });
+
+  it("waits at least the debounce window, although SDK schedule times are whole seconds", () => {
+    expect(notBefore(Date.parse("2026-10-08T12:00:00.999Z"), 1).toISOString()).toBe("2026-10-08T12:00:02.000Z");
+    expect(notBefore(Date.parse("2026-10-08T12:00:00.000Z"), 1).toISOString()).toBe("2026-10-08T12:00:01.000Z");
+    expect(notBefore(Date.parse("2026-10-08T12:00:00.001Z"), 2).toISOString()).toBe("2026-10-08T12:00:03.000Z");
   });
 
   it("detects a system incident when 3 cases are blocked on one system within 15 minutes", async () => {

@@ -16,6 +16,15 @@ import { Serial } from "./serial.ts";
 import { rememberSubscriber, revokeStaleSubscriptions } from "./subscriptions.ts";
 
 export const HUB_NAME = "global";
+
+/**
+ * The Agents SDK stores schedule times in whole seconds, rounded down, so `schedule(1, ...)` can fire
+ * anywhere from a few milliseconds to one second later. A debounce must wait at least its window,
+ * so round the target time up to the next whole second instead (the window becomes [s, s + 1) seconds).
+ */
+export function notBefore(nowMs: number, seconds: number): Date {
+  return new Date(Math.ceil((nowMs + seconds * 1000) / 1000) * 1000);
+}
 export const HUB_SAFETY_INTERVAL_S = 60;
 
 export class OpsHubAgent extends Agent<Env, HubState> {
@@ -62,7 +71,7 @@ export class OpsHubAgent extends Agent<Env, HubState> {
     const pending = this.sql<{ debounce_pending: number }>`SELECT debounce_pending FROM hub_meta WHERE id = 1`[0]?.debounce_pending ?? 0;
     if (pending) return;
     this.sql`UPDATE hub_meta SET debounce_pending = 1 WHERE id = 1`;
-    await this.schedule(parseConfig(this.env).hubDebounceS, "reconcile");
+    await this.schedule(notBefore(Date.now(), parseConfig(this.env).hubDebounceS), "reconcile");
   }
 
   /** Recomputes the dashboard from D1 (serialized); applies it unless older than the current state. */
