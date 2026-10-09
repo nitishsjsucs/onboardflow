@@ -217,4 +217,24 @@ describe("restart", () => {
       await intro.dispose();
     }
   });
+
+  it("restart after a desk conflict: the stored workspace preference is replayed, one assignment", async () => {
+    const intro = await fastWorkflows();
+    try {
+      await setFault({ system: "facilities", operation: "assign-workspace", employeeRef: "E115", fault: "conflict_409", remaining: 1 });
+      await driveThroughManagerApproval("E115");
+      await waitForStage("E115", "orientation", "waiting_on_employee");
+      const run1 = (await calls("E115", "facilities.assign-workspace")).map((c) => c.outcome);
+      expect(run1).toEqual(["conflict", "ok"]);
+
+      expect((await (await rpc("E115")).restartCase("operator restart", await cmdFor("A01"))).status).toBe(202);
+      expect((await finishFromOrientation("E115")).status).toBe("complete");
+      const run2 = (await calls("E115", "facilities.assign-workspace")).filter((c) => c.run_no === 2).map((c) => c.outcome);
+      expect(run2).toEqual(["replayed"]);
+      expect(await ledger({ employeeRef: "E115", system: "facilities", operation: "assign-workspace" })).toHaveLength(1);
+      await expectOneSideEffectEach("E115");
+    } finally {
+      await intro.dispose();
+    }
+  });
 });

@@ -97,7 +97,12 @@ export async function callOperation(ctx: RunCtx, stage: StageId, op: OperationId
       return { externalId: r.data.id, status: r.data.status };
     }
     case "facilities.assign-workspace": {
-      const r = await fac.assignWorkspace(client, e);
+      // Replay the preference an earlier execution stored under the shared key (a desk conflict may have moved it on).
+      const stored = await db
+        .prepare("SELECT json_extract(detail_json, '$.preference') AS preference FROM provisioning_items WHERE employee_id = ? AND resource = 'fac_workspace'")
+        .bind(e.id)
+        .first<{ preference: string | null }>();
+      const r = await fac.assignWorkspace(client, e, { startWith: stored?.preference ?? null });
       return record(r.data.id, r.data.kind === "desk" ? "desk_assigned" : "remote_kit_assigned", { kind: r.data.kind, deskId: r.data.deskId ?? null, preference: r.preference });
     }
     case "facilities.issue-badge": {

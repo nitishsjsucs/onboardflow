@@ -12,7 +12,7 @@ import {
   rethrowIfEngineAbort,
   retryAfterFrom,
 } from "../../src/worker/integrations/errors.ts";
-import { assignWorkspace } from "../../src/worker/integrations/facilities.ts";
+import { assignWorkspace, preferenceOrder } from "../../src/worker/integrations/facilities.ts";
 import { createWorker } from "../../src/worker/integrations/hr.ts";
 import { setFault } from "../helpers/sims.ts";
 
@@ -158,5 +158,35 @@ describe("against the simulated systems over loopback", () => {
     expect(r.preferencesTried).toBe(2);
     const rows = await env.DB.prepare("SELECT outcome FROM integration_calls WHERE employee_id = 'E013' ORDER BY created_at, id").all<{ outcome: string }>();
     expect(rows.results.map((x) => x.outcome)).toEqual(["conflict", "ok"]);
+  });
+
+  it("re-executes a conflict-moved assignment by replaying the stored preference, never a second desk", async () => {
+    await setFault({ system: "facilities", operation: "assign-workspace", employeeRef: "E014", fault: "conflict_409", remaining: 1 });
+    const e = (await getEmployee(env.DB, "E014"))!;
+    const first = await assignWorkspace(new IntegrationClient(env.DB, config, new SystemClock(), scope("E014")), e);
+    expect(first).toMatchObject({ preference: "quiet-zone", preferencesTried: 2, replayed: false });
+
+    // a re-execution that does not know the stored preference: preference 1 gets 422 key reuse, preference 2 replays
+    const blind = scope("E014");
+    const again = await assignWorkspace(new IntegrationClient(env.DB, config, new SystemClock(), blind), e);
+    expect(again).toMatchObject({ preference: "quiet-zone", replayed: true, data: first.data });
+    const blindRows = await env.DB.prepare("SELECT outcome, http_status FROM integration_calls WHERE step_name LIKE ? ORDER BY id").bind(`${blind.stepName}%`).all<{ outcome: string; http_status: number }>();
+    expect(blindRows.results).toEqual([
+      { outcome: "fatal_error", http_status: 422 },
+      { outcome: "replayed", http_status: 201 },
+    ]);
+
+    // the workflow passes the stored preference, so the replay is the first call
+    const informed = scope("E014");
+    const direct = await assignWorkspace(new IntegrationClient(env.DB, config, new SystemClock(), informed), e, { startWith: "quiet-zone" });
+    expect(direct).toMatchObject({ preference: "quiet-zone", preferencesTried: 1, replayed: true, data: first.data });
+    const ledgerRows = await env.DB.prepare("SELECT COUNT(*) AS n FROM sim_side_effects WHERE employee_ref = 'E014' AND operation = 'assign-workspace'").first<{ n: number }>();
+    expect(ledgerRows!.n).toBe(1);
+  });
+
+  it("orders workspace preferences with the stored one first", () => {
+    expect(preferenceOrder(null)).toEqual(["team-neighborhood", "quiet-zone", "any-available"]);
+    expect(preferenceOrder("any-available")).toEqual(["any-available", "team-neighborhood", "quiet-zone"]);
+    expect(preferenceOrder("unknown")).toEqual(["team-neighborhood", "quiet-zone", "any-available"]);
   });
 });
