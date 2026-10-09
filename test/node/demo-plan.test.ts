@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STAGE_IDS } from "../../src/shared/stages.ts";
-import { DEMO_FAULTS, DEMO_MIX, DEMO_TARGETS, demoPlan } from "../../scripts/demo-drive.ts";
+import { DEMO_FAULTS, DEMO_MIX, DEMO_RESTS, DEMO_TARGETS, demoMismatches, demoPlan, observedTarget } from "../../scripts/demo-drive.ts";
 
 const ids = Array.from({ length: 150 }, (_, i) => `E${String(i + 1).padStart(3, "0")}`);
 
@@ -25,5 +25,18 @@ describe("demo plan", () => {
     expect([...held].sort()).toEqual([...STAGE_IDS].sort());
     const faultedCases = faulted.reduce((n, f) => n + DEMO_MIX[f.t as keyof typeof DEMO_MIX], 0);
     expect(faultedCases).toBeLessThanOrEqual(15);
+  });
+
+  it("reads each case's target back from its observed state and reports every difference from the plan", () => {
+    const stages = (stage: string, status: string) => STAGE_IDS.map((id) => ({ id, status: id === stage ? status : "pending" }));
+    expect(observedTarget("complete", stages("closeout", "complete"))).toBe("complete");
+    for (const t of DEMO_TARGETS.filter((x) => x !== "complete") as Array<keyof typeof DEMO_RESTS>) {
+      expect(observedTarget("in_progress", stages(DEMO_RESTS[t].stage, DEMO_RESTS[t].status)), t).toBe(t);
+    }
+    expect(observedTarget("failed", stages("it_provisioning", "failed"))).toBe("other");
+    expect(observedTarget("in_progress", stages("it_provisioning", "active"))).toBe("other");
+    const plan = new Map([["E001", "complete"], ["E002", "it_blocked"]] as const);
+    expect(demoMismatches(plan, new Map([["E001", "complete"], ["E002", "it_blocked"]]))).toEqual([]);
+    expect(demoMismatches(plan, new Map([["E001", "complete"], ["E002", "other"]]))).toEqual(["E002: planned it_blocked, observed other"]);
   });
 });

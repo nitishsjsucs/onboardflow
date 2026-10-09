@@ -58,6 +58,37 @@ export function demoPlan(seed: number, ids: readonly string[]): Map<string, Demo
   return plan;
 }
 
+/** Where each target leaves a case: the stage and status it rests in (complete: the case is complete). */
+export const DEMO_RESTS: Record<Exclude<DemoTarget, "complete">, { stage: StageId; status: StageStatus }> = {
+  intake_blocked: { stage: "intake", status: "blocked" },
+  paperwork: { stage: "paperwork", status: "waiting_on_employee" },
+  manager_approval: { stage: "manager_approval", status: "awaiting_approval" },
+  it_blocked: { stage: "it_provisioning", status: "blocked" },
+  facilities_blocked: { stage: "facilities_setup", status: "blocked" },
+  verification_blocked: { stage: "provisioning_verification", status: "blocked" },
+  orientation: { stage: "orientation", status: "waiting_on_employee" },
+  closeout: { stage: "closeout", status: "awaiting_approval" },
+};
+
+/** Which target a case's observed state matches, read back from the server ("other" if none). */
+export function observedTarget(caseStatus: string, stages: ReadonlyArray<{ id: string; status: string }>): DemoTarget | "other" {
+  if (caseStatus === "complete") return "complete";
+  for (const [target, rest] of Object.entries(DEMO_RESTS) as Array<[DemoTarget, { stage: StageId; status: StageStatus }]>) {
+    if (stages.some((st) => st.id === rest.stage && st.status === rest.status)) return target;
+  }
+  return "other";
+}
+
+/** Differences between the planned and the observed target of each case. */
+export function demoMismatches(plan: ReadonlyMap<string, DemoTarget>, observed: ReadonlyMap<string, DemoTarget | "other">): string[] {
+  const out: string[] = [];
+  for (const [id, target] of plan) {
+    const got = observed.get(id) ?? "other";
+    if (got !== target) out.push(`${id}: planned ${target}, observed ${got}`);
+  }
+  return out;
+}
+
 /** The human actions for a target, each ending in a wait so no workflow is still moving when the server stops. */
 function scriptFor(target: DemoTarget): Action[] {
   const at = (stage: StageId, status: StageStatus): Action => ({ do: "waitStage", stage, status });
@@ -123,9 +154,22 @@ async function main() {
       done++;
       if (done % 25 === 0) console.log(`demo-drive: ${done}/150 cases driven`);
     });
+    // Read every case back and report what is actually there, not the plan.
+    const observed = new Map<string, DemoTarget | "other">();
+    await pool([...plan.keys()], 10, async (id) => {
+      const r = await h.admin<{ case: { status: string }; stages: Array<{ id: string; status: string }> }>("GET", `/api/cases/${id}`);
+      observed.set(id, r.status === 200 && r.body ? observedTarget(r.body.case.status, r.body.stages) : "other");
+    });
     const counts: Record<string, number> = {};
-    for (const t of plan.values()) counts[t] = (counts[t] ?? 0) + 1;
-    console.log(`demo-drive: done ${JSON.stringify(counts)}. Run \`npm run serve:local\` and sign in as a persona.`);
+    for (const t of observed.values()) counts[t] = (counts[t] ?? 0) + 1;
+    const mismatches = demoMismatches(plan, observed);
+    console.log(`demo-drive: observed ${JSON.stringify(counts)} (planned ${JSON.stringify(DEMO_MIX)})`);
+    if (mismatches.length > 0) {
+      console.error(`demo-drive: ${mismatches.length} case(s) are not where the plan put them:\n  ${mismatches.join("\n  ")}`);
+      process.exitCode = 1;
+    } else {
+      console.log("demo-drive: every case is where the plan put it. Run `npm run serve:local` and sign in as a persona.");
+    }
   } finally {
     await server.stop();
   }
