@@ -112,7 +112,7 @@ Chaos mode is the informative measurement: `npm run eval:chaos` runs the same 60
 
 ## Results
 
-Everything below is rendered by `npm run results:readme` from `eval/results/latest-*.json`, the files the harness wrote; a test fails if this block drifts from them. These are local measurements on `wrangler dev` (Miniflare/workerd) on a laptop, with the simulated systems and the stub LLM provider, not production numbers. Standard mode is the regression suite described above: its completion rate is close to guaranteed by construction and is not a measure of how often onboarding succeeds under uncontrolled failures.
+Everything below is rendered by `npm run results:readme` from `eval/results/latest-*.json`, the files the harness wrote; a test fails if this block drifts from them. These are local measurements on `wrangler dev` (Miniflare/workerd) on a laptop, with the simulated systems and the stub LLM provider (except the one run labeled as using a local LLM), not production numbers. Standard mode is the regression suite described above: its completion rate is close to guaranteed by construction and is not a measure of how often onboarding succeeds under uncontrolled failures.
 
 <!-- results:start -->
 #### Standard mode (regression suite, scripted recovery)
@@ -132,6 +132,27 @@ Command `npm run eval:ci`, run 2026-10-09 (git 6dbf935), provider `stub`, local 
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
 | Scenario time p50 / p95, wall time | 2.9 s / 4.9 s, 40 s |
+
+#### Standard mode with a local LLM drafting follow-up wording
+
+Command `npm run eval:llama`, run 2026-10-09 (git 8a849de), provider `llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)`, local wrangler dev (Miniflare/workerd), concurrency 6.
+
+| Metric | Value |
+|---|---|
+| Cases started | 60 |
+| Completed | 60/60 (100.0%) |
+| Passed (completed and every expectation held) | 60/60 |
+| onboarding | 20/20 passed |
+| integration failure | 24/24 passed |
+| recovery | 16/16 passed |
+| Integration calls (retried, replayed) | 1280 (60, 27) |
+| Follow-ups drafted by the LLM (schema-valid / attempted) | 20 created, 100.0% valid, category agrees with the rules 100.0%, p50 2874 ms |
+| Duplicate side effects in the simulated systems | 0 |
+| Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
+| Audit coverage (regression check) | 1 |
+| Live hub equals D1 reconcile after the run | yes |
+| Scenario time p50 / p95, wall time | 3.5 s / 9.2 s, 56 s |
+| Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Chaos mode (seeded faults and policy bots, 5 seeds)
 
@@ -213,7 +234,7 @@ Command `node eval/harness/run.ts --mode ablation-retries`, run 2026-10-09 (git 
 - **Earlier chaos runs** on the same seeds are committed and not hidden: the first (git 2ed49fe) completed 230 of 300, but in seed 3 the harness failed to end a Facilities outage window after a local runtime error, so every case in that seed stopped at Facilities (0/60). The second (git 3b3ed1a) completed 210 of 300, with 248 bot requests in seeds 3 and 4 lost to dropped connections in `wrangler dev`'s local proxy. Each led to a harness fix (the orchestrator retries its own control calls; the harness retries a dropped request with the same Idempotency-Key, which the API is designed for). Fault tables, seeds and bot policies did not change.
 - **Scale** also ran a first time at the same commit and completed 148 of 150: two harness requests got a plain-text 500 from the local runtime and the harness stopped driving those two cases. The 150/150 run is shown because it is the latest run, not because it is the better one.
 - **Ablations** show what each mechanism buys. With Idempotency-Key handling off in the simulated systems, retried and replayed calls produced 27 duplicate side effects (0 in standard mode). With step retries off, 16 cases stayed blocked where a transient fault needed a retry. Both ablations ran while the machine slept between brief wakes: their wall times and p95 include those stalls, and the one ablation case that did not complete with keys off (R05) timed out during a stall rather than because of the ablation. New runs record host stalls and flag them in this block.
-- **Not recorded in this round:** the local-LLM run (`npm run eval:llama`). By the time the ablations finished the machine was asleep, and a run would have measured the sleep. The follow-up drafting path with Qwen3-1.7B was exercised in an unrecorded trial and by `npm run llm:smoke`; no LLM numbers are claimed here.
+- **Local LLM** (`npm run eval:llama`, git 8a849de): the same 60 scenarios with llama-server running Qwen3-1.7B Q4_0 on the laptop's GPU drafting the wording of every follow-up. It was recorded later the same evening (20:09 PDT, lid open, no host stall), because the first attempt was due while the machine slept. All 20 follow-ups were drafted by the model rather than the template, with a p50 of 2.9 s per draft, and the workflow results match the stub run (60/60 passed, 0 duplicates). Read the 100% schema-valid and 100% category-agreement figures as "the drafting path works end to end", not as model quality: llama-server constrains the output to the JSON schema, whose category field is an enum, and the prompt names the blocker kind the rules already decided. The model never decides anything ([ADR 0004](docs/adr/0004-rules-decide-llm-drafts.md)), and the run does not measure whether its wording is better than the template's.
 
 ## Deploy (Cloudflare account required)
 

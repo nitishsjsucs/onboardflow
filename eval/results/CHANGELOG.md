@@ -139,3 +139,24 @@ with its reason. Nothing here is tuned toward a target.
   and per run, and the README marks a stalled run or seed as not reliable
   for timeouts and deadlines. The runs above predate it; their sleep is
   documented here from the power log and the recorded durations.
+
+## 2026-10-08, local-LLM run (file names carry UTC times, 2026-10-09)
+
+- The README Results block now lists the stub run of a mode before any
+  local-LLM run of the same mode, so the CI regression gate stays first.
+  Rendering only (`fix(eval): list the stub standard run before the
+  local-LLM run in the README`); no recorded number changed.
+- Local-LLM run (`2026-10-09T03-09-57-525Z-standard.json`, git 8a849de,
+  `npm run eval:llama`), started 20:09 PDT with the lid open on battery,
+  Low Power Mode off, no host stall and no transport retry. llama-server ran
+  Qwen3-1.7B Q4_0 on port 8110 (`-np 1 -c 8192 -ngl 99 --jinja`) and was
+  stopped by the harness afterwards. 60/60 completed and passed, 0
+  duplicate side effects, audit coverage 1, hub consistent. All 20
+  follow-ups were drafted by the model (none fell back to the template),
+  100% schema-valid, category agreement 100%, p50 2874 ms. The output is
+  constrained by the JSON schema (the category is an enum) and the prompt
+  names the rule-decided kind, so validity and agreement are close to
+  guaranteed and show that the path works, not model quality. The harness
+  does not record draft text, so wording quality is not measured.
+- Nothing in the catalog, fault tables, prompt or harness behavior changed
+  for this run.
