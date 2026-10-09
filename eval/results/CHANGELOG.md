@@ -356,3 +356,30 @@ with its reason. Nothing here is tuned toward a target.
   in the fifth run (10,044 calls, 4,250 retried, against 9,966 and 4,138);
   the scenario p50 rose from 103 s to 131 s. Fault tables, seeds and bot
   policies are unchanged.
+- Chaos mode again (`npm run eval:chaos`, git d90973f, clean tree, built
+  from that commit with `dist/` unchanged, started 2026-10-09 12:52 PDT on
+  AC power, 1049 s, no host stall over 5 s, 2 transport retries that then
+  succeeded): 215/300, per-seed 57, 52, 52, 54, 0 (mean 0.7167, min 0, max
+  0.95), 0 duplicate side effects, hub consistent, 84 deadlines and 1
+  failed case (seed 3 E059 at Facilities again). Load average sampled
+  every 30 s: 2.6 to 9.6 during seeds 1 to 4, then 11 to 15 from about
+  13:06 PDT, when seed 5 ran. Seed 5's schedule keeps IT down from 17.7 s
+  to 101.9 s, Facilities from 65.6 s to 116 s and HR from 42.4 s to 74.9 s,
+  so its cases all finish near the 180 s deadline.
+- Diagnostics (not results files, nothing written to this directory), to
+  check whether the second round's code is slower:
+  - Standard suite, `node eval/harness/run.ts --mode standard --llm stub
+    --only <all 60 ids>` (`--only` writes no file), alternating a worktree
+    at d8b4d20 (the product code of 35ebbec) and this repository at
+    d90973f, 12:48 to 12:52 PDT, load average 4 to 8: old 60/60, p50 2.93 s,
+    40.7 s; new 60/60, p50 3.10 s, 41.2 s; old 60/60, p50 2.81 s, 37.6 s;
+    new 60/60, p50 3.01 s, 40.4 s. Same integration call counts (1281 to
+    1284).
+  - Chaos seed 5 alone (`runChaosSeed(5, ...)` from each tree's
+    `eval/harness/chaos.ts`), alternating the same two trees, 13:15 to
+    13:28 PDT, load average 3 to 6: old 56/60 (p50 126.8 s), new 56/60
+    (128.9 s), old 56/60 (129.1 s), new 56/60 (126.8 s), 4 deadlines each.
+    One more seed 5 run of the new code at 13:10 PDT, before these, gave
+    50/60 with 16 transport retries.
+  The worktree and the diagnostic state directories were deleted
+  afterwards.
