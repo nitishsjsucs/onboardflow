@@ -17,8 +17,22 @@ export type ScenarioResult = {
   failures: string[];
   failureReason: FailureReasonCode | null;
   facts: CaseFacts | null;
+  /** Scripted modes: the declared blockers, [] when a scenario declares none. null: not evaluated (chaos). */
   expectedBlockers: Array<{ kind: string; stage: string }> | null;
 };
+
+/**
+ * Standard and scale modes (SPEC 12.4): a case counts as completed only if the harness saw it
+ * `complete` by its deadline. The snapshot is taken 1.5 s after the terminal wait, so a case that
+ * finished just after the deadline shows `complete` there and must not count.
+ * `deadlineAt` is null when the script failed before the terminal wait began (no deadline was running;
+ * the snapshot decides, and the scenario fails on the script error anyway).
+ */
+export function completedInTime(o: { snapshotCompleted: boolean; firstSeenCompleteAt: number | null; deadlineAt: number | null }): boolean {
+  if (!o.snapshotCompleted) return false;
+  if (o.deadlineAt === null) return true;
+  return o.firstSeenCompleteAt !== null && o.firstSeenCompleteAt <= o.deadlineAt;
+}
 
 export type RunProvenance = {
   /** The npm script that ran the harness (`npm_lifecycle_event`), if any. */
@@ -86,7 +100,7 @@ export function percentile(values: number[], p: number): number {
   return sorted[idx] as number;
 }
 
-/** Blocker precision and recall over (kind, stage) pairs, for scenarios that declare expected blockers. */
+/** Blocker precision and recall over (kind, stage) pairs, over every scripted scenario (chaos results carry null and are skipped). */
 export function blockerScores(results: ScenarioResult[]) {
   let expected = 0;
   let detected = 0;

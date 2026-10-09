@@ -71,9 +71,10 @@ export function evaluateExpectations(sc: Scenario, s: Snapshot): string[] {
   for (const op of e.replayed ?? []) {
     if (!s.integrationCalls.some((c) => c.operation === op && c.outcome === "replayed")) failures.push(`replayed ${op}: no replayed call`);
   }
-  if (e.blockers) {
+  {
+    // A scenario that declares no blockers expects none: a spurious blocker fails it too.
     const got = s.blockers.map((b) => `${b.kind}|${b.stage_id}|${b.owner_department}`).sort();
-    const want = e.blockers.map((b) => `${b.kind}|${b.stage}|${b.ownerDepartment}`).sort();
+    const want = (e.blockers ?? []).map((b) => `${b.kind}|${b.stage}|${b.ownerDepartment}`).sort();
     if (JSON.stringify(got) !== JSON.stringify(want)) failures.push(`blockers: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
   }
   for (const [stage, n] of Object.entries(e.rounds ?? {})) {

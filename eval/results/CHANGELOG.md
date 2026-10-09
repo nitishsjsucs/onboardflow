@@ -283,3 +283,24 @@ with its reason. Nothing here is tuned toward a target.
   gate passed, 40 s. Since the previous standard run (git 2760116) the
   only product change is 9c55e58 and the only harness change is the
   wording fix above; no scenario changed.
+
+## 2026-10-09, second review round
+
+- Harness, standard and scale modes: a case now counts as completed only if
+  the terminal wait saw it `complete` by its 90 s deadline
+  (`completedInTime` in `eval/harness/metrics.ts`, node-tested with fake
+  timelines). Before, a case whose wait hit the deadline was still counted
+  when the snapshot taken 1.5 s later showed it complete; chaos mode was
+  already fixed for this. No recorded standard or scale run has a deadline
+  miss, so no recorded number changes.
+- Harness, scripted modes: a scenario that declares no `blockers` now
+  expects none, both in its pass/fail check and in the blocker precision
+  regression number (21 of the 60 scenarios declare none: O03 to O08, O11
+  to O20, R06, R07, R08, R14 and R16). Chaos results still carry no blocker
+  expectation. In every recorded standard run none of those 21 scenarios
+  had a blocker, so no recorded standard number would change. In both
+  recorded ablation-retries runs O07 had one (`integration_outage` at
+  intake, the 429 with retries off); O07 already failed there for other
+  reasons, so only those runs' blocker precision would differ. The
+  recorded files are left as written. No scenario, fault table, seed or
+  bot policy changed.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { attemptsInFinalRound, caseFacts, evaluateExpectations, type Snapshot } from "../../eval/harness/assertions.ts";
-import { blockerScores, chaosAggregate, type ChaosSeedSummary, ciGate, computeMetrics, percentile, ratio, type ScenarioResult } from "../../eval/harness/metrics.ts";
+import { blockerScores, chaosAggregate, type ChaosSeedSummary, ciGate, completedInTime, computeMetrics, percentile, ratio, type ScenarioResult } from "../../eval/harness/metrics.ts";
 import { describeInvocation } from "../../eval/harness/report.ts";
 import type { Scenario } from "../../eval/scenarios/types.ts";
 import { STAGE_IDS } from "../../src/shared/stages.ts";
@@ -107,6 +107,14 @@ describe("expectations", () => {
     ).toEqual([]);
   });
 
+  it("expect no blockers when a scenario declares none", () => {
+    const failures = evaluateExpectations(sc({ terminal: "complete" }), snap());
+    expect(failures).toEqual(['blockers: expected [], got ["integration_outage|it_provisioning|it"]']);
+    const clean = snap();
+    clean.blockers = [];
+    expect(evaluateExpectations(sc({ terminal: "complete" }), clean)).toEqual([]);
+  });
+
   it("report each failed assertion", () => {
     const failures = evaluateExpectations(
       sc({ terminal: { failed: "terminated" }, attempts: { "it.order-device": 3 }, blockers: [], rounds: { intake: 2 }, absentAuditActions: ["blocker.opened"], auditCounts: { "task.completed": 2 } }),
@@ -129,6 +137,18 @@ describe("run metrics", () => {
     ]);
     expect(m.integration.calls).toBe(8);
     expect(m.integration.bySystem.it.replayed).toBe(2);
+  });
+
+  it("counts standard and scale completion only when it was seen by the deadline", () => {
+    const deadlineAt = 90_000;
+    expect(completedInTime({ snapshotCompleted: true, firstSeenCompleteAt: 40_000, deadlineAt })).toBe(true);
+    expect(completedInTime({ snapshotCompleted: true, firstSeenCompleteAt: 90_000, deadlineAt })).toBe(true);
+    // the terminal wait gave up at the deadline; the case finished in the 1.5 s before the snapshot
+    expect(completedInTime({ snapshotCompleted: true, firstSeenCompleteAt: null, deadlineAt })).toBe(false);
+    expect(completedInTime({ snapshotCompleted: true, firstSeenCompleteAt: 90_200, deadlineAt })).toBe(false);
+    expect(completedInTime({ snapshotCompleted: false, firstSeenCompleteAt: 40_000, deadlineAt })).toBe(false);
+    // the script failed before the terminal wait: no deadline ran, the snapshot decides
+    expect(completedInTime({ snapshotCompleted: true, firstSeenCompleteAt: null, deadlineAt: null })).toBe(true);
   });
 
   it("scores blocker detection with precision and recall over (kind, stage)", () => {
@@ -179,19 +199,22 @@ describe("chaos aggregates", () => {
 });
 
 describe("run invocation in the README", () => {
-  const base = { mode: "chaos", llmProvider: "stub", gitSha: "f442532aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" };
+  // Synthetic SHAs on purpose: these are fixtures, not citations of real commits, so a rewrite of the
+  // history that remaps cited SHAs must not touch them (the published copy's remap of the real
+  // prefixes these used to carry broke both tests in GitHub Actions).
+  const base = { mode: "chaos", llmProvider: "stub", gitSha: "1111111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" };
 
   it("says when the command is inferred, for runs that predate recorded commands", () => {
     expect(describeInvocation(base, "2026-10-09")).toBe(
-      "Command `npm run eval:chaos` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git c04aeb7, read when the run ended)",
+      "Command `npm run eval:chaos` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git 1111111, read when the run ended)",
     );
   });
 
   it("renders the recorded command, the commit at start and the tree state", () => {
-    const provenance = { npmScript: "eval:scale", argv: ["--mode", "scale", "--llm", "stub", "--keep"], headAtStart: "6dbf935bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", cleanTreeAtStart: true };
+    const provenance = { npmScript: "eval:scale", argv: ["--mode", "scale", "--llm", "stub", "--keep"], headAtStart: "2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", cleanTreeAtStart: true };
     expect(describeInvocation({ ...base, mode: "scale", provenance }, "2026-10-09")).toBe(
-      "Command `node eval/harness/run.ts --mode scale --llm stub --keep` (via `npm run eval:scale`), run 2026-10-09 (git f5c8cfb at start, clean tree)",
+      "Command `node eval/harness/run.ts --mode scale --llm stub --keep` (via `npm run eval:scale`), run 2026-10-09 (git 2222222 at start, clean tree)",
     );
-    expect(describeInvocation({ ...base, provenance: { ...provenance, npmScript: null, cleanTreeAtStart: false } }, "2026-10-09")).toContain("(git f5c8cfb at start, **uncommitted changes in the tree**)");
+    expect(describeInvocation({ ...base, provenance: { ...provenance, npmScript: null, cleanTreeAtStart: false } }, "2026-10-09")).toContain("(git 2222222 at start, **uncommitted changes in the tree**)");
   });
 });

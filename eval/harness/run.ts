@@ -15,7 +15,7 @@ import { closeoutApproved, managerApproves, orientation, paperwork } from "../sc
 import type { Scenario } from "../scenarios/types.ts";
 import { executeAction, ExpectationError, Harness, type ScenarioRun, UnknownActionError } from "./actions.ts";
 import { caseFacts, evaluateExpectations } from "./assertions.ts";
-import { ciGate, computeMetrics, type EvalRun, type RunProvenance, type ScenarioResult } from "./metrics.ts";
+import { ciGate, completedInTime, computeMetrics, type EvalRun, type RunProvenance, type ScenarioResult } from "./metrics.ts";
 import { mergeStalls, watchHost } from "./host.ts";
 import { ensureLlama, LLAMA_BASE_URL } from "./llama.ts";
 import { printRun } from "./report.ts";
@@ -45,8 +45,11 @@ export async function runScenario(h: Harness, sc: Scenario, started: Set<string>
     failures: [],
     failureReason: null,
     facts: null,
-    expectedBlockers: sc.expect.blockers ? sc.expect.blockers.map((b) => ({ kind: b.kind, stage: b.stage })) : null,
+    // a scenario that declares no blockers expects none (counted in blocker precision too)
+    expectedBlockers: (sc.expect.blockers ?? []).map((b) => ({ kind: b.kind, stage: b.stage })),
   };
+  let deadlineAt: number | null = null;
+  let firstSeenCompleteAt: number | null = null;
   try {
     for (const item of sc.setup) {
       const r = "corrupt" in item ? await h.admin("PATCH", `/api/dev/employees/${sc.employeeId}/corrupt`, item.corrupt) : await h.admin("POST", "/api/dev/faults", item);
@@ -57,9 +60,11 @@ export async function runScenario(h: Harness, sc: Scenario, started: Set<string>
     for (const a of sc.script) await executeAction(run, a);
     // wait for the terminal status
     const deadline = Date.now() + CASE_DEADLINE_MS;
+    deadlineAt = deadline;
     for (;;) {
       const r = await h.admin("GET", `/api/cases/${sc.employeeId}`);
       const status = r.body?.case?.status;
+      if (status === "complete") firstSeenCompleteAt = Date.now();
       if (status === "complete" || status === "failed") break;
       if (Date.now() > deadline) {
         result.failureReason = "deadline";
@@ -78,7 +83,8 @@ export async function runScenario(h: Harness, sc: Scenario, started: Set<string>
     await new Promise((res) => setTimeout(res, 1500));
     const snap = await snapshot(h, sc.employeeId);
     result.facts = caseFacts(snap);
-    result.completed = result.facts.completed;
+    // counted only if seen complete by the deadline (SPEC 12.4), not because the later snapshot shows it
+    result.completed = completedInTime({ snapshotCompleted: result.facts.completed, firstSeenCompleteAt, deadlineAt });
     result.failures.push(...evaluateExpectations(sc, snap));
   } catch (err) {
     result.failures.push(`snapshot: ${err instanceof Error ? err.message : String(err)}`);
