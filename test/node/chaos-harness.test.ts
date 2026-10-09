@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Harness } from "../../eval/harness/actions.ts";
-import { control, type HarnessHealth } from "../../eval/harness/chaos.ts";
+import { chaosVerdict, control, type HarnessHealth, newTrack, observeCase, type Track } from "../../eval/harness/chaos.ts";
 import type { EvalRun } from "../../eval/harness/metrics.ts";
 import { renderResults } from "../../eval/harness/report.ts";
 import { generateDataset } from "../../src/shared/synthetic/generate.ts";
@@ -162,5 +162,67 @@ describe("results block order", () => {
       "#### Standard mode with a local LLM drafting follow-up wording",
       "#### Scale mode (all 150 synthetic employees, no faults)",
     ]);
+  });
+});
+
+describe("chaos completion rule (SPEC 12.3, 12.4: complete before the deadline)", () => {
+  const DEADLINE = 180_000;
+  /** Replays a fake timeline of polls (ms since the case started, status seen) against one track. */
+  function replay(polls: Array<[number, string]>, opts: { gaveUp?: boolean } = {}): Track {
+    const t = newTrack("E001", "m@x", 0, true);
+    for (const [at, caseStatus] of polls) {
+      if (opts.gaveUp && caseStatus !== "complete") t.gaveUp = true;
+      observeCase(t, { caseStatus, currentStage: "closeout" }, at, DEADLINE);
+    }
+    return t;
+  }
+
+  it("counts a case seen complete at or before its deadline", () => {
+    const t = replay([
+      [1_000, "in_progress"],
+      [90_000, "awaiting_approval"],
+      [179_500, "complete"],
+    ]);
+    expect(t).toMatchObject({ done: true, completedAt: 179_500, deadlineHit: false, finishedAt: 179_500 });
+    expect(chaosVerdict(t, true, DEADLINE)).toEqual({ completed: true });
+    expect(chaosVerdict(replay([[DEADLINE, "complete"]]), true, DEADLINE)).toEqual({ completed: true });
+  });
+
+  it("does not count a case that completes after its deadline, even though the final snapshot shows it complete", () => {
+    const t = replay([
+      [179_000, "in_progress"],
+      [180_528, "in_progress"],
+      [185_000, "complete"],
+    ]);
+    expect(t).toMatchObject({ done: true, deadlineHit: true, completedAt: null, finishedAt: 180_528, status: "in_progress" });
+    expect(chaosVerdict(t, true, DEADLINE)).toEqual({ completed: false, reason: "deadline" });
+  });
+
+  it("does not count a case first seen complete only after the deadline (its completion time is unknown)", () => {
+    const t = replay([
+      [179_000, "in_progress"],
+      [180_401, "complete"],
+    ]);
+    expect(t).toMatchObject({ done: true, completedAt: 180_401 });
+    expect(chaosVerdict(t, true, DEADLINE)).toEqual({ completed: false, reason: "deadline" });
+  });
+
+  it("stops observing once the case is done, so later polls cannot change the verdict", () => {
+    const t = replay([
+      [100_000, "failed"],
+      [120_000, "complete"],
+    ]);
+    expect(t).toMatchObject({ status: "failed", completedAt: null, finishedAt: 100_000 });
+    expect(chaosVerdict(t, true, DEADLINE)).toEqual({ completed: false, reason: "case_failed" });
+  });
+
+  it("gives case_failed precedence, then bot patience, then the deadline", () => {
+    expect(chaosVerdict(replay([[50_000, "failed"]], { gaveUp: true }), false, DEADLINE)).toEqual({ completed: false, reason: "case_failed" });
+    expect(chaosVerdict(replay([[181_000, "blocked"]], { gaveUp: true }), false, DEADLINE)).toEqual({ completed: false, reason: "bot_patience" });
+    expect(chaosVerdict(replay([[181_000, "blocked"]]), false, DEADLINE)).toEqual({ completed: false, reason: "deadline" });
+  });
+
+  it("requires the final snapshot to agree that the case is complete", () => {
+    expect(chaosVerdict(replay([[60_000, "complete"]]), false, DEADLINE)).toEqual({ completed: false, reason: "deadline" });
   });
 });

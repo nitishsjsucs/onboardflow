@@ -173,6 +173,8 @@ export type ScenarioRun = {
   keys: KeyMode;
   /** true while the second pass of a duplicate runs: conflicts are expected, not failures. */
   duplicatePass: boolean;
+  /** Called once a start request for the case was accepted (202), so the run counts only cases really started. */
+  onStarted?: (employeeId: string) => void;
 };
 
 function nextKey(run: ScenarioRun): string {
@@ -229,6 +231,7 @@ export async function executeAction(run: ScenarioRun, a: Action): Promise<void> 
   switch (a.do) {
     case "start": {
       const r = await as(run, "people_ops", "POST", `/api/cases/${id}/start`, {});
+      if (r.status === 202) run.onStarted?.(id);
       expectStatus(r, [202], "start");
       run.notes.push(`start:${(r.body as { instanceId: string }).instanceId}`);
       return;
@@ -358,6 +361,7 @@ async function duplicate(run: ScenarioRun, action: Action, sameKey: boolean): Pr
       ? await run.h.request(run.h.emailFor("people_ops", run.employeeId), "POST", `/api/cases/${run.employeeId}/start`, {}, keys[0])
       : await as(run, "people_ops", "POST", `/api/cases/${run.employeeId}/start`, {});
     run.keys = { kind: "fresh" };
+    if (first.status === 202 || second.status === 202) run.onStarted?.(run.employeeId);
     expectStatus(first, [202], "first start");
     expectStatus(second, [202], "duplicate start");
     if (first.body.instanceId !== second.body.instanceId) throw new ExpectationError(`duplicate start returned ${first.body.instanceId} and ${second.body.instanceId}`);

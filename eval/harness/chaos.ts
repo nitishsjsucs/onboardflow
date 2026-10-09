@@ -42,6 +42,8 @@ export type ChaosFailure = "bot_patience" | "deadline" | "case_failed";
 export type HarnessHealth = { controlRetries: number; controlFailures: number; botRequestErrors: number; transportRetries: number; transportFailures: number };
 export type SeedOutcome = {
   seed: number;
+  /** Cases that started: the start request was accepted (202), or a later poll saw the case past not_started. */
+  started: number;
   completed: number;
   cases: number;
   failures: Record<ChaosFailure, number>;
@@ -96,18 +98,68 @@ export async function control(h: Harness, email: string, health: HarnessHealth, 
   }
 }
 
-type Track = {
+export type Track = {
   id: string;
   managerEmail: string;
   startedAt: number;
   status: string;
   currentStage: string | null;
+  /** The case left the run: observed complete or failed, or its deadline passed. Bots stop acting on it. */
   done: boolean;
   finishedAt: number | null;
+  /** First poll that saw the case `complete` (an upper bound of the real completion time). */
+  completedAt: number | null;
+  /** The deadline closed the case while it was neither complete nor failed. */
+  deadlineHit: boolean;
   gaveUp: boolean;
   stallClearScheduled: boolean;
   photoCorrupted: boolean;
 };
+
+export function newTrack(id: string, managerEmail: string, startedAt: number, started: boolean): Track {
+  return {
+    id,
+    managerEmail,
+    startedAt,
+    status: started ? "in_progress" : "not_started",
+    currentStage: null,
+    done: false,
+    finishedAt: null,
+    completedAt: null,
+    deadlineHit: false,
+    gaveUp: false,
+    stallClearScheduled: false,
+    photoCorrupted: false,
+  };
+}
+
+/**
+ * Applies one poll of a case's status to its track (SPEC 12.3 and 12.4: a case
+ * counts as completed only if it reached `complete` before its deadline). The
+ * first poll that sees `complete` records `completedAt`; a poll after the
+ * deadline closes a case that is not finished. A case first seen complete
+ * after its deadline is closed at that poll and does not count (its exact
+ * completion time between two polls is unknown, so the rule is conservative).
+ */
+export function observeCase(t: Track, s: { caseStatus: string; currentStage: string | null }, now: number, deadlineMs: number): void {
+  if (t.done) return;
+  t.status = s.caseStatus;
+  t.currentStage = s.currentStage;
+  if (s.caseStatus === "complete") t.completedAt = now;
+  else if (s.caseStatus !== "failed" && now > t.startedAt + deadlineMs) t.deadlineHit = true;
+  if (s.caseStatus === "complete" || s.caseStatus === "failed" || t.deadlineHit) {
+    t.done = true;
+    t.finishedAt = now;
+  }
+}
+
+/** Completed iff seen complete within the deadline (and the final snapshot agrees); otherwise the reason. */
+export function chaosVerdict(t: Track, snapshotCompleted: boolean, deadlineMs: number): { completed: true } | { completed: false; reason: ChaosFailure } {
+  if (t.completedAt !== null && t.completedAt - t.startedAt <= deadlineMs && snapshotCompleted) return { completed: true };
+  if (t.status === "failed") return { completed: false, reason: "case_failed" };
+  if (t.gaveUp) return { completed: false, reason: "bot_patience" };
+  return { completed: false, reason: "deadline" };
+}
 
 const STALL_STAGE: Record<string, string> = { "hr.start-document-verification": "paperwork", "it.order-device": "it_provisioning", "facilities.issue-badge": "facilities_setup" };
 const STAGE_ORDER = ["intake", "paperwork", "manager_approval", "it_provisioning", "facilities_setup", "provisioning_verification", "orientation", "closeout"];
@@ -221,18 +273,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
     // start every case (bounded concurrency)
     await pool(employees, opts.concurrency, async (e) => {
       const r = await control(h, coordinators.people_ops, health, "POST", `/api/cases/${e.id}/start`, {}, [202]).catch(() => ({ status: 0 }));
-      tracks.set(e.id, {
-        id: e.id,
-        managerEmail: h.emailFor("manager", e.id),
-        startedAt: Date.now(),
-        status: r.status === 202 ? "in_progress" : "not_started",
-        currentStage: null,
-        done: false,
-        finishedAt: null,
-        gaveUp: false,
-        stallClearScheduled: false,
-        photoCorrupted: false,
-      });
+      tracks.set(e.id, newTrack(e.id, h.emailFor("manager", e.id), Date.now(), r.status === 202));
     });
 
     const memory = new Map<string, BotMemory>();
@@ -253,7 +294,11 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       return values;
     };
 
-    const deadlineFor = (t: Track) => t.startedAt + CHAOS.caseDeadlineMs;
+    /** Bots act only on cases still in the run: a case past its deadline (or finished) gets no more help. */
+    const live = (employeeId: string) => {
+      const t = tracks.get(employeeId);
+      return t !== undefined && !t.done;
+    };
     for (;;) {
       const now = Date.now();
       timeline.fireDue(now);
@@ -268,12 +313,8 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       for (const s of summaries) {
         const t = tracks.get(s.id);
         if (!t || t.done) continue;
-        t.status = s.caseStatus;
-        t.currentStage = s.currentStage;
-        if (s.caseStatus === "complete" || s.caseStatus === "failed" || now > deadlineFor(t)) {
-          t.done = true;
-          t.finishedAt = now;
-        }
+        observeCase(t, s, now, CHAOS.caseDeadlineMs);
+        if (t.done) continue;
         const idx = STAGE_ORDER.indexOf(s.currentStage ?? "");
         // orchestrator-side schedule (not a bot): clear stalls a seeded time after the stalled stage starts,
         // and apply photo corruption once paperwork is behind the case.
@@ -324,13 +365,14 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
         [...managers].map((email) => bot(`manager ${email}`, async () => {
           const r = await h.request<Page<{ id: string; employeeId: string; round: number; checkpoint: string; request: { needsPrivilegedAccess?: boolean } }>>(email, "GET", "/api/approvals?status=pending&limit=100");
           for (const a of r.body?.items ?? []) {
-            if (!tracks.has(a.employeeId) || a.checkpoint !== "manager_approval" || decided.has(a.id)) continue;
+            if (!live(a.employeeId) || a.checkpoint !== "manager_approval" || decided.has(a.id)) continue;
             const plan = managerPlan(seed, a.employeeId);
             if (plan.neverRespond) continue;
             decided.add(a.id);
             const reject = plan.rejectFirst && a.round === 1;
             timeline.add(now + plan.delayMs, `manager:${a.id}`, () =>
               bot(`manager decision ${a.id}`, async () => {
+                if (!live(a.employeeId)) return;
                 await h.request(email, "POST", `/api/approvals/${encodeURIComponent(a.id)}/decision`, reject ? { decision: "reject", reason: "please revise the equipment request" } : { decision: "approve", ...(a.request.needsPrivilegedAccess ? { privilegedAccessApproved: true } : {}) });
               }),
             );
@@ -342,11 +384,12 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       await bot("people ops queue", async () => {
       const po = await h.request<Page<{ id: string; employeeId: string; checkpoint: string; status: string; resubmittable?: boolean }>>(coordinators.people_ops, "GET", "/api/approvals?status=all&limit=100");
       for (const a of po.body?.items ?? []) {
-        if (!tracks.has(a.employeeId) || decided.has(`po:${a.id}`)) continue;
+        if (!live(a.employeeId) || decided.has(`po:${a.id}`)) continue;
         if (a.status === "pending" && a.checkpoint === "closeout") {
           decided.add(`po:${a.id}`);
           timeline.add(now + peopleOpsDelay(seed, a.id), `closeout:${a.id}`, () =>
             bot(`closeout ${a.id}`, async () => {
+              if (!live(a.employeeId)) return;
               await h.request(coordinators.people_ops, "POST", `/api/approvals/${encodeURIComponent(a.id)}/decision`, { decision: "approve" });
             }),
           );
@@ -354,6 +397,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
           decided.add(`po:${a.id}`);
           timeline.add(now + peopleOpsDelay(seed, `resubmit:${a.id}`), `resubmit:${a.id}`, () =>
             bot(`resubmit ${a.id}`, async () => {
+              if (!live(a.employeeId)) return;
               await h.request(coordinators.people_ops, "POST", `/api/approvals/${encodeURIComponent(a.id)}/resubmit`, { note: "revised per the reviewer" });
             }),
           );
@@ -366,7 +410,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       const overdue = await h.request<Page<BlockerView>>(admin, "GET", "/api/blockers?kind=approval_overdue&status=open&limit=100");
       for (const b of overdue.body?.items ?? []) {
         const approvalId = (b.detail as { approvalId?: string }).approvalId;
-        if (!approvalId || !tracks.has(b.employeeId) || decided.has(`admin:${approvalId}`)) continue;
+        if (!approvalId || !live(b.employeeId) || decided.has(`admin:${approvalId}`)) continue;
         decided.add(`admin:${approvalId}`);
         decided.add(approvalId);
         await h.request(admin, "POST", `/api/approvals/${encodeURIComponent(approvalId)}/decision`, { decision: "approve", privilegedAccessApproved: true });
@@ -378,7 +422,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
         await bot(`${dept} coordinator`, async () => {
         const q = await h.request<Page<BlockerView>>(email, "GET", "/api/blockers?status=open&limit=100");
         for (const b of q.body?.items ?? []) {
-          if (!tracks.has(b.employeeId) || b.ownerDepartment !== dept) continue;
+          if (!live(b.employeeId) || b.ownerDepartment !== dept) continue;
           const m = memory.get(b.id) ?? newMemory(now);
           memory.set(b.id, m);
           let correction: string | null = null;
@@ -433,13 +477,12 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       } catch {
         // counted as not completed below
       }
-      const isComplete = facts?.completed === true;
-      let reason: ChaosFailure | null = null;
-      if (isComplete) completed++;
-      else {
-        reason = t.status === "failed" ? "case_failed" : t.gaveUp ? "bot_patience" : "deadline";
-        failures[reason]++;
-      }
+      const verdict = chaosVerdict(t, facts?.completed === true, CHAOS.caseDeadlineMs);
+      const isComplete = verdict.completed;
+      const reason: ChaosFailure | null = verdict.completed ? null : verdict.reason;
+      if (reason) failures[reason]++;
+      else completed++;
+      const late = !isComplete && facts?.completed === true ? `; the case completed only after its ${CHAOS.caseDeadlineMs / 1000} s deadline` : "";
       results.push({
         scenarioId: `chaos-${seed}-${sc.employeeId}`,
         category: sc.category,
@@ -447,7 +490,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
         completed: isComplete,
         passed: isComplete,
         durationMs: (t.finishedAt ?? Date.now()) - t.startedAt,
-        failures: reason ? [`${reason}: case ${t.status}${facts?.failedReason ? ` (${facts.failedReason})` : ""} at ${t.currentStage ?? "start"}`] : [],
+        failures: reason ? [`${reason}: case ${t.status}${facts?.failedReason ? ` (${facts.failedReason})` : ""} at ${t.currentStage ?? "start"}${late}`] : [],
         failureReason: reason ? (reason === "deadline" ? "deadline" : "not_completed") : null,
         facts,
         expectedBlockers: null,
@@ -461,7 +504,8 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
         `harness: ${health.transportRetries} transport retries (${health.transportFailures} still failed), ${health.controlRetries} control retries, ${health.controlFailures} control failures, ${health.botRequestErrors} bot request errors`,
     );
     if (health.controlFailures > 0) console.warn(`chaos seed ${seed}: the committed schedule was not fully applied (${health.controlFailures} control actions failed); this seed is flagged in the results`);
-    return { seed, completed, cases: SCENARIOS.length, failures, harness: health, results, hub, host: watch.stop() };
+    const started = [...tracks.values()].filter((t) => t.status !== "not_started").length;
+    return { seed, started, completed, cases: SCENARIOS.length, failures, harness: health, results, hub, host: watch.stop() };
   } finally {
     watch.stop();
     await server.stop();

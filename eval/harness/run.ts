@@ -26,7 +26,15 @@ const CASE_DEADLINE_MS = 90_000;
 
 export async function runScenario(h: Harness, sc: Scenario, started: Set<string>): Promise<ScenarioResult> {
   const t0 = Date.now();
-  const run: ScenarioRun = { h, scenario: sc, employeeId: sc.employeeId, notes: [], keys: { kind: "fresh" }, duplicatePass: false };
+  const run: ScenarioRun = {
+    h,
+    scenario: sc,
+    employeeId: sc.employeeId,
+    notes: [],
+    keys: { kind: "fresh" },
+    duplicatePass: false,
+    onStarted: (id) => started.add(id),
+  };
   const result: ScenarioResult = {
     scenarioId: sc.id,
     category: sc.category,
@@ -46,7 +54,6 @@ export async function runScenario(h: Harness, sc: Scenario, started: Set<string>
     }
     const scriptStarts = sc.script.some((a) => a.do === "start" || (a.do === "duplicate" && a.action.do === "start"));
     if (!scriptStarts) await executeAction(run, { do: "start" });
-    started.add(sc.employeeId);
     for (const a of sc.script) await executeAction(run, a);
     // wait for the terminal status
     const deadline = Date.now() + CASE_DEADLINE_MS;
@@ -243,7 +250,7 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
   for (const seed of seeds) outcomes.push(await runChaosSeed(seed, runId, { port: o.port, inspectorPort: o.inspectorPort, concurrency: 10 }));
   const results = outcomes.flatMap((x) => x.results);
   const hub = { matchesReconcile: outcomes.every((x) => x.hub.matchesReconcile), diffs: outcomes.flatMap((x) => x.hub.diffs.map((d) => `seed ${x.seed}: ${d}`)) };
-  const metrics = computeMetrics(results, { startedCases: results.length, totalMs: Date.now() - t0, hub });
+  const metrics = computeMetrics(results, { startedCases: outcomes.reduce((n, x) => n + x.started, 0), totalMs: Date.now() - t0, hub });
   const run: EvalRun = {
     runId,
     startedAt,

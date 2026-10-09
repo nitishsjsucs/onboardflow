@@ -201,3 +201,37 @@ with its reason. Nothing here is tuned toward a target.
   D1 setup is no longer inside the window. Recorded numbers do not change;
   the fourth run above predates the change and keeps its flag. Not yet
   exercised by a recorded chaos run.
+
+## 2026-10-08, review fixes before any push
+
+- Harness fix (`fix(eval): count chaos completion only within the case
+  deadline`): an independent review found that chaos mode did not apply its
+  own completion rule. SPEC 12.3 and 12.4 count a case as completed only if
+  it reached `complete` before its 180 s deadline, but the harness decided
+  completion from a snapshot taken after every case of the seed had
+  finished, and the manager, People Ops, admin and coordinator bots kept
+  working cases after their deadline. A case that missed its deadline could
+  therefore still be counted as completed. Now the first poll that sees a
+  case `complete` records the time; a case counts only if that time is
+  within its deadline (a case first seen complete after the deadline does
+  not count, since its exact completion time between two polls is unknown),
+  and every bot stops acting on a case once it is done or past its deadline.
+  `test/node/chaos-harness.test.ts` covers the rule with a fake timeline.
+  Fault tables, seeds and bot policies are unchanged.
+- What this means for the four committed chaos runs, all recorded under the
+  old rule (their files are left as recorded): late completions were
+  counted. Run 2 counts as completed 36 cases that were closed 180.5 to
+  198.1 s after their start. Run 3
+  counts chaos-5-E029 (1,075,854 ms, seed 5 slept), chaos-1-E020 (180,345
+  ms), chaos-2-E005 (180,223 ms) and chaos-2-E041 (180,132 ms), so its
+  "seeds 1 to 4 completed 228 of 240" also counted three cases closed after
+  their deadline. Run 4 counts chaos-1-E017 (180,528 ms) and chaos-1-E020
+  (180,401 ms); the file cannot show whether either reached `complete`
+  within 180 s, so under the new rule run 4 is between 285/300 (mean
+  0.9500, seed 1 at 0.9333, 14 deadline misses) and the 287/300 it
+  reported. Chaos was run again under the new rule (next entry).
+- Harness fix: a case counts as started only after a start request was
+  accepted (202), in standard mode (O16 used to count before its own two
+  start requests ran) and in chaos mode (which counted every case). No
+  recorded run shows a case left `not_started`, so recorded numbers do not
+  change.
