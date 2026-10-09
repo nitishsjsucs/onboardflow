@@ -42,12 +42,13 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 | 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | done |
 | 29 | feat(web): integrations and audit explorer pages (T2) | done |
 | 30 | feat(scripts): demo driver (T2) | done |
+| (extra) | fix(eval): report non-JSON responses with their request and status | done |
 | 31 | chore(eval): record chaos, ablation and llama results (T2) | next |
 
 ## Check status (last run, 2026-10-08)
 
 - `npm run typecheck`: pass (worker, web, node projects)
-- `npm test`: pass (43 files, 317 tests: worker in workerd, node, web)
+- `npm test`: pass (43 files, 318 tests: worker in workerd, node, web)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 - `npm run seed:check`: ok (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)

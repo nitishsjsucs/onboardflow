@@ -25,6 +25,16 @@ export class ExpectationError extends Error {
 export type HttpResult<T = any> = { status: number; body: T; headers: Headers };
 
 /** Session and request plumbing shared by every scenario of a run. */
+/** The API always answers JSON; anything else (for example Miniflare's plain-text 500 when the Worker's fetch fails inside the runtime) is reported with its status. */
+export function parseBody<T>(method: string, path: string, status: number, text: string): T {
+  if (!text) return null as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`${method} ${path}: HTTP ${status} with a non-JSON body: ${text.split("\n")[0]?.slice(0, 160)}`);
+  }
+}
+
 export class Harness {
   readonly baseUrl: string;
   readonly dataset: Dataset;
@@ -80,7 +90,7 @@ export class Harness {
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${this.baseUrl}${path}`, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
     const text = await res.text();
-    return { status: res.status, body: (text ? JSON.parse(text) : null) as T, headers: res.headers };
+    return { status: res.status, body: parseBody<T>(method, path, res.status, text), headers: res.headers };
   }
 
   async admin<T = any>(method: string, path: string, body?: unknown): Promise<HttpResult<T>> {

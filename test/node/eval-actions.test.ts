@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { ALL_ACTIONS_SUPPORTED, executeAction, Harness, type ScenarioRun, SUPPORTED_ACTIONS, UnknownActionError } from "../../eval/harness/actions.ts";
+import { ALL_ACTIONS_SUPPORTED, executeAction, Harness, parseBody, type ScenarioRun, SUPPORTED_ACTIONS, UnknownActionError } from "../../eval/harness/actions.ts";
 import { runScenario } from "../../eval/harness/run.ts";
 import { SCENARIOS } from "../../eval/scenarios/index.ts";
 import type { Action, Scenario } from "../../eval/scenarios/types.ts";
@@ -55,4 +55,14 @@ describe("action interpreter", () => {
     expect(r.failureReason).toBe("unknown_action");
     expect(r.failures.join(" ")).toContain("unknown_action: teleport");
   }, 10_000);
+});
+
+describe("response bodies", () => {
+  it("parses JSON and reports a non-JSON body with the request and status", () => {
+    expect(parseBody("GET", "/api/x", 200, '{"a":1}')).toEqual({ a: 1 });
+    expect(parseBody("GET", "/api/x", 204, "")).toBeNull();
+    expect(() => parseBody("POST", "/api/tasks/t1/complete", 500, "Error: Network connection lost.\n    at entry.worker.js:1")).toThrow(
+      "POST /api/tasks/t1/complete: HTTP 500 with a non-JSON body: Error: Network connection lost.",
+    );
+  });
 });
