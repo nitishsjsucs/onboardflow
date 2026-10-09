@@ -140,7 +140,7 @@ with its reason. Nothing here is tuned toward a target.
   for timeouts and deadlines. The runs above predate it; their sleep is
   documented here from the power log and the recorded durations.
 
-## 2026-10-08, local-LLM run and clean ablation re-runs (file names carry UTC times, 2026-10-09)
+## 2026-10-08, local-LLM run, clean ablation re-runs and a fourth chaos run (file names carry UTC times, 2026-10-09)
 
 - The README Results block now lists the stub run of a mode before any
   local-LLM run of the same mode, so the CI regression gate stays first.
@@ -176,6 +176,22 @@ with its reason. Nothing here is tuned toward a target.
   - Step retries off (`2026-10-09T03-15-37-722Z-ablation-retries.json`):
     44/60 completed, 43/60 passed, 0 duplicates, 205 s, the same counts
     and integration calls (1017, 25 retried) as the first run.
-- Chaos was not re-run: one run takes about 30 minutes of real time, and
-  the laptop was on battery at under 30% with other repositories' builds
-  running, so a run could have ended in a low-battery sleep.
+- Fourth chaos run (`2026-10-09T03-22-57-148Z-chaos.json`, git f442532,
+  `npm run eval:chaos`, started 20:22 PDT, lid open, on battery from 24% to
+  15%, Low Power Mode off, other repositories' builds running). Between the
+  third and fourth runs only the stall detector and README rendering
+  changed; product code, scenarios, fault tables, seeds and bot policies did
+  not. Seeds 1 to 5 completed 58, 57, 58, 58 and 56 of 60 (287/300, mean
+  0.9567, min 0.9333, max 0.9667), 0 duplicate side effects, a consistent
+  hub, 0 transport retries, 0 control retries or failures, 0 bot request
+  errors, 0 bot patience. 12 misses are deadlines; one is the first
+  `case_failed` in any chaos run: seed 3's E059 met a Facilities outage and
+  a data issue (3 fatal Facilities calls) after an HR outage in paperwork,
+  and the workflow failed the case with `recovery_rounds_exhausted` (limits
+  4 rounds per stage, 6 per case). The run took 983 s.
+- The fourth run's detector counted one 5.8 s gap, in seed 1, so the README
+  flags that seed. `pmset -g log` shows no sleep or wake during the run.
+  The per-seed watch in chaos mode started before `prepareDatabase`, whose
+  two synchronous `wrangler d1` calls block the harness's event loop (timed
+  afterwards at about 2.1 s on a quieter machine); the file cannot say
+  whether the gap fell there or while cases ran.

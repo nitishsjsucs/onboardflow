@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 26 to 31 done; the llama run of commit 31 was recorded by builder 2 in a follow-up commit once the machine was awake. Four extra harness fixes came out of the Tier 2 recording round, plus one README rendering fix; both ablations were then re-recorded without a host stall (listed in the table and in `eval/results/CHANGELOG.md`). Every planned commit in SPEC Section 21 is done. Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 26 to 31 done; the llama run of commit 31 was recorded by builder 2 in a follow-up commit once the machine was awake. Four extra harness fixes came out of the Tier 2 recording round, plus one README rendering fix; both ablations were then re-recorded without a host stall and chaos was run a fourth time (listed in the table and in `eval/results/CHANGELOG.md`). Every planned commit in SPEC Section 21 is done. Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -50,6 +50,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 | (extra) | fix(eval): list the stub standard run before the local-LLM run in the README | done |
 | 31 (cont.) | chore(eval): record the local-LLM run and update README results | done |
 | (extra) | chore(eval): re-record both ablations on an awake machine | done |
+| (extra) | chore(eval): record a fourth chaos run on an awake machine | done |
 
 ## Check status (last run, 2026-10-08 20:20 PDT)
 
@@ -62,7 +63,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 - Recorded results (all committed in `eval/results/`, rendered into the README by `npm run results:readme`; `test/node/readme-results.test.ts` guards drift; full account in `eval/results/CHANGELOG.md`):
   - `npm run eval:ci` (git 6dbf935, after the backoff fix): 60/60 completed, 60/60 passed, 0 duplicates, audit coverage 1, hub consistent, CI gate passed.
   - `npm run eval:scale` (git 6dbf935): two runs, both committed. 148/150 (two harness requests got a local runtime plain-text 500), then 150/150 (latest).
-  - `npm run eval:chaos`, three runs on seeds 1 to 5, all committed. Run 1 (2ed49fe) 230/300, invalid seed 3 (outage window never ended, harness bug). Run 2 (3b3ed1a) 210/300, with 248 bot requests lost to dropped local proxy connections. Run 3 (ab9c3e7, latest) 280/300: per-seed mean 0.933, min 0.85, max 1.0, 0 duplicates, all misses deadlines. Seed 5 overlapped a system sleep (lid closed 18:18 PDT), so seeds 1 to 4 (228/240) are the clean part.
+  - `npm run eval:chaos`, four runs on seeds 1 to 5, all committed. Run 1 (2ed49fe) 230/300, invalid seed 3 (outage window never ended, harness bug). Run 2 (3b3ed1a) 210/300, with 248 bot requests lost to dropped local proxy connections. Run 3 (ab9c3e7) 280/300: per-seed mean 0.933, min 0.85, max 1.0; seed 5 overlapped a system sleep, so seeds 1 to 4 (228/240) are its clean part. Run 4 (f442532, latest, 20:22 PDT, lid open, 983 s) 287/300: per-seed 58, 57, 58, 58, 56 (mean 0.9567, min 0.9333, max 0.9667), 0 duplicates, 0 transport or control retries, 12 deadlines and 1 `case_failed` (seed 3 E059, `recovery_rounds_exhausted` at Facilities). Its detector counted one 5.8 s gap in seed 1, flagged in the README; the power log shows no sleep, and that watch window included the blocking `prepareDatabase` setup.
   - `npm run eval:ablate`, two pairs, all committed. Latest (d9ed36d, 20:14 PDT, no host stall, no transport retry): keys off 60/60 completed, 50/60 passed, 28 duplicate side effects, 39 s; retries off 44/60 completed, 43/60 passed, 0 duplicates, 205 s. First pair (ab9c3e7, through system sleep): keys off 59/60, 50/60, 27 duplicates (R05 timed out in a stall; R06 one duplicate fewer, a restart race); retries off identical counts.
   - `npm run eval:llama` (git 8a849de, started 20:09 PDT, lid open, no host stall): 60/60 completed and passed, 0 duplicates, 20 follow-ups all drafted by Qwen3-1.7B, 100% schema-valid, category agreement 100%, p50 2874 ms. Validity and agreement are close to guaranteed (schema-constrained output, the prompt names the rule kind); the README says so.
 - No wrangler, workerd or llama process of this repo is left running; `eval/.state` is removed.
@@ -70,7 +71,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 ## How to continue
 
 1. Read SPEC.md Sections 12.3 (chaos), 12.4 (metrics) and 21, `eval/results/CHANGELOG.md`, then this file's deviations.
-2. Commit 31 is complete (the llama run is recorded) and both ablations were re-recorded cleanly. Optionally re-run `npm run eval:chaos` (about 30 minutes) on an awake, quiet machine on power, since chaos run 3's seed 5 overlapped a system sleep: the harness now records host stalls and transport retries, so a clean run is self-evidently clean. Commit every run (never only the better one), add a CHANGELOG line, then `npm run results:readme` and update the README's "Reading these results" notes to match.
+2. Commit 31 is complete (the llama run is recorded), both ablations were re-recorded cleanly and chaos ran a fourth time. Optionally run `npm run eval:chaos` (about 17 minutes) again on a quiet machine on power for a run with no flagged seed: the harness now records host stalls and transport retries, so a clean run is self-evidently clean. Commit every run (never only the better one), add a CHANGELOG line, then `npm run results:readme` and update the README's "Reading these results" notes to match.
 3. Chaos mode lives in `eval/harness/chaos.ts` (orchestrator and bots) and `eval/harness/policies.ts` (pure seeded policies). The HTTP layer with same-key transport retries is `Harness` in `eval/harness/actions.ts`; the host stall detector is `eval/harness/host.ts`. Shared run helpers are in `eval/harness/server.ts` so `run.ts` and `chaos.ts` do not import each other (a top-level-await cycle deadlocks Node).
 4. Before any eval: `npm run build` (dev build). Use only port 8781 / inspector 9231 on this machine; the harness defaults to them and kills its process group at the end. Other repositories run their own test suites on this Mac at the same time; expect load.
 5. Never edit scenarios, fault tables or bot policies toward a target; log any harness change in `eval/results/CHANGELOG.md`.
