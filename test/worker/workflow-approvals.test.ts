@@ -138,9 +138,16 @@ describe("approval checkpoints", () => {
       await driveThroughManagerApproval("E104");
       // driveThroughManagerApproval approved; provisioning follows
       await waitForStage("E104", "it_provisioning", ["active", "complete"]);
-      const before = await DB.prepare("SELECT MIN(created_at) AS t FROM integration_calls WHERE employee_id = 'E104' AND operation LIKE 'it.%'").first<{ t: string }>();
-      const decided = await DB.prepare("SELECT decided_at FROM approvals WHERE id = 'apr:E104:manager_approval:1'").first<{ decided_at: string }>();
-      expect(Date.parse(before!.t)).toBeGreaterThanOrEqual(Date.parse(decided!.decided_at));
+      // The stage turns active in its own step, and a call row is written only
+      // when that call returns, so wait for the first IT row instead of reading
+      // MIN(created_at) while it can still be NULL.
+      const before = await waitFor(async () => {
+        const r = await DB.prepare("SELECT MIN(created_at) AS t FROM integration_calls WHERE employee_id = 'E104' AND operation LIKE 'it.%'").first<{ t: string | null }>();
+        return r?.t ? r.t : null;
+      }, { what: "E104 first IT call" });
+      const decided = await DB.prepare("SELECT decided_at FROM approvals WHERE id = 'apr:E104:manager_approval:1'").first<{ decided_at: string | null }>();
+      expect(decided?.decided_at).toBeTruthy();
+      expect(Date.parse(before)).toBeGreaterThanOrEqual(Date.parse(decided!.decided_at!));
       await (await rpc("E104")).terminateCase("cleanup", await cmdFor("A01"));
     } finally {
       await intro.dispose();
