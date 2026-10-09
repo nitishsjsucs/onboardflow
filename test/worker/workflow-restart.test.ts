@@ -237,4 +237,77 @@ describe("restart", () => {
       await intro.dispose();
     }
   });
+
+  // Pins the known limitation the README documents: replaying the stored worker creation after a cost
+  // center correction sends a different body under the same Idempotency-Key. If this starts to pass in
+  // a different way (for example the case completes), update the README's "Known limitations" too.
+  it("known limitation: restart after a cost center correction blocks intake on key reuse until the rounds run out, one worker", async () => {
+    const intro = await fastWorkflows();
+    try {
+      await driveThroughManagerApproval("E117");
+      await waitForStage("E117", "orientation", "waiting_on_employee");
+      const before = await expectOneSideEffectEach("E117");
+      expect((await (await rpc("E117")).fixField("costCenter", "CC-9999", await cmdFor("C01"))).status).toBe(200);
+
+      expect((await (await rpc("E117")).restartCase("operator restart", await cmdFor("A01"))).status).toBe(202);
+      await waitFor(async () => (await blockedAudits("E117", 2)).includes("intake") || null, { what: "run 2 blocks intake" });
+      expect(await stageRowOf("E117", "intake")).toMatchObject({ status: "blocked", round: 1 });
+      const replay = (await calls("E117", "hr.create-worker")).filter((c) => c.run_no === 2);
+      expect(replay.map((c) => [c.outcome, c.http_status])).toEqual([["fatal_error", 422]]);
+      const reason = await DB.prepare("SELECT error FROM integration_calls WHERE employee_id = 'E117' AND run_no = 2 AND operation = 'hr.create-worker'").first<{ error: string }>();
+      expect(reason!.error).toContain("idempotency_key_reuse");
+
+      // the scan files it as a data issue with no fixable field, owned by People Ops (the HR system owner)
+      await (await rpc("E117")).scanNow(await cmdFor("A01"));
+      const blocker = await DB.prepare("SELECT kind, owner_department, detail_json FROM blockers WHERE employee_id = 'E117' AND stage_id = 'intake' AND status = 'open'").first<{
+        kind: string;
+        owner_department: string;
+        detail_json: string;
+      }>();
+      expect(blocker).toMatchObject({ kind: "data_issue", owner_department: "people_ops" });
+      expect((JSON.parse(blocker!.detail_json) as { field?: string }).field).toBeUndefined();
+
+      // every retry replays the same refused request; the fourth round fails the case
+      for (const round of [2, 3, 4]) {
+        expect((await retry("E117", "intake", "C01")).status).toBe(202);
+        if (round < 4) await waitFor(async () => {
+          const s = await stageRowOf("E117", "intake");
+          return (s.status === "blocked" && s.round === round) || null;
+        }, { what: `intake blocked in round ${round}` });
+      }
+      const failed = await waitForCase("E117", "failed");
+      expect(failed.failure_reason).toBe("recovery_rounds_exhausted");
+      expect(await stageRowOf("E117", "intake")).toMatchObject({ status: "failed", round: 4 });
+      const outcomes = (await calls("E117", "hr.create-worker")).filter((c) => c.run_no === 2).map((c) => c.outcome);
+      expect(outcomes).toEqual(["fatal_error", "fatal_error", "fatal_error", "fatal_error"]);
+      expect((await DB.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E117' AND action = 'case.failed'").first<{ n: number }>())!.n).toBe(1);
+      // no second worker, and no other new side effect
+      expect(await ledger({ employeeRef: "E117", system: "hr", operation: "create-worker" })).toHaveLength(1);
+      expect(await expectOneSideEffectEach("E117")).toBe(before);
+    } finally {
+      await intro.dispose();
+    }
+  });
+
+  it("known limitation, way out: restoring the old cost center lets the replay through and the case completes", async () => {
+    const intro = await fastWorkflows();
+    try {
+      await driveThroughManagerApproval("E118");
+      await waitForStage("E118", "orientation", "waiting_on_employee");
+      const before = await expectOneSideEffectEach("E118");
+      const original = (await DB.prepare("SELECT cost_center FROM employees WHERE id = 'E118'").first<{ cost_center: string }>())!.cost_center;
+      expect((await (await rpc("E118")).fixField("costCenter", "CC-9999", await cmdFor("C01"))).status).toBe(200);
+      expect((await (await rpc("E118")).restartCase("operator restart", await cmdFor("A01"))).status).toBe(202);
+      await waitFor(async () => (await blockedAudits("E118", 2)).includes("intake") || null, { what: "run 2 blocks intake" });
+
+      expect((await (await rpc("E118")).fixField("costCenter", original, await cmdFor("C01"))).status).toBe(200);
+      expect((await retry("E118", "intake", "C01")).status).toBe(202);
+      expect((await finishFromOrientation("E118")).status).toBe("complete");
+      const outcomes = (await calls("E118", "hr.create-worker")).filter((c) => c.run_no === 2).map((c) => c.outcome);
+      expect(outcomes).toEqual(["fatal_error", "replayed"]);
+      expect(await expectOneSideEffectEach("E118")).toBe(before + 1); // + hr.activate-worker
+    } finally {
+      await intro.dispose();
+    }
+  });
 });
