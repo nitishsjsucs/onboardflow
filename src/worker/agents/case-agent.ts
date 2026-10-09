@@ -82,6 +82,13 @@ export class CaseAgent extends Agent<Env, CaseState> {
     return true;
   }
 
+  // OnboardFlow uses no sub-agents: refuse every `/sub/<class>/<name>` facet
+  // request, so no client can create a facet (defense in depth behind the
+  // path check in routes/agents.ts).
+  override async onBeforeSubAgent(): Promise<Response> {
+    return new Response("Not found", { status: 404 });
+  }
+
   override validateStateChange(_next: CaseState, source: unknown): void {
     if (source !== "server") throw new Error("CaseAgent state is read-only for clients");
   }

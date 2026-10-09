@@ -3,12 +3,37 @@
 // Origin (upgrades bypass CORS), valid names (no arbitrary Durable Object can
 // be created) and canSubscribe; onBeforeRequest refuses plain HTTP. The
 // connections themselves are read-only (ADR 0006).
+//
+// Two SDK features would bypass those checks, so they are closed here:
+// * Agent.fetch turns any `/agents/<class>/<name>/sub/<child>/<childName>`
+//   tail into a sub-agent facet created on demand. Only exactly
+//   `/agents/<class>/<name>` is accepted.
+// * The SDK trusts internal headers on the forwarded request
+//   (`x-cf-agents-subagent-url` attaches the socket to a facet without
+//   running onBeforeSubAgent; `x-agents-lifecycle-props` sets startup props).
+//   The request forwarded to the Durable Object is rebuilt without any
+//   `x-cf-agents-*` or `x-agents-*` header.
+// Both agent classes also refuse sub-agents in onBeforeSubAgent.
 import { routeAgentRequest } from "agents";
 import { Hono } from "hono";
 import { EMPLOYEE_ID_PATTERN } from "../../shared/ids.ts";
 import { HUB_NAME } from "../agents/ops-hub-agent.ts";
 import { canSubscribe } from "../auth/policy.ts";
 import { apiError, type AppEnv } from "../http.ts";
+
+const AGENT_PATH_SEGMENTS = 3; // "agents", class, name
+
+function isInternalAgentHeader(name: string): boolean {
+  const h = name.toLowerCase();
+  return h.startsWith("x-cf-agents-") || h.startsWith("x-agents-");
+}
+
+/** The request forwarded to the agent, without SDK-internal headers a client could forge. */
+export function sanitizedAgentRequest(request: Request): Request {
+  const clean = new Request(request);
+  for (const name of [...clean.headers.keys()]) if (isInternalAgentHeader(name)) clean.headers.delete(name);
+  return clean;
+}
 
 function forbidden(reason: string): Response {
   return new Response(JSON.stringify({ error: { code: "forbidden", message: reason } }), {
@@ -24,18 +49,20 @@ export function agentRoutes() {
     const res = await routeAgentRequest(c.req.raw, c.env, {
       onBeforeRequest: () => forbidden("agents are reachable only through a WebSocket upgrade"),
       onBeforeConnect: async (request, route) => {
+        const url = new URL(request.url);
         const origin = request.headers.get("Origin");
-        if (!origin || origin !== new URL(request.url).origin) return forbidden("bad origin");
+        if (!origin || origin !== url.origin) return forbidden("bad origin");
+        if (url.pathname.split("/").filter(Boolean).length !== AGENT_PATH_SEGMENTS) return forbidden("sub-agent paths are not allowed");
         if (route.className === "CASE_AGENT") {
           if (!EMPLOYEE_ID_PATTERN.test(route.name)) return forbidden("invalid case name");
           const emp = await c.env.DB.prepare("SELECT id, manager_id FROM employees WHERE id = ?").bind(route.name).first<{ id: string; manager_id: string }>();
           if (!emp) return forbidden("unknown case");
           if (!canSubscribe(principal, route.className, route.name, { employeeId: emp.id, managerId: emp.manager_id })) return forbidden("not allowed");
-          return undefined;
+          return sanitizedAgentRequest(request);
         }
         if (route.className === "OPS_HUB_AGENT") {
           if (route.name !== HUB_NAME || !canSubscribe(principal, route.className, route.name)) return forbidden("not allowed");
-          return undefined;
+          return sanitizedAgentRequest(request);
         }
         return forbidden("unknown agent");
       },
