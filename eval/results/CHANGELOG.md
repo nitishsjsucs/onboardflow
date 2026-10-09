@@ -35,3 +35,43 @@ with its reason. Nothing here is tuned toward a target.
     SLA. Disengaged employees therefore act once their overdue follow-up
     exists, and silent managers are covered by the admin after
     `approval_overdue`, as the policies intend.
+
+## 2026-10-08, Tier 2 recording round (file names carry UTC times, 2026-10-09)
+
+- Standard and scale were re-recorded after the retry backoff fix (e7c0f3e)
+  at git 6dbf935. Standard: `2026-10-09T00-14-18-955Z-standard.json`.
+- Scale ran twice at 6dbf935, both files committed. The first run
+  (`2026-10-09T00-15-13-395Z-scale.json`) completed 148/150: two harness
+  requests got an HTTP 500 whose plain-text body was Miniflare's
+  `Error: Network connection lost.` (the entry worker returns `e.stack` when
+  the Worker's fetch fails inside the local runtime, before the app's error
+  handler), and the harness stops driving a case after a failed request, so
+  E001 and E009 were left mid-flow. That run took 224 s against 76 s for the
+  second while another repository's test suite was loading the machine. The
+  second run (`2026-10-09T00-19-51-014Z-scale.json`, started with `--keep`
+  to capture the server log) completed 150/150 and is the `latest` file
+  because it is the most recent run, not because it is better. The harness
+  now names the request, status and body of such a response
+  (`fix(eval): report non-JSON responses ...`); outcomes are unchanged.
+- First recorded chaos run (`2026-10-09T00-22-45-731Z-chaos.json`, git
+  2ed49fe): seeds 1 to 5 completed 59, 57, 0, 58 and 56 of 60. Seed 3 is a
+  harness failure, not a measurement: a burst of the same runtime 500s hit
+  the orchestrator's `DELETE /api/dev/faults?ids=173,174`, which was meant to
+  end a 10 to 60 s Facilities outage window. The orchestrator did not retry
+  it, so that outage lasted the rest of the seed (both fault plans were still
+  uncleared in the seed's D1) and every case stopped at `facilities_setup`.
+  The committed schedule was therefore not what ran. Fix
+  (`fix(eval): chaos orchestrator applies its schedule through runtime
+  errors`): every orchestrator control call (fault plans, outage windows,
+  stall clears, clock moves, corruption, case starts) retries a transport
+  failure, a 5xx or `409 idempotency_in_progress` with the same
+  Idempotency-Key for up to 75 s, which the eval hooks replay instead of
+  applying twice; timed actions no longer block the bots' loop while they do;
+  a transport error in a bot's polling skips that bot for one tick instead of
+  aborting the seed. Bot behavior (what they do, their delays and patience)
+  is unchanged, and a bot action lost to a transport error is still not
+  retried by the policy. Each seed now records control retries, control
+  failures and bot request errors, and the README flags any seed whose
+  schedule was not fully applied. Fault tables, seeds and policies are
+  unchanged. Chaos was then re-run in full on the same 5 seeds; the first
+  run stays committed and is cited next to the results.

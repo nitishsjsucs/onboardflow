@@ -263,7 +263,7 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
     },
     simulatedNow: SIMULATED_NOW,
     ...metrics,
-    chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures }) => ({ seed, completed, cases, failures }))),
+    chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures, harness }) => ({ seed, completed, cases, failures, harness }))),
     scenarios: results,
   };
   const out = join(ROOT, "eval/results");

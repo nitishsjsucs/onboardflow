@@ -32,7 +32,7 @@ export type EvalRun = {
   totals: { startedCases: number; scenarios: number; completed: number; completionRate: number; passed: number; passRate: number };
   byCategory: Record<Category, { scenarios: number; completed: number; passed: number }>;
   chaos: null | {
-    perSeed: Array<{ seed: number; completed: number; cases: number; failures: Record<"bot_patience" | "deadline" | "case_failed", number> }>;
+    perSeed: ChaosSeedSummary[];
     meanCompletion: number;
     minCompletion: number;
     maxCompletion: number;
@@ -184,7 +184,16 @@ export function ciGate(run: Pick<EvalRun, "totals" | "integration" | "regression
 }
 
 /** Chaos aggregates over seeds: completion per seed, then mean, min and max. */
-export function chaosAggregate(perSeed: Array<{ seed: number; completed: number; cases: number; failures: Record<"bot_patience" | "deadline" | "case_failed", number> }>) {
+/** One chaos seed. `harness` (absent in runs recorded before it existed) counts local-runtime transport failures the harness met. */
+export type ChaosSeedSummary = {
+  seed: number;
+  completed: number;
+  cases: number;
+  failures: Record<"bot_patience" | "deadline" | "case_failed", number>;
+  harness?: { controlRetries: number; controlFailures: number; botRequestErrors: number };
+};
+
+export function chaosAggregate(perSeed: ChaosSeedSummary[]) {
   const rates = perSeed.map((s) => (s.cases === 0 ? 0 : s.completed / s.cases));
   const mean = rates.length === 0 ? 0 : rates.reduce((a, b) => a + b, 0) / rates.length;
   return {

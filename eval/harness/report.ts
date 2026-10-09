@@ -49,7 +49,10 @@ export function renderResults(runs: EvalRun[]): string {
     if (r.chaos) {
       out.push(`| Completion per seed (mean, min, max) | ${pct(r.chaos.meanCompletion)}, ${pct(r.chaos.minCompletion)}, ${pct(r.chaos.maxCompletion)} |`);
       for (const s of r.chaos.perSeed) {
-        out.push(`| Seed ${s.seed} | ${s.completed}/${s.cases}; not completed: ${s.failures.case_failed} failed, ${s.failures.bot_patience} bot patience, ${s.failures.deadline} deadline |`);
+        const harness = s.harness
+          ? `; harness: ${s.harness.controlRetries} control retries, ${s.harness.botRequestErrors} bot request errors${s.harness.controlFailures > 0 ? `, **${s.harness.controlFailures} control actions failed (schedule not fully applied)**` : ""}`
+          : "";
+        out.push(`| Seed ${s.seed} | ${s.completed}/${s.cases}; not completed: ${s.failures.case_failed} failed, ${s.failures.bot_patience} bot patience, ${s.failures.deadline} deadline${harness} |`);
       }
     }
     if (r.mode === "standard" || r.mode.startsWith("ablation")) {

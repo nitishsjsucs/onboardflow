@@ -4,11 +4,12 @@
 // outage windows and data corruption hit the simulated systems; generic,
 // seeded persona bots act only on what the API shows them. Completion is
 // measured per seed and reported as mean, min and max.
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { BlockerView, EmployeeProfileDto, EmployeeSummary, Page } from "../../src/shared/api.ts";
 import { generateDataset } from "../../src/shared/synthetic/generate.ts";
 import { SCENARIOS } from "../scenarios/index.ts";
-import { Harness } from "./actions.ts";
+import { Harness, type HttpResult } from "./actions.ts";
 import { caseFacts } from "./assertions.ts";
 import type { ScenarioResult } from "./metrics.ts";
 import {
@@ -29,14 +30,68 @@ import { writeRunSecrets } from "./secrets.ts";
 import { EVAL_VARS, hubConsistency, pool, prepareDatabase, ROOT, SIMULATED_NOW, snapshot, startServer } from "./server.ts";
 
 export type ChaosFailure = "bot_patience" | "deadline" | "case_failed";
+/**
+ * Harness-side transport health for one seed. Control actions are the
+ * orchestrator's own schedule (faults, outage windows, stall clears, clock,
+ * corruption); a control failure means the committed schedule was not fully
+ * applied and the seed is flagged. Bot request errors are persona requests
+ * that failed in transport (the bot tries again on a later tick if its
+ * policy allows).
+ */
+export type HarnessHealth = { controlRetries: number; controlFailures: number; botRequestErrors: number };
 export type SeedOutcome = {
   seed: number;
   completed: number;
   cases: number;
   failures: Record<ChaosFailure, number>;
+  harness: HarnessHealth;
   results: ScenarioResult[];
   hub: { matchesReconcile: boolean; diffs: string[] };
 };
+
+/** Control calls ride out the API idempotency store's 60 s in-progress window of a request the runtime dropped. */
+const CONTROL_DEADLINE_MS = 75_000;
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+/** True for a failure in transport rather than an answer from the app: network error, 5xx, or a non-JSON body. */
+function isTransportError(err: unknown): boolean {
+  return err instanceof Error && (/non-JSON body|fetch failed|ECONNRESET|ECONNREFUSED|socket/i.test(err.message) || err.name === "TypeError");
+}
+
+/**
+ * One orchestrator control call. Retried with the same Idempotency-Key on a
+ * transport failure, a 5xx, or 409 idempotency_in_progress: the eval hooks
+ * replay a committed request instead of applying it twice, so a retried
+ * clock advance or fault plan takes effect exactly once.
+ */
+export async function control(h: Harness, email: string, health: HarnessHealth, method: string, path: string, body?: unknown, ok: readonly number[] = [200], deadlineMs = CONTROL_DEADLINE_MS): Promise<HttpResult> {
+  const key = randomUUID();
+  const end = Date.now() + deadlineMs;
+  for (let attempt = 0; ; attempt++) {
+    if (attempt > 0) {
+      health.controlRetries++;
+      await sleep(Math.min(250 * 2 ** (attempt - 1), 4_000));
+    }
+    let failure: string;
+    try {
+      const r = await h.request(email, method, path, body, key);
+      if (ok.includes(r.status)) return r;
+      const code = (r.body as { error?: { code?: string } } | null)?.error?.code;
+      if (r.status < 500 && code !== "idempotency_in_progress") {
+        health.controlFailures++;
+        throw new Error(`${method} ${path}: HTTP ${r.status} ${code ?? ""}`.trim());
+      }
+      failure = `${method} ${path}: HTTP ${r.status}${code ? ` ${code}` : ""}`;
+    } catch (err) {
+      if (!isTransportError(err)) throw err;
+      failure = err instanceof Error ? err.message : String(err);
+    }
+    if (Date.now() >= end) {
+      health.controlFailures++;
+      throw new Error(`gave up after ${attempt + 1} attempts: ${failure}`);
+    }
+  }
+}
 
 type Track = {
   id: string;
@@ -66,16 +121,24 @@ class Timeline {
   has(key: string): boolean {
     return this.#keys.has(key);
   }
-  async fireDue(now: number): Promise<void> {
+  #running = new Set<Promise<void>>();
+  /** Starts every due action without waiting for it, so a control call riding out a runtime hiccup does not stall the bots. */
+  fireDue(now: number): void {
     const due = this.#items.filter((i) => i.at <= now);
     this.#items = this.#items.filter((i) => i.at > now);
-    await Promise.all(
-      due.map((d) =>
-        d.fn().catch((err: unknown) => {
+    for (const d of due) {
+      const p: Promise<void> = d
+        .fn()
+        .catch((err: unknown) => {
           console.warn(`chaos action ${d.key} failed: ${err instanceof Error ? err.message : String(err)}`);
-        }),
-      ),
-    );
+        })
+        .finally(() => this.#running.delete(p));
+      this.#running.add(p);
+    }
+  }
+  /** Waits for actions still in flight (end of a seed). */
+  async drain(): Promise<void> {
+    while (this.#running.size > 0) await Promise.all([...this.#running]);
   }
 }
 
@@ -91,10 +154,22 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
     const h = new Harness(server.baseUrl, dataset);
     const admin = h.emailFor("admin", "");
     const coordinators = { people_ops: h.emailFor("people_ops", ""), it: h.emailFor("it", ""), facilities: h.emailFor("facilities", "") } as const;
+    const health: HarnessHealth = { controlRetries: 0, controlFailures: 0, botRequestErrors: 0 };
+    const ctl = (method: string, path: string, body?: unknown) => control(h, admin, health, method, path, body);
+    /** A persona request block; a transport error skips it for this tick and is counted. */
+    const bot = async (what: string, fn: () => Promise<void>): Promise<void> => {
+      try {
+        await fn();
+      } catch (err) {
+        if (!isTransportError(err)) throw err;
+        health.botRequestErrors++;
+        console.warn(`chaos bot ${what}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
     await h.token(admin);
     const probe = await h.admin("POST", "/api/cases/E150/scan", {});
     if (probe.status !== 200) throw new Error(`preflight failed: ${probe.status}`);
-    await h.admin("POST", "/api/dev/clock/advance", { ms: Date.parse(SIMULATED_NOW) - Date.now() });
+    await ctl("POST", "/api/dev/clock/advance", { ms: Date.parse(SIMULATED_NOW) - Date.now() });
 
     const schedule = chaosSchedule(
       seed,
@@ -103,12 +178,11 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
     // per-employee faults and setup corruptions, before any case starts
     const stallIds = new Map<string, { id: number; clearAfterMs: number; opId: string }>();
     for (const f of schedule.faults) {
-      const r = await h.admin("POST", "/api/dev/faults", { system: f.system, operation: f.operation, employeeRef: f.employeeRef, fault: f.fault, remaining: f.remaining, ...(f.params ? { params: f.params } : {}) });
-      if (r.status !== 200) throw new Error(`fault setup failed: ${r.status}`);
+      const r = await ctl("POST", "/api/dev/faults", { system: f.system, operation: f.operation, employeeRef: f.employeeRef, fault: f.fault, remaining: f.remaining, ...(f.params ? { params: f.params } : {}) });
       if (f.fault === "stall" && f.clearAfterMs) stallIds.set(f.employeeRef, { id: r.body.id as number, clearAfterMs: f.clearAfterMs, opId: f.opId });
     }
     for (const c of schedule.corruptions.filter((x) => x.when === "setup")) {
-      await h.admin("PATCH", `/api/dev/employees/${c.employeeRef}/corrupt`, { field: c.field, value: c.value });
+      await ctl("PATCH", `/api/dev/employees/${c.employeeRef}/corrupt`, { field: c.field, value: c.value });
     }
 
     const t0 = Date.now();
@@ -119,27 +193,27 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       timeline.add(t0 + o.startMs, `outage:${o.system}:${i}:start`, async () => {
         const ids: number[] = [];
         for (const op of SYSTEM_POSTS[o.system]) {
-          const r = await h.admin("POST", "/api/dev/faults", { system: o.system, operation: op, employeeRef: null, fault: "fail_503", remaining: null });
+          const r = await ctl("POST", "/api/dev/faults", { system: o.system, operation: op, employeeRef: null, fault: "fail_503", remaining: null });
           ids.push(r.body.id as number);
         }
         timeline.add(Date.now() + o.durationMs, `outage:${o.system}:${i}:end`, async () => {
-          await h.admin("DELETE", `/api/dev/faults?ids=${ids.join(",")}`);
+          await ctl("DELETE", `/api/dev/faults?ids=${ids.join(",")}`);
         });
       });
     }
     // simulated time: one jump that lets every due date and SLA expire, then periodic ticks
     timeline.add(t0 + schedule.clockJumpAtMs, "clock:jump", async () => {
-      await h.admin("POST", "/api/dev/clock/advance", { ms: CHAOS.clockJumpMs });
+      await ctl("POST", "/api/dev/clock/advance", { ms: CHAOS.clockJumpMs });
     });
     for (let k = 1; k * CHAOS.clockTickEveryMs < CHAOS.caseDeadlineMs + 60_000; k++) {
       timeline.add(t0 + schedule.clockJumpAtMs + k * CHAOS.clockTickEveryMs, `clock:tick:${k}`, async () => {
-        await h.admin("POST", "/api/dev/clock/advance", { ms: CHAOS.clockTickMs });
+        await ctl("POST", "/api/dev/clock/advance", { ms: CHAOS.clockTickMs });
       });
     }
 
     // start every case (bounded concurrency)
     await pool(employees, opts.concurrency, async (e) => {
-      const r = await h.request(coordinators.people_ops, "POST", `/api/cases/${e.id}/start`, {});
+      const r = await control(h, coordinators.people_ops, health, "POST", `/api/cases/${e.id}/start`, {}, [202]).catch(() => ({ status: 0 }));
       tracks.set(e.id, {
         id: e.id,
         managerEmail: h.emailFor("manager", e.id),
@@ -175,12 +249,16 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
     const deadlineFor = (t: Track) => t.startedAt + CHAOS.caseDeadlineMs;
     for (;;) {
       const now = Date.now();
-      await timeline.fireDue(now);
+      timeline.fireDue(now);
 
       // case statuses as the admin sees them in the cases table
-      const page1 = await h.request<Page<EmployeeSummary>>(admin, "GET", "/api/employees?limit=100");
-      const page2 = page1.body.nextCursor ? await h.request<Page<EmployeeSummary>>(admin, "GET", `/api/employees?limit=100&cursor=${page1.body.nextCursor}`) : null;
-      for (const s of [...page1.body.items, ...(page2?.body.items ?? [])]) {
+      let summaries: EmployeeSummary[] = [];
+      await bot("case status poll", async () => {
+        const page1 = await h.request<Page<EmployeeSummary>>(admin, "GET", "/api/employees?limit=100");
+        const page2 = page1.body.nextCursor ? await h.request<Page<EmployeeSummary>>(admin, "GET", `/api/employees?limit=100&cursor=${page1.body.nextCursor}`) : null;
+        summaries = [...page1.body.items, ...(page2?.body.items ?? [])];
+      });
+      for (const s of summaries) {
         const t = tracks.get(s.id);
         if (!t || t.done) continue;
         t.status = s.caseStatus;
@@ -196,15 +274,18 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
         if (stall && !t.stallClearScheduled && idx >= STAGE_ORDER.indexOf(STALL_STAGE[stall.opId] ?? "closeout")) {
           t.stallClearScheduled = true;
           timeline.add(now + stall.clearAfterMs, `stall:${s.id}`, async () => {
-            await h.admin("DELETE", `/api/dev/faults?ids=${stall.id}`);
+            await ctl("DELETE", `/api/dev/faults?ids=${stall.id}`);
           });
         }
         const photo = schedule.corruptions.find((c) => c.employeeRef === s.id && c.when === "after_paperwork");
         if (photo && !t.photoCorrupted && idx >= STAGE_ORDER.indexOf("manager_approval") && idx <= STAGE_ORDER.indexOf("it_provisioning")) {
           t.photoCorrupted = true;
-          await h.admin("PATCH", `/api/dev/employees/${s.id}/corrupt`, { field: "photoOnFile", value: 0 });
+          timeline.add(now, `photo:${s.id}`, async () => {
+            await ctl("PATCH", `/api/dev/employees/${s.id}/corrupt`, { field: "photoOnFile", value: 0 });
+          });
         }
       }
+      timeline.fireDue(now);
       const active = [...tracks.values()].filter((t) => !t.done);
       if (active.length === 0) break;
 
@@ -212,7 +293,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       if (now - lastEmployeePoll >= 1000) {
         lastEmployeePoll = now;
         await Promise.all(
-          active.map(async (t) => {
+          active.map((t) => bot(`employee ${t.id}`, async () => {
             const email = h.emailFor("employee", t.id);
             const cl = await h.request<{ stages: Array<{ id: string; status: string }>; tasks: Array<{ id: string; stageId: string; status: string }>; blockers: Array<{ kind: string }> }>(email, "GET", "/api/me/checklist");
             if (cl.status !== 200) return;
@@ -226,14 +307,14 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
             for (const task of cl.body.tasks.filter((x) => x.stageId === waiting.id && x.status === "open")) {
               await h.request(email, "POST", `/api/tasks/${encodeURIComponent(task.id)}/complete`, {});
             }
-          }),
+          })),
         );
       }
 
       // managers: decide their reports' checkpoint after a seeded delay; some reject round 1, some never answer
       const managers = new Set(active.map((t) => t.managerEmail));
       await Promise.all(
-        [...managers].map(async (email) => {
+        [...managers].map((email) => bot(`manager ${email}`, async () => {
           const r = await h.request<Page<{ id: string; employeeId: string; round: number; checkpoint: string; request: { needsPrivilegedAccess?: boolean } }>>(email, "GET", "/api/approvals?status=pending&limit=100");
           for (const a of r.body?.items ?? []) {
             if (!tracks.has(a.employeeId) || a.checkpoint !== "manager_approval" || decided.has(a.id)) continue;
@@ -241,31 +322,40 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
             if (plan.neverRespond) continue;
             decided.add(a.id);
             const reject = plan.rejectFirst && a.round === 1;
-            timeline.add(now + plan.delayMs, `manager:${a.id}`, async () => {
-              await h.request(email, "POST", `/api/approvals/${encodeURIComponent(a.id)}/decision`, reject ? { decision: "reject", reason: "please revise the equipment request" } : { decision: "approve", ...(a.request.needsPrivilegedAccess ? { privilegedAccessApproved: true } : {}) });
-            });
+            timeline.add(now + plan.delayMs, `manager:${a.id}`, () =>
+              bot(`manager decision ${a.id}`, async () => {
+                await h.request(email, "POST", `/api/approvals/${encodeURIComponent(a.id)}/decision`, reject ? { decision: "reject", reason: "please revise the equipment request" } : { decision: "approve", ...(a.request.needsPrivilegedAccess ? { privilegedAccessApproved: true } : {}) });
+              }),
+            );
           }
-        }),
+        })),
       );
 
       // People Ops: sign off closeouts, resubmit rejected requests
+      await bot("people ops queue", async () => {
       const po = await h.request<Page<{ id: string; employeeId: string; checkpoint: string; status: string; resubmittable?: boolean }>>(coordinators.people_ops, "GET", "/api/approvals?status=all&limit=100");
       for (const a of po.body?.items ?? []) {
         if (!tracks.has(a.employeeId) || decided.has(`po:${a.id}`)) continue;
         if (a.status === "pending" && a.checkpoint === "closeout") {
           decided.add(`po:${a.id}`);
-          timeline.add(now + peopleOpsDelay(seed, a.id), `closeout:${a.id}`, async () => {
-            await h.request(coordinators.people_ops, "POST", `/api/approvals/${encodeURIComponent(a.id)}/decision`, { decision: "approve" });
-          });
+          timeline.add(now + peopleOpsDelay(seed, a.id), `closeout:${a.id}`, () =>
+            bot(`closeout ${a.id}`, async () => {
+              await h.request(coordinators.people_ops, "POST", `/api/approvals/${encodeURIComponent(a.id)}/decision`, { decision: "approve" });
+            }),
+          );
         } else if (a.status === "rejected" && a.resubmittable) {
           decided.add(`po:${a.id}`);
-          timeline.add(now + peopleOpsDelay(seed, `resubmit:${a.id}`), `resubmit:${a.id}`, async () => {
-            await h.request(coordinators.people_ops, "POST", `/api/approvals/${encodeURIComponent(a.id)}/resubmit`, { note: "revised per the reviewer" });
-          });
+          timeline.add(now + peopleOpsDelay(seed, `resubmit:${a.id}`), `resubmit:${a.id}`, () =>
+            bot(`resubmit ${a.id}`, async () => {
+              await h.request(coordinators.people_ops, "POST", `/api/approvals/${encodeURIComponent(a.id)}/resubmit`, { note: "revised per the reviewer" });
+            }),
+          );
         }
       }
+      });
 
       // admin: decide overdue approvals on behalf
+      await bot("admin overdue approvals", async () => {
       const overdue = await h.request<Page<BlockerView>>(admin, "GET", "/api/blockers?kind=approval_overdue&status=open&limit=100");
       for (const b of overdue.body?.items ?? []) {
         const approvalId = (b.detail as { approvalId?: string }).approvalId;
@@ -274,9 +364,11 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
         decided.add(approvalId);
         await h.request(admin, "POST", `/api/approvals/${encodeURIComponent(approvalId)}/decision`, { decision: "approve", privilegedAccessApproved: true });
       }
+      });
 
       // department coordinators: work their own blocker queue
       for (const [dept, email] of Object.entries(coordinators)) {
+        await bot(`${dept} coordinator`, async () => {
         const q = await h.request<Page<BlockerView>>(email, "GET", "/api/blockers?status=open&limit=100");
         for (const b of q.body?.items ?? []) {
           if (!tracks.has(b.employeeId) || b.ownerDepartment !== dept) continue;
@@ -315,9 +407,12 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
             m.lastRetryMs = now;
           }
         }
+        });
       }
       await new Promise((res) => setTimeout(res, CHAOS.botTickMs));
     }
+
+    await timeline.drain();
 
     // collect
     const results: ScenarioResult[] = [];
@@ -352,8 +447,12 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       });
     }
     const hub = await hubConsistency(h);
-    console.log(`chaos seed ${seed}: ${completed}/60 completed (bot_patience ${failures.bot_patience}, deadline ${failures.deadline}, case_failed ${failures.case_failed}), hub consistent ${hub.matchesReconcile}`);
-    return { seed, completed, cases: SCENARIOS.length, failures, results, hub };
+    console.log(
+      `chaos seed ${seed}: ${completed}/60 completed (bot_patience ${failures.bot_patience}, deadline ${failures.deadline}, case_failed ${failures.case_failed}), hub consistent ${hub.matchesReconcile}; ` +
+        `harness: ${health.controlRetries} control retries, ${health.controlFailures} control failures, ${health.botRequestErrors} bot request errors`,
+    );
+    if (health.controlFailures > 0) console.warn(`chaos seed ${seed}: the committed schedule was not fully applied (${health.controlFailures} control actions failed); this seed is flagged in the results`);
+    return { seed, completed, cases: SCENARIOS.length, failures, harness: health, results, hub };
   } finally {
     await server.stop();
   }
