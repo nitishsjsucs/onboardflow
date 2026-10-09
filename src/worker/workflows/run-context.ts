@@ -4,7 +4,7 @@
 // so a step re-executed after a retry or restart never claims an effect it did
 // not have (ADR 0008). Ids are deterministic and inserts use OR IGNORE.
 import type { AgentWorkflowStep } from "agents/workflows";
-import type { AuditAction, FailureReason, ResourceType, SystemId } from "../../shared/domain.ts";
+import type { AuditAction, Checkpoint, FailureReason, ResourceType, SystemId } from "../../shared/domain.ts";
 import { auditIds, workflowStamp } from "../../shared/ids.ts";
 import type { StageId } from "../../shared/stages.ts";
 import type { AppConfig } from "../config.ts";
@@ -35,6 +35,17 @@ export type RunCtx = {
   instanceId: string;
   runNo: number;
   stageRound: Record<StageId, number>;
+  /**
+   * The approved round of each checkpoint as D1 held it when this run began (an earlier run's
+   * decision). The approval loop resumes there, because closeout shares case_stages.round between
+   * its approval rounds and the recovery rounds of hr.activate-worker.
+   */
+  approvedRound: Partial<Record<Checkpoint, number>>;
+  /**
+   * First round of a stage's operations: 1, except closeout, whose activation starts at the round
+   * its approval was granted in. runOp counts MAX_STAGE_ROUNDS from here.
+   */
+  roundBase: Record<StageId, number>;
   limits: RunLimits;
   /** Waits left before the case fails with wait_budget_exhausted (deterministic: derived from step results). */
   waitsLeft: number;

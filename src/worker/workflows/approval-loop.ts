@@ -99,15 +99,27 @@ async function markRevisionRequested(ctx: RunCtx, stage: StageId, round: number,
   });
 }
 
-/** Runs the checkpoint until approved. Returns the approval id that was approved. */
+/**
+ * Runs the checkpoint until approved. Returns the approval id that was approved.
+ *
+ * It starts at the round an earlier run saw approved, if any, and otherwise at the stage's D1 round.
+ * The approved round wins because closeout's stage round also counts the recovery rounds of
+ * hr.activate-worker: after an activation retry the stage round is past the approval, and starting
+ * there would request a second sign-off that nobody asked for. The approved approval already exists,
+ * so the request step changes nothing and the decision gate passes on its first check.
+ */
 export async function approvalLoop(ctx: RunCtx, stage: StageId, checkpoint: Checkpoint): Promise<string> {
-  let round = ctx.stageRound[stage];
+  let round = ctx.approvedRound[checkpoint] ?? ctx.stageRound[stage];
   for (;;) {
     const requestName = `${stage}.request-approval#r${round}`;
     const { approvalId } = await ctx.step.do(requestName, CHECK_STEP, () => requestApproval(ctx, stage, checkpoint, round, requestName));
     await ctx.step.sendEvent({ kind: "awaiting_approval", stage, round });
     const decision = await awaitGate(ctx, { stage, label: "decision", round, spec: { kind: "decision", approvalId } });
-    if (decision.satisfied && decision.kind === "decision" && decision.status === "approved") return approvalId;
+    if (decision.satisfied && decision.kind === "decision" && decision.status === "approved") {
+      // Operations after the approval (closeout's activation) count their recovery rounds from here.
+      ctx.roundBase[stage] = round;
+      return approvalId;
+    }
 
     const rejectedName = `${stage}.rejected#r${round}`;
     await ctx.step.do(rejectedName, CHECK_STEP, () => markRevisionRequested(ctx, stage, round, approvalId, rejectedName));

@@ -165,7 +165,10 @@ export async function runOp(ctx: RunCtx, stage: StageId, op: OperationId): Promi
     } catch (err) {
       if (isEngineAbort(err)) throw err;
       const reason = classifyFailure(err);
-      if (round >= ctx.limits.maxStageRounds || ctx.recoveriesLeft-- <= 0) {
+      // Rounds this stage's operations have used. roundBase is 1 except for closeout, whose stage round
+      // starts at the round its approval was granted in (approval and recovery rounds share the column).
+      const roundsUsed = round - ctx.roundBase[stage] + 1;
+      if (roundsUsed >= ctx.limits.maxStageRounds || ctx.recoveriesLeft-- <= 0) {
         const name = `${stage}.${op}.exhausted#r${round}`;
         await ctx.step.do(name, CHECK_STEP, () => failCase(ctx, stage, "recovery_rounds_exhausted", name, { operation: op, reason: reason.message }));
         throw new NonRetryableError(`stage ${stage} exhausted recovery rounds at ${op}`);

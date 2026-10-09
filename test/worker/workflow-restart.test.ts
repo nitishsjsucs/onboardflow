@@ -97,6 +97,9 @@ describe("restart", () => {
 
       const agent = await rpc("E111");
       expect((await agent.restartCase("operator restart", await cmdFor("A01"))).status).toBe(202);
+      // the restart re-armed the scan schedule (exactly one interval schedule)
+      const callbacks = await runInDurableObject(await caseAgent("E111"), async (a: CaseAgent) => (await a.listSchedules({ type: "interval" })).map((x) => x.callback));
+      expect(callbacks).toEqual(["scheduledScan"]);
       await waitFor(async () => (await gateChecks("E111", 2)).length >= 3 || null, { what: "run 2 gates" });
       expect(await gateChecks("E111", 2)).toEqual([
         { stage: "paperwork", gate: "tasks", kind: "tasks", checks: 1 },
@@ -233,6 +236,42 @@ describe("restart", () => {
       expect(run2).toEqual(["replayed"]);
       expect(await ledger({ employeeRef: "E115", system: "facilities", operation: "assign-workspace" })).toHaveLength(1);
       await expectOneSideEffectEach("E115");
+    } finally {
+      await intro.dispose();
+    }
+  });
+
+  it("restart after a closeout activation retry honors the closeout approval from D1: one sign-off, no new decision, completes", async () => {
+    const intro = await fastWorkflows();
+    try {
+      await setFault({ system: "hr", operation: "activate-worker", employeeRef: "E119", fault: "fail_503" });
+      await driveThroughManagerApproval("E119");
+      await waitForStage("E119", "orientation", "waiting_on_employee");
+      await completeEmployeeTasks("E119", "orientation");
+      expect((await decide("E119", "closeout", "approve", "C01")).status).toBe(200);
+      await waitFor(async () => (await blockedAudits("E119", 1)).includes("closeout") || null, { what: "closeout blocked in round 1" });
+      // a coordinator retries the activation into round 2, which blocks again during the outage
+      expect((await retry("E119", "closeout", "C01")).status).toBe(202);
+      await waitFor(async () => {
+        const s = await stageRowOf("E119", "closeout");
+        return (s.status === "blocked" && s.round === 2) || null;
+      }, { what: "closeout blocked in round 2" });
+      await clearFaults("E119");
+
+      expect((await (await rpc("E119")).restartCase("operator restart", await cmdFor("A01"))).status).toBe(202);
+      // no new decision: the round 1 approval is honored and the activation resumes in round 2
+      expect((await waitForCase("E119", ["complete", "failed"])).status).toBe("complete");
+      const approvals = await DB.prepare("SELECT id, status FROM approvals WHERE employee_id = 'E119' ORDER BY id").all<{ id: string; status: string }>();
+      expect(approvals.results).toEqual([
+        { id: "apr:E119:closeout:1", status: "approved" },
+        { id: "apr:E119:manager_approval:1", status: "approved" },
+      ]);
+      expect((await DB.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E119' AND action = 'approval.requested'").first<{ n: number }>())!.n).toBe(2);
+      expect((await gateChecks("E119", 2)).filter((g) => g.stage === "closeout")).toEqual([{ stage: "closeout", gate: "decision", kind: "decision", checks: 1 }]);
+      expect(await stageRowOf("E119", "closeout")).toMatchObject({ status: "complete", round: 2 });
+      expect(await ledger({ employeeRef: "E119", system: "hr", operation: "activate-worker" })).toHaveLength(1);
+      expect((await DB.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E119' AND action = 'case.failed'").first<{ n: number }>())!.n).toBe(0);
+      await expectOneSideEffectEach("E119");
     } finally {
       await intro.dispose();
     }

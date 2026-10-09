@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { api } from "../helpers/api.ts";
+import { clearFaults, setFault } from "../helpers/sims.ts";
 import {
   cmdFor,
   completeEmployeeTasks,
@@ -129,6 +130,37 @@ describe("approval checkpoints", () => {
       expect((await (await rpc("E103")).resubmitApproval("apr:E103:closeout:1", await cmdFor("C01"), "fixed")).status).toBe(202);
       expect((await decide("E103", "closeout", "approve", "C02", { round: 2 })).status).toBe(200);
       expect((await waitForCase("E103", ["complete", "failed"])).status).toBe("complete");
+    } finally {
+      await intro.dispose();
+    }
+  });
+
+  it("gives closeout's activation its full recovery rounds when the sign-off took two rounds", async () => {
+    const intro = await fastWorkflows();
+    try {
+      await setFault({ system: "hr", operation: "activate-worker", employeeRef: "E106", fault: "fail_503" });
+      await toManagerApproval("E106");
+      expect((await decide("E106", "manager_approval", "approve", await managerOf("E106"))).status).toBe(200);
+      await waitForStage("E106", "orientation", "waiting_on_employee");
+      await completeEmployeeTasks("E106", "orientation");
+      expect((await decide("E106", "closeout", "reject", "C01")).status).toBe(200);
+      await waitForStage("E106", "closeout", "revision_requested");
+      expect((await (await rpc("E106")).resubmitApproval("apr:E106:closeout:1", await cmdFor("C01"), "fixed")).status).toBe(202);
+      expect((await decide("E106", "closeout", "approve", "C01", { round: 2 })).status).toBe(200);
+      // activation rounds count from the approval round (2): rounds 2, 3 and 4 block, and the case is still alive
+      for (const round of [2, 3, 4]) {
+        await waitFor(async () => {
+          const s = await stageRow("E106", "closeout");
+          return (s?.status === "blocked" && s.round === round) || null;
+        }, { what: `closeout blocked in round ${round}` });
+        if (round < 4) expect((await (await rpc("E106")).retryStage("closeout", await cmdFor("C01"))).status).toBe(202);
+      }
+      expect((await DB.prepare("SELECT status FROM cases WHERE employee_id = 'E106'").first<{ status: string }>())!.status).toBe("blocked");
+      await clearFaults("E106");
+      expect((await (await rpc("E106")).retryStage("closeout", await cmdFor("C01"))).status).toBe(202);
+      expect((await waitForCase("E106", ["complete", "failed"])).status).toBe("complete");
+      expect(await stageRow("E106", "closeout")).toMatchObject({ status: "complete", round: 5 });
+      expect((await approvals("E106")).filter((a) => (a as { id: string }).id.includes("closeout")).length).toBe(2);
     } finally {
       await intro.dispose();
     }

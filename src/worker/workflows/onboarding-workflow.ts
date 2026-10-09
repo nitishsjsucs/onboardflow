@@ -8,6 +8,7 @@
 import { getAgentByName } from "agents";
 import { AgentWorkflow } from "agents/workflows";
 import type { AgentWorkflowEvent, AgentWorkflowStep, WorkflowCallback } from "agents/workflows";
+import type { Checkpoint } from "../../shared/domain.ts";
 import { STAGE_IDS, STAGES, type StageId } from "../../shared/stages.ts";
 import type { CaseAgent } from "../agents/case-agent.ts";
 import { parseConfig } from "../config.ts";
@@ -42,12 +43,20 @@ const STAGE_BODIES: Record<StageId, (ctx: RunCtx) => Promise<void>> = {
   closeout: runCloseout,
 };
 
-type Begin = { runNo: number; revision: number; rounds: Record<StageId, number>; statuses: Record<StageId, string> };
+type Begin = {
+  runNo: number;
+  revision: number;
+  rounds: Record<StageId, number>;
+  statuses: Record<StageId, string>;
+  /** Round of each checkpoint's approved approval, if an earlier run saw it approved. */
+  approvedRounds: Partial<Record<Checkpoint, number>>;
+};
 
 async function readBegin(db: D1Database, employeeId: string): Promise<Begin> {
-  const [c, stages] = await db.batch([
+  const [c, stages, approved] = await db.batch([
     db.prepare("SELECT run_no, revision FROM cases WHERE employee_id = ?").bind(employeeId),
     db.prepare("SELECT stage_id, round, status FROM case_stages WHERE employee_id = ?").bind(employeeId),
+    db.prepare("SELECT checkpoint, MAX(round) AS round FROM approvals WHERE employee_id = ? AND status = 'approved' GROUP BY checkpoint").bind(employeeId),
   ]);
   const kase = c?.results[0] as { run_no: number; revision: number } | undefined;
   if (!kase) throw new Error(`no case for ${employeeId}`);
@@ -57,7 +66,9 @@ async function readBegin(db: D1Database, employeeId: string): Promise<Begin> {
     rounds[r.stage_id] = r.round;
     statuses[r.stage_id] = r.status;
   }
-  return { runNo: kase.run_no, revision: kase.revision, rounds, statuses };
+  const approvedRounds: Partial<Record<Checkpoint, number>> = {};
+  for (const r of (approved?.results ?? []) as Array<{ checkpoint: Checkpoint; round: number }>) approvedRounds[r.checkpoint] = r.round;
+  return { runNo: kase.run_no, revision: kase.revision, rounds, statuses, approvedRounds };
 }
 
 export class OnboardingWorkflow extends AgentWorkflow<CaseAgent, OnboardingParams, StageProgress> {
@@ -108,6 +119,8 @@ export class OnboardingWorkflow extends AgentWorkflow<CaseAgent, OnboardingParam
       instanceId: event.instanceId,
       runNo: begin.runNo,
       stageRound: { ...begin.rounds },
+      approvedRound: { ...(begin.approvedRounds ?? {}) },
+      roundBase: Object.fromEntries(STAGE_IDS.map((s) => [s, 1])) as Record<StageId, number>,
       limits,
       waitsLeft: limits.waitBudget,
       recoveriesLeft: limits.maxRecoveryRounds,
