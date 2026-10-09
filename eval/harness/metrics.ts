@@ -51,6 +51,8 @@ export type EvalRun = {
   };
   followups: { created: number; correctDepartmentRate: number; draftedByLlmRate: number; llmSchemaValidRate: number | null; llmCategoryAgreement: number | null; llmLatencyP50Ms: number | null };
   timing: { scenarioP50Ms: number; scenarioP95Ms: number; totalMs: number };
+  /** Requests the harness retried with the same Idempotency-Key after a transport failure, and those that still failed (absent in runs recorded before it existed). */
+  harnessTransport?: { retries: number; failures: number };
   failures: Array<{ scenarioId: string; reason: FailureReasonCode; detail: string }>;
   scenarios: ScenarioResult[];
 };
@@ -190,7 +192,7 @@ export type ChaosSeedSummary = {
   completed: number;
   cases: number;
   failures: Record<"bot_patience" | "deadline" | "case_failed", number>;
-  harness?: { controlRetries: number; controlFailures: number; botRequestErrors: number };
+  harness?: { controlRetries: number; controlFailures: number; botRequestErrors: number; transportRetries?: number; transportFailures?: number };
 };
 
 export function chaosAggregate(perSeed: ChaosSeedSummary[]) {

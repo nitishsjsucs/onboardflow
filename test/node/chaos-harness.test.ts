@@ -20,9 +20,12 @@ function fakeServer(replies: Array<{ status: number; body: string }>) {
     const next = replies.shift() ?? { status: 500, body: "Error: Network connection lost." };
     return new Response(next.body, { status: next.status });
   }) as typeof fetch;
-  return { keys, harness: new Harness("http://fake.test", generateDataset()) };
+  const harness = new Harness("http://fake.test", generateDataset());
+  // isolate control()'s own retry loop from the HTTP layer's transport retries (tested in eval-actions.test.ts)
+  harness.transportDeadlineMs = 0;
+  return { keys, harness };
 }
-const health = (): HarnessHealth => ({ controlRetries: 0, controlFailures: 0, botRequestErrors: 0 });
+const health = (): HarnessHealth => ({ controlRetries: 0, controlFailures: 0, botRequestErrors: 0, transportRetries: 0, transportFailures: 0 });
 
 describe("chaos orchestrator control calls", () => {
   it("retry a runtime 500 and an in-progress 409 with the same Idempotency-Key until the hook answers", async () => {
@@ -36,7 +39,7 @@ describe("chaos orchestrator control calls", () => {
     expect(r.status).toBe(200);
     expect(keys).toHaveLength(3);
     expect(new Set(keys).size).toBe(1);
-    expect(h).toEqual({ controlRetries: 2, controlFailures: 0, botRequestErrors: 0 });
+    expect(h).toMatchObject({ controlRetries: 2, controlFailures: 0, botRequestErrors: 0 });
   });
 
   it("does not retry an answer from the app (a 4xx other than in-progress) and counts it as a control failure", async () => {
@@ -51,7 +54,7 @@ describe("chaos orchestrator control calls", () => {
     const { harness } = fakeServer([]);
     const h = health();
     await expect(control(harness, "admin@x", h, "POST", "/api/dev/clock/advance", { ms: 1 }, [200], 100)).rejects.toThrow(/gave up after 2 attempts/);
-    expect(h).toEqual({ controlRetries: 1, controlFailures: 1, botRequestErrors: 0 });
+    expect(h).toMatchObject({ controlRetries: 1, controlFailures: 1, botRequestErrors: 0 });
   });
 
   it("accepts the caller's success statuses (a case start answers 202)", async () => {
@@ -62,7 +65,7 @@ describe("chaos orchestrator control calls", () => {
 });
 
 describe("chaos results rendering", () => {
-  const seedRow = (harness?: { controlRetries: number; controlFailures: number; botRequestErrors: number }) =>
+  const seedRow = (harness?: { controlRetries: number; controlFailures: number; botRequestErrors: number; transportRetries?: number }) =>
     renderResults([
       {
         runId: "r",
@@ -91,6 +94,12 @@ describe("chaos results rendering", () => {
     );
     expect(seedRow({ controlRetries: 0, controlFailures: 0, botRequestErrors: 0 })).toBe(
       "| Seed 3 | 0/60; not completed: 5 failed, 0 bot patience, 55 deadline; harness: 0 control retries, 0 bot request errors |",
+    );
+  });
+
+  it("shows transport retries when the seed recorded them", () => {
+    expect(seedRow({ transportRetries: 7, controlRetries: 0, controlFailures: 0, botRequestErrors: 0 })).toBe(
+      "| Seed 3 | 0/60; not completed: 5 failed, 0 bot patience, 55 deadline; harness: 7 transport retries, 0 control retries, 0 bot request errors |",
     );
   });
 

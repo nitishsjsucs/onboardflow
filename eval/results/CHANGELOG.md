@@ -75,3 +75,32 @@ with its reason. Nothing here is tuned toward a target.
   schedule was not fully applied. Fault tables, seeds and policies are
   unchanged. Chaos was then re-run in full on the same 5 seeds; the first
   run stays committed and is cited next to the results.
+- Second chaos run (`2026-10-09T00-43-47-708Z-chaos.json`, git 3b3ed1a):
+  seeds 1 to 5 completed 57, 49, 22, 27 and 55 of 60 (mean 0.70). No control
+  action failed (4 control retries), but seeds 3 and 4 recorded 74 and 174
+  bot request errors: the same plain-text 500s, now on employees' task
+  completions and managers' decisions. The server log names the cause:
+  under load, wrangler dev's ProxyWorker drops its connection to the Worker;
+  it retries a GET itself ("recovered on attempt 2 after a dropped
+  connection to the UserWorker") and fails a POST, since it cannot know the
+  request is idempotent. The workerd processes did not restart, and seed 3's
+  D1 held no stuck idempotency claim (899 complete, 0 pending). A lost task
+  completion was redone by the employee bot on a later tick, but a lost
+  manager decision was not (the policy decides each approval once), so those
+  cases waited for the admin's overdue path or ran out of time. The drops
+  come from the local proxy, which production does not have, not from the
+  fault model; the machine was also shared with other repositories' test
+  suites (API latencies of 1.3 to 3 s in the server log). Fix
+  (`fix(eval): retry requests the local proxy drops, with the same
+  Idempotency-Key`): the harness HTTP layer retries a network error or a
+  5xx whose body is not JSON (the app's own errors are always JSON) with the
+  same Idempotency-Key for up to 75 s, plus a 409 `idempotency_in_progress`
+  that follows such a retry. This is the client behavior the API is built
+  for (SPEC 7.1 and 18: the key is reused on a retry of the same action).
+  Answers from the app are never retried. Every run now records how many
+  requests were retried and how many still failed, and the README shows
+  both. It applies to every mode; standard and scale were not re-recorded
+  because no request reached the harness as a transport failure in their
+  recorded runs (any such failure would have failed a scenario, and every
+  scenario passed), so the change cannot alter them. Chaos was run a third
+  time on the same 5 seeds.

@@ -196,6 +196,7 @@ async function main() {
       simulatedNow: SIMULATED_NOW,
       ...metrics,
       chaos: null,
+      harnessTransport: { ...h.transport },
       scenarios: results,
     };
     const out = join(ROOT, "eval/results");
@@ -264,6 +265,10 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
     simulatedNow: SIMULATED_NOW,
     ...metrics,
     chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures, harness }) => ({ seed, completed, cases, failures, harness }))),
+    harnessTransport: {
+      retries: outcomes.reduce((n, x) => n + x.harness.transportRetries, 0),
+      failures: outcomes.reduce((n, x) => n + x.harness.transportFailures, 0),
+    },
     scenarios: results,
   };
   const out = join(ROOT, "eval/results");

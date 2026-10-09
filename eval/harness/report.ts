@@ -49,8 +49,9 @@ export function renderResults(runs: EvalRun[]): string {
     if (r.chaos) {
       out.push(`| Completion per seed (mean, min, max) | ${pct(r.chaos.meanCompletion)}, ${pct(r.chaos.minCompletion)}, ${pct(r.chaos.maxCompletion)} |`);
       for (const s of r.chaos.perSeed) {
+        const transport = s.harness?.transportRetries !== undefined ? `${s.harness.transportRetries} transport retries, ` : "";
         const harness = s.harness
-          ? `; harness: ${s.harness.controlRetries} control retries, ${s.harness.botRequestErrors} bot request errors${s.harness.controlFailures > 0 ? `, **${s.harness.controlFailures} control actions failed (schedule not fully applied)**` : ""}`
+          ? `; harness: ${transport}${s.harness.controlRetries} control retries, ${s.harness.botRequestErrors} bot request errors${s.harness.controlFailures > 0 ? `, **${s.harness.controlFailures} control actions failed (schedule not fully applied)**` : ""}`
           : "";
         out.push(`| Seed ${s.seed} | ${s.completed}/${s.cases}; not completed: ${s.failures.case_failed} failed, ${s.failures.bot_patience} bot patience, ${s.failures.deadline} deadline${harness} |`);
       }
@@ -64,6 +65,9 @@ export function renderResults(runs: EvalRun[]): string {
       out.push(`| Follow-ups drafted by the LLM (schema-valid / attempted) | ${r.followups.created} created, ${pct(r.followups.llmSchemaValidRate)} valid, category agrees with the rules ${pct(r.followups.llmCategoryAgreement ?? 0)}, p50 ${r.followups.llmLatencyP50Ms} ms |`);
     }
     out.push(`| Duplicate side effects in the simulated systems | ${r.integration.duplicateSideEffects} |`);
+    if (r.harnessTransport) {
+      out.push(`| Harness requests retried after a dropped local proxy connection (still failed) | ${r.harnessTransport.retries} (${r.harnessTransport.failures}) |`);
+    }
     out.push(`| Audit coverage (regression check) | ${r.regression.audit.coverage} |`);
     out.push(`| Live hub equals D1 reconcile after the run | ${r.regression.hubConsistency.matchesReconcile ? "yes" : "no"} |`);
     out.push(`| Scenario time p50 / p95, wall time | ${(r.timing.scenarioP50Ms / 1000).toFixed(1)} s / ${(r.timing.scenarioP95Ms / 1000).toFixed(1)} s, ${(r.timing.totalMs / 1000).toFixed(0)} s |`);

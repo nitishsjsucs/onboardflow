@@ -24,7 +24,6 @@ export class ExpectationError extends Error {
 
 export type HttpResult<T = any> = { status: number; body: T; headers: Headers };
 
-/** Session and request plumbing shared by every scenario of a run. */
 /** The API always answers JSON; anything else (for example Miniflare's plain-text 500 when the Worker's fetch fails inside the runtime) is reported with its status. */
 export function parseBody<T>(method: string, path: string, status: number, text: string): T {
   if (!text) return null as T;
@@ -35,11 +34,41 @@ export function parseBody<T>(method: string, path: string, status: number, text:
   }
 }
 
+function isJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** How long a request keeps retrying a transport failure (covers the API idempotency store's 60 s in-progress window). */
+export const TRANSPORT_DEADLINE_MS = 75_000;
+
+/**
+ * Session and request plumbing shared by every scenario of a run.
+ *
+ * Transport retries: under load, wrangler dev's ProxyWorker drops its
+ * connection to the Worker. It retries a GET itself ("recovered on attempt 2
+ * after a dropped connection to the UserWorker") but answers a POST with a
+ * plain-text 500 ("Error: Network connection lost."), since it cannot know
+ * the request is idempotent. This API is: a client retries an action with
+ * the same Idempotency-Key (SPEC 7.1, 18) and gets the stored response or a
+ * fresh execution, never a second side effect. So a request that fails in
+ * transport (a network error, or a 5xx whose body is not JSON; the app's own
+ * errors are always JSON) is retried with the same key, as is a 409
+ * idempotency_in_progress that follows such a retry. Answers from the app
+ * are never retried. Every retry and every request that still failed is
+ * counted in `transport` and recorded with the run.
+ */
 export class Harness {
   readonly baseUrl: string;
   readonly dataset: Dataset;
   readonly #tokens = new Map<string, string>();
   readonly timeouts = { stepMs: 60_000, pollMs: 100 };
+  readonly transport = { retries: 0, failures: 0 };
+  transportDeadlineMs = TRANSPORT_DEADLINE_MS;
 
   constructor(baseUrl: string, dataset: Dataset) {
     this.baseUrl = baseUrl;
@@ -69,13 +98,13 @@ export class Harness {
   async token(email: string): Promise<string> {
     const hit = this.#tokens.get(email);
     if (hit) return hit;
-    const res = await fetch(`${this.baseUrl}/dev/login`, {
+    const { status, text } = await this.#send("POST", "/dev/login", {
       method: "POST",
       headers: { Origin: this.baseUrl, "X-OnboardFlow": "1", "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-    if (!res.ok) throw new Error(`dev login failed for ${email}: ${res.status} ${await res.text()}`);
-    const { token } = (await res.json()) as { token: string };
+    if (status !== 200) throw new Error(`dev login failed for ${email}: ${status} ${text}`);
+    const { token } = JSON.parse(text) as { token: string };
     this.#tokens.set(email, token);
     return token;
   }
@@ -88,9 +117,34 @@ export class Harness {
       headers["Idempotency-Key"] = key ?? randomUUID();
     }
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const res = await fetch(`${this.baseUrl}${path}`, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
-    const text = await res.text();
-    return { status: res.status, body: parseBody<T>(method, path, res.status, text), headers: res.headers };
+    const res = await this.#send(method, path, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+    return { status: res.status, body: parseBody<T>(method, path, res.status, res.text), headers: res.headers };
+  }
+
+  /** One request with transport retries (see the class comment). The init, and so the Idempotency-Key, is the same on every attempt. */
+  async #send(method: string, path: string, init: RequestInit): Promise<{ status: number; text: string; headers: Headers }> {
+    const end = Date.now() + this.transportDeadlineMs;
+    for (let attempt = 0; ; attempt++) {
+      if (attempt > 0) {
+        this.transport.retries++;
+        await new Promise((r) => setTimeout(r, Math.min(250 * 2 ** (attempt - 1), 4_000)));
+      }
+      let res: Response;
+      let text: string;
+      try {
+        res = await fetch(`${this.baseUrl}${path}`, init);
+        text = await res.text();
+      } catch (err) {
+        if (Date.now() < end) continue;
+        this.transport.failures++;
+        throw new Error(`${method} ${path}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      const dropped = res.status >= 500 && text !== "" && !isJson(text);
+      const inProgress = attempt > 0 && res.status === 409 && isJson(text) && (JSON.parse(text) as { error?: { code?: string } }).error?.code === "idempotency_in_progress";
+      if ((dropped || inProgress) && Date.now() < end) continue;
+      if (dropped || inProgress) this.transport.failures++;
+      return { status: res.status, text, headers: res.headers };
+    }
   }
 
   async admin<T = any>(method: string, path: string, body?: unknown): Promise<HttpResult<T>> {

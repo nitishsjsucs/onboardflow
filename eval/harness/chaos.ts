@@ -38,7 +38,7 @@ export type ChaosFailure = "bot_patience" | "deadline" | "case_failed";
  * that failed in transport (the bot tries again on a later tick if its
  * policy allows).
  */
-export type HarnessHealth = { controlRetries: number; controlFailures: number; botRequestErrors: number };
+export type HarnessHealth = { controlRetries: number; controlFailures: number; botRequestErrors: number; transportRetries: number; transportFailures: number };
 export type SeedOutcome = {
   seed: number;
   completed: number;
@@ -154,7 +154,7 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
     const h = new Harness(server.baseUrl, dataset);
     const admin = h.emailFor("admin", "");
     const coordinators = { people_ops: h.emailFor("people_ops", ""), it: h.emailFor("it", ""), facilities: h.emailFor("facilities", "") } as const;
-    const health: HarnessHealth = { controlRetries: 0, controlFailures: 0, botRequestErrors: 0 };
+    const health: HarnessHealth = { controlRetries: 0, controlFailures: 0, botRequestErrors: 0, transportRetries: 0, transportFailures: 0 };
     const ctl = (method: string, path: string, body?: unknown) => control(h, admin, health, method, path, body);
     /** A persona request block; a transport error skips it for this tick and is counted. */
     const bot = async (what: string, fn: () => Promise<void>): Promise<void> => {
@@ -447,9 +447,11 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
       });
     }
     const hub = await hubConsistency(h);
+    health.transportRetries = h.transport.retries;
+    health.transportFailures = h.transport.failures;
     console.log(
       `chaos seed ${seed}: ${completed}/60 completed (bot_patience ${failures.bot_patience}, deadline ${failures.deadline}, case_failed ${failures.case_failed}), hub consistent ${hub.matchesReconcile}; ` +
-        `harness: ${health.controlRetries} control retries, ${health.controlFailures} control failures, ${health.botRequestErrors} bot request errors`,
+        `harness: ${health.transportRetries} transport retries (${health.transportFailures} still failed), ${health.controlRetries} control retries, ${health.controlFailures} control failures, ${health.botRequestErrors} bot request errors`,
     );
     if (health.controlFailures > 0) console.warn(`chaos seed ${seed}: the committed schedule was not fully applied (${health.controlFailures} control actions failed); this seed is flagged in the results`);
     return { seed, completed, cases: SCENARIOS.length, failures, harness: health, results, hub };

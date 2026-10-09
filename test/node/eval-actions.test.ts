@@ -66,3 +66,53 @@ describe("response bodies", () => {
     );
   });
 });
+
+describe("transport retries", () => {
+  function server(replies: Array<{ status: number; body: string } | "network">) {
+    const seen: Array<{ path: string; key: string | null }> = [];
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/dev/login") return new Response(JSON.stringify({ token: "t" }), { status: 200 });
+      seen.push({ path: url.pathname, key: new Headers(init?.headers).get("Idempotency-Key") });
+      const next = replies.shift() ?? { status: 200, body: "{}" };
+      if (next === "network") throw new TypeError("fetch failed");
+      return new Response(next.body, { status: next.status });
+    }) as typeof fetch;
+    return { seen, h: new Harness("http://fake.test", generateDataset()) };
+  }
+  const dropped = { status: 500, body: "Error: Network connection lost.\n    at entry.worker.js" };
+
+  it("retries a dropped connection and a network error with the same Idempotency-Key, and counts them", async () => {
+    const { seen, h } = server([dropped, "network", { status: 200, body: '{"ok":true}' }]);
+    const r = await h.request("e@x", "POST", "/api/tasks/t1/complete", {});
+    expect(r).toMatchObject({ status: 200, body: { ok: true } });
+    expect(seen).toHaveLength(3);
+    expect(new Set(seen.map((x) => x.key)).size).toBe(1);
+    expect(h.transport).toEqual({ retries: 2, failures: 0 });
+  });
+
+  it("retries idempotency_in_progress only after a transport retry", async () => {
+    const inProgress = { status: 409, body: JSON.stringify({ error: { code: "idempotency_in_progress", message: "x" } }) };
+    const first = server([dropped, inProgress, { status: 200, body: "{}" }]);
+    expect((await first.h.request("e@x", "POST", "/api/x", {})).status).toBe(200);
+    expect(first.h.transport.retries).toBe(2);
+    const direct = server([inProgress]);
+    expect((await direct.h.request("e@x", "POST", "/api/x", {})).status).toBe(409);
+    expect(direct.h.transport.retries).toBe(0);
+  });
+
+  it("never retries an answer from the app, including its own JSON 500", async () => {
+    const { seen, h } = server([{ status: 500, body: JSON.stringify({ error: { code: "internal_error", message: "boom" } }) }]);
+    const r = await h.request("e@x", "POST", "/api/x", {});
+    expect(r.status).toBe(500);
+    expect(seen).toHaveLength(1);
+    expect(h.transport).toEqual({ retries: 0, failures: 0 });
+  });
+
+  it("gives up at its deadline, counts the failure and reports the body", async () => {
+    const { h } = server([dropped, dropped, dropped]);
+    h.transportDeadlineMs = 100;
+    await expect(h.request("e@x", "POST", "/api/x", {})).rejects.toThrow("HTTP 500 with a non-JSON body: Error: Network connection lost.");
+    expect(h.transport.failures).toBe(1);
+  });
+});
