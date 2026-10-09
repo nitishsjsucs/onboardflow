@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { secretMatches } from "../../src/worker/sims/pipeline.ts";
 import { ledger, sim, simJson, workerAndAccount, workerBody } from "../helpers/sims.ts";
 
 describe("simulated systems: auth", () => {
@@ -6,6 +7,14 @@ describe("simulated systems: auth", () => {
     expect((await sim("/hr/v1/workers", { body: workerBody("S001"), key: "k1", apiKey: null })).status).toBe(401);
     expect((await sim("/hr/v1/workers", { body: workerBody("S001"), key: "k1", apiKey: "wrong" })).status).toBe(401);
     expect((await ledger({ employeeRef: "S001" })).length).toBe(0);
+  });
+
+  it("compares the key by digest: only the exact key matches", async () => {
+    expect(await secretMatches("test-sim-key", "test-sim-key")).toBe(true);
+    for (const presented of ["test-sim-ke", "test-sim-key ", "TEST-SIM-KEY", "", null, undefined]) {
+      expect(await secretMatches(presented, "test-sim-key"), String(presented)).toBe(false);
+    }
+    expect(await secretMatches("", "")).toBe(false);
   });
 
   it("rejects malformed request bodies with 400 and no side effect", async () => {

@@ -9,7 +9,7 @@ import { FACILITIES_OPS } from "./facilities.ts";
 import { clearFaultPlans, d1Faults, insertFaultPlan } from "./faults.ts";
 import { HR_OPS } from "./hr.ts";
 import { IT_OPS } from "./it.ts";
-import { type AnyOp, type FaultHooks, runGet, runPost, SIM_KEY_HEADER } from "./pipeline.ts";
+import { type AnyOp, type FaultHooks, runGet, runPost, SIM_KEY_HEADER, secretMatches } from "./pipeline.ts";
 
 export const SIM_OPS: AnyOp[] = [...HR_OPS, ...IT_OPS, ...FACILITIES_OPS];
 
@@ -20,7 +20,7 @@ export function simApp(faults: FaultHooks = d1Faults) {
   sim.use("/admin/*", async (c, next) => {
     const cfg = c.get("config");
     if (cfg.authMode !== "dev" || !cfg.evalHooks) return c.json({ error: { code: "not_found", message: "not found" } }, 404);
-    if (c.req.header(SIM_KEY_HEADER) !== cfg.simApiKey) return c.json({ error: { code: "unauthorized", message: "bad sim key" } }, 401);
+    if (!(await secretMatches(c.req.header(SIM_KEY_HEADER), cfg.simApiKey))) return c.json({ error: { code: "unauthorized", message: "bad sim key" } }, 401);
     return next();
   });
   sim.post("/admin/faults", async (c) => {

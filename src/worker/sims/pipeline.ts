@@ -104,14 +104,24 @@ function ctxFor(c: Context<AppEnv>, op: AnyOp): SimCtx {
   };
 }
 
-function authorized(c: Context<AppEnv>): boolean {
-  const key = c.req.header(SIM_KEY_HEADER);
-  return typeof key === "string" && key.length > 0 && key === c.get("config").simApiKey;
+/**
+ * Compares a presented secret with the expected one in constant time: both are hashed to 32 bytes
+ * first, so neither the content nor the length of the expected key leaks through timing.
+ */
+export async function secretMatches(presented: string | undefined | null, expected: string): Promise<boolean> {
+  if (typeof presented !== "string" || presented.length === 0 || expected.length === 0) return false;
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([crypto.subtle.digest("SHA-256", enc.encode(presented)), crypto.subtle.digest("SHA-256", enc.encode(expected))]);
+  return crypto.subtle.timingSafeEqual(a, b);
+}
+
+function authorized(c: Context<AppEnv>): Promise<boolean> {
+  return secretMatches(c.req.header(SIM_KEY_HEADER), c.get("config").simApiKey);
 }
 
 export async function runPost<B>(c: Context<AppEnv>, op: PostOp<B>, faults: FaultHooks): Promise<Response> {
   // 1. auth
-  if (!authorized(c)) return reply(c, simError(401, "unauthorized", `${SIM_KEY_HEADER} missing or wrong`));
+  if (!(await authorized(c))) return reply(c, simError(401, "unauthorized", `${SIM_KEY_HEADER} missing or wrong`));
   const ctx = ctxFor(c, op);
   const keysOn = ctx.config.idempotencyKeys;
 
@@ -183,7 +193,7 @@ export async function runPost<B>(c: Context<AppEnv>, op: PostOp<B>, faults: Faul
 }
 
 export async function runGet(c: Context<AppEnv>, op: GetOp, faults: FaultHooks): Promise<Response> {
-  if (!authorized(c)) return reply(c, simError(401, "unauthorized", `${SIM_KEY_HEADER} missing or wrong`));
+  if (!(await authorized(c))) return reply(c, simError(401, "unauthorized", `${SIM_KEY_HEADER} missing or wrong`));
   const ctx = ctxFor(c, op);
   let row = await loadResource(ctx.db, op.system, ctx.params.id ?? "");
   if (!row || !op.resourceTypes.includes(row.resource_type)) return reply(c, simError(404, "not_found", "unknown resource"));
