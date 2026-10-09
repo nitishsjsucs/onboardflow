@@ -336,3 +336,9 @@ with its reason. Nothing here is tuned toward a target.
   result, because it had started from a tree holding this run's
   uncommitted result files (its provenance would have said "uncommitted
   changes"); it was re-run after this commit.
+- Scale mode after the second review round (`npm run eval:scale`, git
+  7a61947, clean tree, built from that commit with `dist/` unchanged, 2026-10-09
+  12:28 PDT, AC power): 150/150 completed and passed, 2850 integration
+  calls, 0 retried, 0 duplicate side effects, audit coverage 1, hub
+  consistent, 0 transport retries, no host stall, 98 s. The earlier scale
+  runs (git f5c8cfb) predate both review rounds.
