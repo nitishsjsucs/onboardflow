@@ -77,6 +77,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 4. Before any eval: `npm run build` (dev build). Use only port 8781 / inspector 9231 on this machine; the harness defaults to them and kills its process group at the end. Other repositories run their own test suites on this Mac at the same time; expect load.
 5. Never edit scenarios, fault tables or bot policies toward a target; log any harness change in `eval/results/CHANGELOG.md`.
 6. Deployment (README "Deploy") needs a Cloudflare account and is the user's step; nothing has been deployed or pushed.
+7. Before any push: on 2026-10-08 `git ls-remote origin` showed a `main` branch at c04aeb7, which is not in this repository's history (the repo was meant to be empty, and no push was made from here). It was not fetched or inspected; whoever pushes must decide what to do with it rather than force-push blindly.
 
 ## Deviations from SPEC.md
 
