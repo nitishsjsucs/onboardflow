@@ -1,7 +1,7 @@
 {
   "runId": "2026-10-08T23-03-10-917Z-scale",
   "startedAt": "2026-10-08T23:03:14.652Z",
-  "gitSha": "1a1887303687048011472e6da8d1853af47bc483",
+  "gitSha": "04ac9411b3686493afd48cb5b27f1a5fb360e2a9",
   "mode": "scale",
   "llmProvider": "stub",
   "seeds": [],

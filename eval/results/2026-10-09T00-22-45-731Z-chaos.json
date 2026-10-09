@@ -1,7 +1,7 @@
 {
   "runId": "2026-10-09T00-22-45-731Z-chaos",
   "startedAt": "2026-10-09T00:22:45.731Z",
-  "gitSha": "2ed49fec315ebf85ded77c3f0574aaf0278f9bcd",
+  "gitSha": "6f9a11d28c6c22086fe0c92e63838c9dc505221c",
   "mode": "chaos",
   "llmProvider": "stub",
   "seeds": [

@@ -1,7 +1,7 @@
 {
   "runId": "2026-10-09T01-34-56-328Z-ablation-idempotency",
   "startedAt": "2026-10-09T01:35:02.636Z",
-  "gitSha": "ab9c3e700008e742235a77f1dda837d8ab64ccc8",
+  "gitSha": "5e2635b356374d386aa338368e9fcf839982038c",
   "mode": "ablation-idempotency",
   "llmProvider": "stub",
   "seeds": [],

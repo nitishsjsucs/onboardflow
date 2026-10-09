@@ -38,9 +38,9 @@ with its reason. Nothing here is tuned toward a target.
 
 ## 2026-10-08, Tier 2 recording round (file names carry UTC times, 2026-10-09)
 
-- Standard and scale were re-recorded after the retry backoff fix (e7c0f3e)
-  at git 6dbf935. Standard: `2026-10-09T00-14-18-955Z-standard.json`.
-- Scale ran twice at 6dbf935, both files committed. The first run
+- Standard and scale were re-recorded after the retry backoff fix (4cc5d2d)
+  at git f5c8cfb. Standard: `2026-10-09T00-14-18-955Z-standard.json`.
+- Scale ran twice at f5c8cfb, both files committed. The first run
   (`2026-10-09T00-15-13-395Z-scale.json`) completed 148/150: two harness
   requests got an HTTP 500 whose plain-text body was Miniflare's
   `Error: Network connection lost.` (the entry worker returns `e.stack` when
@@ -54,7 +54,7 @@ with its reason. Nothing here is tuned toward a target.
   now names the request, status and body of such a response
   (`fix(eval): report non-JSON responses ...`); outcomes are unchanged.
 - First recorded chaos run (`2026-10-09T00-22-45-731Z-chaos.json`, git
-  2ed49fe): seeds 1 to 5 completed 59, 57, 0, 58 and 56 of 60. Seed 3 is a
+  6f9a11d): seeds 1 to 5 completed 59, 57, 0, 58 and 56 of 60. Seed 3 is a
   harness failure, not a measurement: a burst of the same runtime 500s hit
   the orchestrator's `DELETE /api/dev/faults?ids=173,174`, which was meant to
   end a 10 to 60 s Facilities outage window. The orchestrator did not retry
@@ -75,7 +75,7 @@ with its reason. Nothing here is tuned toward a target.
   schedule was not fully applied. Fault tables, seeds and policies are
   unchanged. Chaos was then re-run in full on the same 5 seeds; the first
   run stays committed and is cited next to the results.
-- Second chaos run (`2026-10-09T00-43-47-708Z-chaos.json`, git 3b3ed1a):
+- Second chaos run (`2026-10-09T00-43-47-708Z-chaos.json`, git a510536):
   seeds 1 to 5 completed 57, 49, 22, 27 and 55 of 60 (mean 0.70). No control
   action failed (4 control retries), but seeds 3 and 4 recorded 74 and 174
   bot request errors: the same plain-text 500s, now on employees' task
@@ -104,7 +104,7 @@ with its reason. Nothing here is tuned toward a target.
   recorded runs (any such failure would have failed a scenario, and every
   scenario passed), so the change cannot alter them. Chaos was run a third
   time on the same 5 seeds.
-- Third chaos run (`2026-10-09T01-03-54-407Z-chaos.json`, git ab9c3e7):
+- Third chaos run (`2026-10-09T01-03-54-407Z-chaos.json`, git 5e2635b):
   seeds 1 to 5 completed 59, 51, 60, 58 and 52 of 60 (mean 0.933, min
   0.85, max 1.0), with 33 transport retries (none still failed), no control
   failure, 0 duplicate side effects, a consistent hub, and every miss a
@@ -114,7 +114,7 @@ with its reason. Nothing here is tuned toward a target.
   a 180 s deadline, which only a host stall explains, so its 8 deadline
   misses are not a reliable measurement. Seeds 1 to 4 ended before the sleep
   (no case over 181 s) and completed 228 of 240.
-- Ablations (git ab9c3e7) ran while the machine slept between brief wakes.
+- Ablations (git 5e2635b) ran while the machine slept between brief wakes.
   Idempotency-Key handling off
   (`2026-10-09T01-34-56-328Z-ablation-idempotency.json`): 59/60 completed,
   50/60 passed, 27 duplicate side effects in the simulated systems against
@@ -146,7 +146,7 @@ with its reason. Nothing here is tuned toward a target.
   local-LLM run of the same mode, so the CI regression gate stays first.
   Rendering only (`fix(eval): list the stub standard run before the
   local-LLM run in the README`); no recorded number changed.
-- Local-LLM run (`2026-10-09T03-09-57-525Z-standard.json`, git 8a849de,
+- Local-LLM run (`2026-10-09T03-09-57-525Z-standard.json`, git 697c8fc,
   `npm run eval:llama`), started 20:09 PDT with the lid open on battery,
   Low Power Mode off, no host stall and no transport retry. llama-server ran
   Qwen3-1.7B Q4_0 on port 8110 (`-np 1 -c 8192 -ngl 99 --jinja`) and was
@@ -160,7 +160,7 @@ with its reason. Nothing here is tuned toward a target.
   does not record draft text, so wording quality is not measured.
 - Nothing in the catalog, fault tables, prompt or harness behavior changed
   for this run.
-- Both ablations re-run at git d9ed36d (`npm run eval:ablate`, started
+- Both ablations re-run at git e082bc2 (`npm run eval:ablate`, started
   20:14 PDT, lid open, on battery, Low Power Mode off) because the first
   runs overlapped a system sleep. Neither recorded a host stall or a
   transport retry. Nothing in the catalog, fault tables or harness behavior
@@ -176,7 +176,7 @@ with its reason. Nothing here is tuned toward a target.
   - Step retries off (`2026-10-09T03-15-37-722Z-ablation-retries.json`):
     44/60 completed, 43/60 passed, 0 duplicates, 205 s, the same counts
     and integration calls (1017, 25 retried) as the first run.
-- Fourth chaos run (`2026-10-09T03-22-57-148Z-chaos.json`, git f442532,
+- Fourth chaos run (`2026-10-09T03-22-57-148Z-chaos.json`, git c04aeb7,
   `npm run eval:chaos`, started 20:22 PDT, lid open, on battery from 24% to
   15%, Low Power Mode off, other repositories' builds running). Between the
   third and fourth runs only the stall detector and README rendering
@@ -245,7 +245,7 @@ with its reason. Nothing here is tuned toward a target.
   recorded run shows a case left `not_started`, so recorded numbers do not
   change.
 - Standard mode re-run after the review fixes (`npm run eval:ci`, git
-  395d60e, clean tree, on AC power): 60/60 completed, 60/60 passed, 0
+  2760116, clean tree, on AC power): 60/60 completed, 60/60 passed, 0
   duplicate side effects, audit coverage 1, hub consistent, no host stall,
   CI gate passed. It is the first run that records its command. The fixes
   touched restart replays, the workspace preference replay, the license

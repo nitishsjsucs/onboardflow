@@ -1,7 +1,7 @@
 {
   "runId": "2026-10-09T02-42-19-526Z-ablation-retries",
   "startedAt": "2026-10-09T02:42:25.733Z",
-  "gitSha": "ab9c3e700008e742235a77f1dda837d8ab64ccc8",
+  "gitSha": "5e2635b356374d386aa338368e9fcf839982038c",
   "mode": "ablation-retries",
   "llmProvider": "stub",
   "seeds": [],

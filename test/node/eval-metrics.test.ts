@@ -183,15 +183,15 @@ describe("run invocation in the README", () => {
 
   it("says when the command is inferred, for runs that predate recorded commands", () => {
     expect(describeInvocation(base, "2026-10-09")).toBe(
-      "Command `npm run eval:chaos` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git f442532, read when the run ended)",
+      "Command `npm run eval:chaos` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git c04aeb7, read when the run ended)",
     );
   });
 
   it("renders the recorded command, the commit at start and the tree state", () => {
     const provenance = { npmScript: "eval:scale", argv: ["--mode", "scale", "--llm", "stub", "--keep"], headAtStart: "6dbf935bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", cleanTreeAtStart: true };
     expect(describeInvocation({ ...base, mode: "scale", provenance }, "2026-10-09")).toBe(
-      "Command `node eval/harness/run.ts --mode scale --llm stub --keep` (via `npm run eval:scale`), run 2026-10-09 (git 6dbf935 at start, clean tree)",
+      "Command `node eval/harness/run.ts --mode scale --llm stub --keep` (via `npm run eval:scale`), run 2026-10-09 (git f5c8cfb at start, clean tree)",
     );
-    expect(describeInvocation({ ...base, provenance: { ...provenance, npmScript: null, cleanTreeAtStart: false } }, "2026-10-09")).toContain("(git 6dbf935 at start, **uncommitted changes in the tree**)");
+    expect(describeInvocation({ ...base, provenance: { ...provenance, npmScript: null, cleanTreeAtStart: false } }, "2026-10-09")).toContain("(git f5c8cfb at start, **uncommitted changes in the tree**)");
   });
 });

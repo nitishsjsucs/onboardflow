@@ -1,7 +1,7 @@
 {
   "runId": "2026-10-09T04-29-22-584Z-standard",
   "startedAt": "2026-10-09T04:29:25.825Z",
-  "gitSha": "395d60e5c39adaf7e7ae2bae6d7d5a2ea964f387",
+  "gitSha": "27601166dfdf8b688d727a6cda4d4fb1ee562ddf",
   "mode": "standard",
   "llmProvider": "stub",
   "seeds": [],
@@ -132,7 +132,7 @@
       "--gate",
       "ci"
     ],
-    "headAtStart": "395d60e5c39adaf7e7ae2bae6d7d5a2ea964f387",
+    "headAtStart": "27601166dfdf8b688d727a6cda4d4fb1ee562ddf",
     "cleanTreeAtStart": true
   },
   "scenarios": [
