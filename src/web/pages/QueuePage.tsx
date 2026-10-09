@@ -11,13 +11,13 @@ import { TaskList } from "../components/TaskList.tsx";
 const FIXABLE = ["costCenter", "licenseBundle", "photoOnFile"] as const;
 type Fixable = (typeof FIXABLE)[number];
 
-function FieldFix({ blocker, onFix }: { blocker: BlockerView; onFix: (field: Fixable, value: string | boolean) => void }) {
+function FieldFix({ blocker, busy, onFix }: { blocker: BlockerView; busy: boolean; onFix: (field: Fixable, value: string | boolean) => void }) {
   const field = blocker.detail.field as Fixable | undefined;
   const [value, setValue] = useState("");
   if (!field || !(FIXABLE as readonly string[]).includes(field)) return null;
   if (field === "photoOnFile") {
     return (
-      <button type="button" onClick={() => onFix(field, true)}>
+      <button type="button" disabled={busy} onClick={() => onFix(field, true)}>
         Mark photo on file
       </button>
     );
@@ -25,7 +25,7 @@ function FieldFix({ blocker, onFix }: { blocker: BlockerView; onFix: (field: Fix
   return (
     <span className="row">
       <input aria-label={`new ${field}`} placeholder={field === "costCenter" ? "CC-1234" : "ft-standard"} value={value} onChange={(e) => setValue(e.target.value)} />
-      <button type="button" disabled={!value} onClick={() => onFix(field, value)}>
+      <button type="button" disabled={!value || busy} onClick={() => onFix(field, value)}>
         Fix {label(field)}
       </button>
     </span>
@@ -57,15 +57,15 @@ export function QueuePage() {
           actions={(b) => (
             <>
               {can.fixField(me, (b.detail.field as Fixable) ?? "costCenter") && b.kind === "data_issue" ? (
-                <FieldFix blocker={b} onFix={(field, value) => fix.mutate({ employeeId: b.employeeId, field, value })} />
+                <FieldFix blocker={b} busy={fix.isPending} onFix={(field, value) => fix.mutate({ employeeId: b.employeeId, field, value })} />
               ) : null}
               {can.retry(me, b.ownerDepartment) && b.kind !== "approval_overdue" && b.kind !== "employee_task_overdue" && b.kind !== "approval_rejected" ? (
-                <button type="button" className="primary" onClick={() => retry.mutate({ employeeId: b.employeeId, stageId: b.stageId })}>
+                <button type="button" className="primary" disabled={retry.isPending} onClick={() => retry.mutate({ employeeId: b.employeeId, stageId: b.stageId })}>
                   Retry stage
                 </button>
               ) : null}
               {can.workDepartment(me, b.ownerDepartment) ? (
-                <button type="button" onClick={() => resolve.mutate({ blockerId: b.id, resolution: "resolved from the queue" })}>
+                <button type="button" disabled={resolve.isPending} onClick={() => resolve.mutate({ blockerId: b.id, resolution: "resolved from the queue" })}>
                   Resolve
                 </button>
               ) : null}
@@ -75,7 +75,7 @@ export function QueuePage() {
       </section>
       <section className="card" aria-label="follow-ups">
         <h2>Follow-ups</h2>
-        <TaskList tasks={followups.data?.items ?? []} onComplete={(t) => done.mutate({ taskId: t.id })} />
+        <TaskList tasks={followups.data?.items ?? []} onComplete={(t) => done.mutate({ taskId: t.id })} busyId={done.isPending ? (done.variables?.taskId ?? null) : null} />
       </section>
       {errors.map((e, i) => (
         <p key={i} className="error">

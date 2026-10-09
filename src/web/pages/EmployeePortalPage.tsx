@@ -1,9 +1,7 @@
 // The employee's own onboarding: stage stepper, progress, what is next,
 // checklist grouped by stage, and blockers that affect them.
-import { useState } from "react";
 import type { ChecklistDto, TaskView } from "../../shared/api.ts";
 import { STAGES } from "../../shared/stages.ts";
-import { newIdempotencyKey } from "../api/client.ts";
 import { useChecklist, useCompleteTask } from "../api/queries.ts";
 import { useSession } from "../auth/session.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
@@ -33,7 +31,6 @@ export function EmployeePortalPage() {
   const { me } = useSession();
   const q = useChecklist(!!me?.employeeId);
   const complete = useCompleteTask();
-  const [keys] = useState(() => new Map<string, string>());
 
   if (!me?.employeeId) return <EmptyState>This page is for employees.</EmptyState>;
   if (q.isLoading) return <p className="muted">Loading your onboarding...</p>;
@@ -41,11 +38,8 @@ export function EmployeePortalPage() {
   const data = q.data;
   const done = data.stages.filter((s) => s.status === "complete").length;
 
-  const onComplete = (t: TaskView) => {
-    // one Idempotency-Key per task click, reused if the same action is retried
-    if (!keys.has(t.id)) keys.set(t.id, newIdempotencyKey());
-    complete.mutate({ taskId: t.id, key: keys.get(t.id) as string });
-  };
+  // one Idempotency-Key per task, reused if the same completion is retried (api/action-keys.ts)
+  const onComplete = (t: TaskView) => complete.mutate({ taskId: t.id });
 
   return (
     <>

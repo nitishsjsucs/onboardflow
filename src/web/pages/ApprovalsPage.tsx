@@ -1,8 +1,6 @@
 // Approvals: pending checkpoint cards for the approver (manager, People Ops,
 // admin on behalf), plus rejected requests People Ops can revise and resubmit.
-import { useState } from "react";
 import type { ApprovalView } from "../../shared/api.ts";
-import { newIdempotencyKey } from "../api/client.ts";
 import { useApprovals, useDecide, useResubmit } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
 import { ApprovalCard } from "../components/ApprovalCard.tsx";
@@ -15,11 +13,6 @@ export function ApprovalsPage() {
   const rejected = useApprovals("rejected", showRejected);
   const decide = useDecide();
   const resubmit = useResubmit();
-  const [actionKeys] = useState(() => new Map<string, string>());
-  const keyFor = (id: string) => {
-    if (!actionKeys.has(id)) actionKeys.set(id, newIdempotencyKey());
-    return actionKeys.get(id) as string;
-  };
   const canDecide = (a: ApprovalView) =>
     !!me &&
     (me.role === "admin" ||
@@ -44,14 +37,14 @@ export function ApprovalsPage() {
           canDecide={canDecide(a)}
           canResubmit={false}
           busy={decide.isPending}
-          onDecide={(d) => decide.mutate({ approvalId: a.id, ...d, key: keyFor(`${a.id}:${d.decision}`) })}
+          onDecide={(d) => decide.mutate({ approvalId: a.id, ...d })}
         />
       ))}
       {showRejected && toResubmit.length > 0 ? (
         <>
           <h2 style={{ marginTop: 24 }}>Revision requested</h2>
           {toResubmit.map((a) => (
-            <ApprovalCard key={a.id} approval={a} canDecide={false} canResubmit busy={resubmit.isPending} onResubmit={(note) => resubmit.mutate({ approvalId: a.id, note, key: keyFor(`${a.id}:resubmit`) })} />
+            <ApprovalCard key={a.id} approval={a} canDecide={false} canResubmit busy={resubmit.isPending} onResubmit={(note) => resubmit.mutate({ approvalId: a.id, note })} />
           ))}
         </>
       ) : null}

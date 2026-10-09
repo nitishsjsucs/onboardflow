@@ -1,5 +1,6 @@
 // TanStack Query hooks over the API. Live agent state invalidates these keys.
-import { apiFetch, newIdempotencyKey } from "./client.ts";
+import { actionId, actionKeys } from "./action-keys.ts";
+import { apiFetch } from "./client.ts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, TaskView } from "../../shared/api.ts";
 import type { HubState } from "../../shared/agent-state.ts";
@@ -24,12 +25,13 @@ export function useChecklist(enabled = true) {
   return useQuery({ queryKey: keys.checklist, queryFn: () => apiFetch<ChecklistDto>("/api/me/checklist"), enabled });
 }
 
-/** Completes a task with one Idempotency-Key per click, and updates the checklist optimistically. */
+/** Completes a task with one Idempotency-Key per action (reused on a retry, see action-keys.ts), and updates the checklist optimistically. */
 export function useCompleteTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { taskId: string; key?: string }) =>
-      apiFetch<TaskView>(`/api/tasks/${encodeURIComponent(v.taskId)}/complete`, { method: "POST", body: {}, idempotencyKey: v.key ?? newIdempotencyKey() }),
+    mutationFn: (v: { taskId: string }) =>
+      apiFetch<TaskView>(`/api/tasks/${encodeURIComponent(v.taskId)}/complete`, { method: "POST", body: {}, idempotencyKey: actionKeys.keyFor(actionId("completeTask", v)) }),
+    onSuccess: (_d, v) => actionKeys.settle(actionId("completeTask", v), null),
     onMutate: async (v) => {
       await qc.cancelQueries({ queryKey: keys.checklist });
       const previous = qc.getQueryData<ChecklistDto>(keys.checklist);
@@ -41,7 +43,8 @@ export function useCompleteTask() {
       }
       return { previous };
     },
-    onError: (_e, _v, ctx) => {
+    onError: (e, v, ctx) => {
+      actionKeys.settle(actionId("completeTask", v), e);
       if (ctx?.previous) qc.setQueryData(keys.checklist, ctx.previous);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: keys.checklist }),
@@ -56,16 +59,23 @@ export function useApprovals(status: "pending" | "rejected" | "all" = "pending",
   return useQuery({ queryKey: keys.approvals(status), queryFn: () => apiFetch<Page<ApprovalView>>(`/api/approvals?status=${status}&limit=100`), enabled });
 }
 
-function useAction<V>(fn: (v: V & { key: string }) => Promise<unknown>, invalidate: ReadonlyArray<readonly unknown[]>) {
+/**
+ * A mutation whose Idempotency-Key belongs to the user action (name + input), not to the click:
+ * a retry after an unknown outcome reuses it, a final answer forgets it (action-keys.ts).
+ */
+function useAction<V extends object>(name: string, fn: (v: V & { key: string }) => Promise<unknown>, invalidate: ReadonlyArray<readonly unknown[]>) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: V & { key?: string }) => fn({ ...v, key: v.key ?? newIdempotencyKey() } as V & { key: string }),
+    mutationFn: (v: V) => fn({ ...v, key: actionKeys.keyFor(actionId(name, v)) }),
+    onSuccess: (_d, v) => actionKeys.settle(actionId(name, v), null),
+    onError: (e, v) => actionKeys.settle(actionId(name, v), e),
     onSettled: () => Promise.all(invalidate.map((k) => qc.invalidateQueries({ queryKey: k }))),
   });
 }
 
 export function useDecide() {
   return useAction<{ approvalId: string; decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }>(
+    "decide",
     (v) =>
       apiFetch<ApprovalView>(`/api/approvals/${encodeURIComponent(v.approvalId)}/decision`, {
         method: "POST",
@@ -78,6 +88,7 @@ export function useDecide() {
 
 export function useResubmit() {
   return useAction<{ approvalId: string; note: string }>(
+    "resubmit",
     (v) => apiFetch(`/api/approvals/${encodeURIComponent(v.approvalId)}/resubmit`, { method: "POST", body: { note: v.note }, idempotencyKey: v.key }),
     [["approvals"], ["case"]],
   );
@@ -93,6 +104,7 @@ export function useFollowups() {
 
 export function useRetryStage() {
   return useAction<{ employeeId: string; stageId: string; note?: string }>(
+    "retryStage",
     (v) => apiFetch(`/api/cases/${v.employeeId}/stages/${v.stageId}/retry`, { method: "POST", body: v.note ? { note: v.note } : {}, idempotencyKey: v.key }),
     [keys.blockers, keys.followups, ["case"]],
   );
@@ -100,6 +112,7 @@ export function useRetryStage() {
 
 export function useResolveBlocker() {
   return useAction<{ blockerId: string; resolution: string }>(
+    "resolveBlocker",
     (v) => apiFetch(`/api/blockers/${encodeURIComponent(v.blockerId)}/resolve`, { method: "POST", body: { resolution: v.resolution }, idempotencyKey: v.key }),
     [keys.blockers, keys.followups, ["case"]],
   );
@@ -107,6 +120,7 @@ export function useResolveBlocker() {
 
 export function useCompleteFollowup() {
   return useAction<{ taskId: string }>(
+    "completeFollowup",
     (v) => apiFetch(`/api/tasks/${encodeURIComponent(v.taskId)}/complete`, { method: "POST", body: {}, idempotencyKey: v.key }),
     [keys.followups, ["case"]],
   );
@@ -114,6 +128,7 @@ export function useCompleteFollowup() {
 
 export function useFixField() {
   return useAction<{ employeeId: string; field: "costCenter" | "licenseBundle" | "photoOnFile"; value: string | boolean }>(
+    "fixField",
     (v) => apiFetch<EmployeeProfileDto>(`/api/employees/${v.employeeId}`, { method: "PATCH", body: { [v.field]: v.value }, idempotencyKey: v.key }),
     [["case"], keys.blockers],
   );
@@ -130,6 +145,7 @@ export function useEmployees(f: EmployeeFilters) {
 
 export function useStartCase() {
   return useAction<{ employeeId: string }>(
+    "startCase",
     (v) => apiFetch(`/api/cases/${v.employeeId}/start`, { method: "POST", body: {}, idempotencyKey: v.key }),
     [["employees"], ["case"]],
   );
@@ -150,6 +166,7 @@ export function useCaseAudit(id: string, pageSize = 25) {
 
 export function useAdminCaseAction(kind: "restart" | "terminate") {
   return useAction<{ employeeId: string; reason: string }>(
+    kind,
     (v) => apiFetch(`/api/cases/${v.employeeId}/${kind}`, { method: "POST", body: { reason: v.reason }, idempotencyKey: v.key }),
     [["case"], ["employees"]],
   );
