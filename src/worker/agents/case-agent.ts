@@ -766,9 +766,16 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const wfStatus = c?.workflow_instance_id ? ((this.getWorkflow(c.workflow_instance_id) as { status?: string } | undefined)?.status ?? null) : null;
     const next = await projectCase(this.env.DB, this.employeeId, wfStatus, new Date().toISOString());
     if (next) {
-      // before pushing new state: drop subscribers that are no longer allowed to see it
-      await this.revokeStaleSubscriptions().catch((err: unknown) => console.warn(`subscription check ${this.employeeId}: ${errorMessage(err)}`));
-      this.applyProjection(next);
+      // Before pushing new state, drop subscribers that are no longer allowed to see it. Fail closed:
+      // if the check itself fails, push nothing this time; the next refresh projects from D1 again.
+      const checked = await this.revokeStaleSubscriptions().then(
+        () => true,
+        (err: unknown) => {
+          console.warn(`subscription check ${this.employeeId} failed, state not pushed: ${errorMessage(err)}`);
+          return false;
+        },
+      );
+      if (checked) this.applyProjection(next);
       // Best effort: the hub reconciles from D1 on a debounce and every minute anyway.
       try {
         const hub = await getAgentByName(this.env.OPS_HUB_AGENT, HUB_NAME);

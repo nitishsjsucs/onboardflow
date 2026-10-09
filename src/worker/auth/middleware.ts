@@ -51,7 +51,7 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!token) return apiError(c, 401, "unauthenticated", "Access token missing");
   const source = keySourceFor(c.get("config"));
   let email: string;
-  let exp: number | null;
+  let exp: number;
   try {
     ({ email, exp } = await verifyAccessJwt(token, source.getKey, source));
   } catch (err) {

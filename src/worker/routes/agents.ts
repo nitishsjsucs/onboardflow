@@ -57,7 +57,7 @@ export function agentRoutes() {
   const r = new Hono<AppEnv>();
   r.all("/*", async (c) => {
     const principal = c.get("principal");
-    const subscriber: Subscriber = { email: principal.email, exp: c.get("tokenExp") ?? null };
+    const subscriber: Subscriber = { email: principal.email, exp: c.get("tokenExp") };
     const res = await routeAgentRequest(c.req.raw, c.env, {
       onBeforeRequest: () => forbidden("agents are reachable only through a WebSocket upgrade"),
       onBeforeConnect: async (request, route) => {

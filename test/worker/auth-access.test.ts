@@ -1,6 +1,6 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
+import { exportJWK, generateKeyPair, importJWK, SignJWT, type JWK } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { app } from "../../src/worker/app.ts";
 import { call, json } from "../helpers/api.ts";
@@ -47,6 +47,20 @@ describe("dev key source (same verifier as production)", () => {
     expect((await me(await mintAccessToken(email, { expiresInS: -60 }))).status).toBe(401);
     expect((await me(await mintAccessToken(email, { audience: "someone-else" }))).status).toBe(401);
     expect((await me(await mintAccessToken(email, { issuer: "https://evil.example" }))).status).toBe(401);
+  });
+
+  it("rejects tokens without exp, iat or email with 401", async () => {
+    const email = await emailOf("E001");
+    const key = await importJWK(JSON.parse(env.DEV_ACCESS_SIGNING_JWK ?? "{}") as JWK, "RS256");
+    const now = Math.floor(Date.now() / 1000);
+    const sign = (claims: Record<string, unknown>) =>
+      new SignJWT({ iss: env.DEV_ISSUER, aud: env.DEV_AUDIENCE, ...claims }).setProtectedHeader({ alg: "RS256", kid: "dev-1", typ: "JWT" }).sign(key);
+    // the same key and claims with all three present are accepted, so each refusal is about the missing claim
+    expect((await me(await sign({ email, iat: now, exp: now + 600 }))).status).toBe(200);
+    for (const claims of [{ email, iat: now }, { email, exp: now + 600 }, { iat: now, exp: now + 600 }]) {
+      const res = await me(await sign(claims));
+      expect(res.status, JSON.stringify(Object.keys(claims))).toBe(401);
+    }
   });
 
   it("rejects HS256 and alg none tokens with 401", async () => {

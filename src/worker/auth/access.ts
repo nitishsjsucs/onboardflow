@@ -1,10 +1,11 @@
 // Verifies a Cloudflare Access JWT (Cf-Access-Jwt-Assertion or the
-// CF_Authorization cookie): RS256 only, issuer and audience enforced, email
-// required. The dev stand-in tokens minted by /dev/login use the same claim
+// CF_Authorization cookie): RS256 only, issuer and audience enforced, and the
+// exp, iat and email claims required (jose checks exp only when present, so a
+// token without one would never expire). The dev stand-in tokens minted by /dev/login use the same claim
 // shape and go through this exact function with a local key source.
 import { jwtVerify, type JWTVerifyGetKey } from "jose";
 
-export type AccessClaims = { email: string; sub: string; /** expiry, seconds since the epoch */ exp: number | null };
+export type AccessClaims = { email: string; sub: string; /** expiry, seconds since the epoch */ exp: number };
 
 export class AccessTokenError extends Error {
   constructor(message: string) {
@@ -24,13 +25,15 @@ export async function verifyAccessJwt(
       issuer: opts.issuer,
       audience: opts.audience,
       algorithms: ["RS256"],
+      requiredClaims: ["exp", "iat", "email"],
     }));
   } catch (err) {
     throw new AccessTokenError(err instanceof Error ? err.message : String(err));
   }
   const email = payload.email;
   if (typeof email !== "string" || email.length === 0) throw new AccessTokenError("token has no email claim");
-  return { email: email.toLowerCase(), sub: typeof payload.sub === "string" ? payload.sub : "", exp: typeof payload.exp === "number" ? payload.exp : null };
+  if (typeof payload.exp !== "number") throw new AccessTokenError("token has no numeric exp claim");
+  return { email: email.toLowerCase(), sub: typeof payload.sub === "string" ? payload.sub : "", exp: payload.exp };
 }
 
 export const ACCESS_HEADER = "Cf-Access-Jwt-Assertion";

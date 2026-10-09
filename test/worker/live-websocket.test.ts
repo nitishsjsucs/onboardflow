@@ -1,5 +1,9 @@
+import { runInDurableObject } from "cloudflare:test";
 import { exports } from "cloudflare:workers";
+import { type Connection, getAgentByName } from "agents";
 import { describe, expect, it } from "vitest";
+import type { CaseAgent } from "../../src/worker/agents/case-agent.ts";
+import { CLOSE_REVOKED, revokeStaleSubscriptions } from "../../src/worker/agents/subscriptions.ts";
 import type { CaseState } from "../../src/shared/agent-state.ts";
 import { env } from "cloudflare:workers";
 import { call, tokenFor } from "../helpers/api.ts";
@@ -167,6 +171,38 @@ describe("live WebSocket subscriptions", () => {
     expect(await closedWith(c)).toBe(4403);
     expect(c.messages.filter((m) => m.type === "cf_agent_state")).toHaveLength(frames);
     await env.DB.prepare("UPDATE app_users SET active = 1 WHERE email = ?").bind(await emailOf("C06")).run();
+  });
+
+  it("fails closed: a connection whose re-check throws is closed, not kept", async () => {
+    const closes: Array<[number, string]> = [];
+    const connection = {
+      state: { subscriber: { email: await emailOf("E001"), exp: Math.floor(Date.now() / 1000) + 600 } },
+      close: (code: number, reason: string) => closes.push([code, reason]),
+    } as unknown as Connection;
+    const failingDb = {
+      prepare() {
+        throw new Error("D1_ERROR: unavailable");
+      },
+    } as unknown as D1Database;
+    expect(await revokeStaleSubscriptions([connection], failingDb, Date.now(), () => true)).toBe(1);
+    expect(closes).toEqual([[CLOSE_REVOKED, "subscription could not be re-checked"]]);
+  });
+
+  it("pushes no new state when the case agent cannot re-check its subscribers", async () => {
+    const c = await connect("/agents/case-agent/E136", "E136");
+    expect(c.status).toBe(101);
+    await until(c.messages, (m) => m.type === "cf_agent_state");
+    const stub = await getAgentByName(env.CASE_AGENT, "E136");
+    await runInDurableObject(stub, (a: CaseAgent) => {
+      a.revokeStaleSubscriptions = async () => {
+        throw new Error("D1_ERROR: unavailable");
+      };
+    });
+    const frames = c.messages.filter((m) => m.type === "cf_agent_state").length;
+    expect((await call("/api/cases/E136/scan", { as: "A01", body: {} })).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(c.messages.filter((m) => m.type === "cf_agent_state")).toHaveLength(frames);
+    c.ws?.close();
   });
 
   it("closes a subscription whose Access token expired", async () => {

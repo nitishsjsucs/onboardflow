@@ -11,7 +11,7 @@ import type { Principal } from "../http.ts";
 /** Set by routes/agents.ts only; a client-supplied copy is stripped before it is set. */
 export const SUBSCRIBER_HEADER = "x-onboardflow-subscriber";
 
-export type Subscriber = { email: string; exp: number | null };
+export type Subscriber = { email: string; /** Access token expiry, seconds since the epoch (always present: access.ts requires it) */ exp: number };
 
 /** Close codes a client treats as final (4000 + HTTP status). */
 export const CLOSE_SESSION_EXPIRED = 4401;
@@ -26,8 +26,8 @@ export function subscriberFrom(request: Request): Subscriber | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw) as Partial<Subscriber>;
-    if (typeof v.email !== "string" || v.email.length === 0) return null;
-    return { email: v.email, exp: typeof v.exp === "number" ? v.exp : null };
+    if (typeof v.email !== "string" || v.email.length === 0 || typeof v.exp !== "number") return null;
+    return { email: v.email, exp: v.exp };
   } catch {
     return null;
   }
@@ -42,7 +42,9 @@ export function rememberSubscriber(connection: Connection, request: Request): vo
  * Closes every connection whose Access token has expired or whose account no
  * longer passes `allowed`. Connections without a recorded subscriber are still
  * in their handshake (onConnect has not stored it yet) and are left alone.
- * Returns the number of connections closed. Never throws.
+ * Fails closed: a connection whose check throws (for example a D1 error while
+ * loading the account) is closed too; the client reconnects and is checked
+ * again at the upgrade. Returns the number of connections closed. Never throws.
  */
 export async function revokeStaleSubscriptions(
   connections: Iterable<Connection>,
@@ -56,7 +58,7 @@ export async function revokeStaleSubscriptions(
     try {
       const s = (connection.state as { subscriber?: Subscriber | null } | null)?.subscriber;
       if (!s) continue;
-      if (s.exp !== null && s.exp * 1000 <= nowMs) {
+      if (s.exp * 1000 <= nowMs) {
         connection.close(CLOSE_SESSION_EXPIRED, "session expired");
         closed++;
         continue;
@@ -68,7 +70,13 @@ export async function revokeStaleSubscriptions(
         closed++;
       }
     } catch (err) {
-      console.warn(`subscription check: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn(`subscription check failed, closing the connection: ${err instanceof Error ? err.message : String(err)}`);
+      try {
+        connection.close(CLOSE_REVOKED, "subscription could not be re-checked");
+        closed++;
+      } catch {
+        // already closed
+      }
     }
   }
   return closed;
