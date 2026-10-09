@@ -323,3 +323,16 @@ with its reason. Nothing here is tuned toward a target.
   repository are the harness output, unedited.
   `eval/results/published-sha-map.json` maps this history's SHAs to the
   published ones.
+- Standard mode after the second review round (`npm run eval:ci`, git
+  3646803, clean tree, built from that commit with `dist/` unchanged during
+  the run, 2026-10-09 12:25 PDT, AC power): the first recorded run with
+  this round's product and harness fixes and with build provenance. 60/60
+  completed, 60/60 passed, 0 duplicate side effects, audit coverage 1, hub
+  consistent, blocker precision and recall 1 over all 60 scenarios (20
+  expected, 20 detected), 0 transport retries, no host stall, CI gate
+  passed. Scenario p50 9.8 s and wall time 118 s, about three times the
+  previous run's, on a loaded machine (load average about 5.5). A scale run
+  started right after it was stopped within seconds, before writing any
+  result, because it had started from a tree holding this run's
+  uncommitted result files (its provenance would have said "uncommitted
+  changes"); it was re-run after this commit.
