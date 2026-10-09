@@ -45,12 +45,13 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 | (extra) | fix(eval): report non-JSON responses with their request and status | done |
 | (extra) | fix(eval): chaos orchestrator applies its schedule through runtime errors | done |
 | (extra) | fix(eval): retry requests the local proxy drops, with the same Idempotency-Key | done |
+| (extra) | feat(eval): flag runs during which the host slept or stalled | done |
 | 31 | chore(eval): record chaos, ablation and llama results (T2) | next |
 
 ## Check status (last run, 2026-10-08)
 
 - `npm run typecheck`: pass (worker, web, node projects)
-- `npm test`: pass (44 files, 329 tests: worker in workerd, node, web)
+- `npm test`: pass (45 files, 334 tests: worker in workerd, node, web)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 - `npm run seed:check`: ok (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)

@@ -16,6 +16,7 @@ import type { Scenario } from "../scenarios/types.ts";
 import { executeAction, ExpectationError, Harness, type ScenarioRun, UnknownActionError } from "./actions.ts";
 import { caseFacts, evaluateExpectations } from "./assertions.ts";
 import { ciGate, computeMetrics, type EvalRun, type ScenarioResult } from "./metrics.ts";
+import { mergeStalls, watchHost } from "./host.ts";
 import { ensureLlama, LLAMA_BASE_URL } from "./llama.ts";
 import { printRun } from "./report.ts";
 import { writeRunSecrets } from "./secrets.ts";
@@ -144,6 +145,7 @@ async function main() {
   });
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
+  const hostWatch = watchHost();
   let exitCode = 0;
   try {
     const h = new Harness(server.baseUrl, dataset);
@@ -170,6 +172,7 @@ async function main() {
 
     const hub = await hubConsistency(h);
     const metrics = computeMetrics(results, { startedCases: started.size, totalMs: Date.now() - t0, hub });
+    const host = hostWatch.stop();
     const run: EvalRun = {
       runId,
       startedAt,
@@ -197,6 +200,7 @@ async function main() {
       ...metrics,
       chaos: null,
       harnessTransport: { ...h.transport },
+      host,
       scenarios: results,
     };
     const out = join(ROOT, "eval/results");
@@ -235,7 +239,12 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
   const outcomes = [];
-  for (const seed of seeds) outcomes.push(await runChaosSeed(seed, runId, { port: o.port, inspectorPort: o.inspectorPort, concurrency: 10 }));
+  const hostBySeed = new Map<number, ReturnType<ReturnType<typeof watchHost>["stop"]>>();
+  for (const seed of seeds) {
+    const watch = watchHost();
+    outcomes.push(await runChaosSeed(seed, runId, { port: o.port, inspectorPort: o.inspectorPort, concurrency: 10 }));
+    hostBySeed.set(seed, watch.stop());
+  }
   const results = outcomes.flatMap((x) => x.results);
   const hub = { matchesReconcile: outcomes.every((x) => x.hub.matchesReconcile), diffs: outcomes.flatMap((x) => x.hub.diffs.map((d) => `seed ${x.seed}: ${d}`)) };
   const metrics = computeMetrics(results, { startedCases: results.length, totalMs: Date.now() - t0, hub });
@@ -264,7 +273,8 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
     },
     simulatedNow: SIMULATED_NOW,
     ...metrics,
-    chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures, harness }) => ({ seed, completed, cases, failures, harness }))),
+    chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures, harness }) => ({ seed, completed, cases, failures, harness, host: hostBySeed.get(seed) }))),
+    host: mergeStalls([...hostBySeed.values()]),
     harnessTransport: {
       retries: outcomes.reduce((n, x) => n + x.harness.transportRetries, 0),
       failures: outcomes.reduce((n, x) => n + x.harness.transportFailures, 0),

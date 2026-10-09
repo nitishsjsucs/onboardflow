@@ -14,7 +14,7 @@ What "agents" means here: `CaseAgent` and `OpsHubAgent` are [Cloudflare Agents S
 - **Agents** (Agents SDK): one `CaseAgent` per employee (commands, wake-ups, blocker scans, follow-ups, read-only live state) and one `OpsHubAgent` (debounced reconcile of the dashboard from D1).
 - **Simulated systems** under `/sim/*`: HR, IT and Facilities with idempotency keys honored atomically, async state machines, genuine validation errors, and injectable faults (503, 429 with Retry-After, timeout, lost response, malformed body, stall, desk conflict) ([ADR 0005](docs/adr/0005-loopback-simulated-systems.md)).
 - **Auth**: Cloudflare Access JWT verification with `jose` (RS256, issuer and audience enforced). Locally, the same verifier runs against a generated key and a persona picker ([ADR 0003](docs/adr/0003-hostname-access-jwt-verification.md)).
-- **Eval suite**: 60 scripted scenarios (20 onboarding, 24 integration failures, 16 recovery) and a 150-employee scale run, driven over HTTP as the real personas against `wrangler dev`.
+- **Eval suite**: 60 scripted scenarios (20 onboarding, 24 integration failures, 16 recovery), a 150-employee scale run, a chaos mode (5 seeds of seeded faults and outages worked by generic policy bots), two ablations and an optional local-LLM run, all driven over HTTP as the real personas against `wrangler dev`.
 
 ## Architecture
 

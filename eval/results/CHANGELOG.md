@@ -104,3 +104,38 @@ with its reason. Nothing here is tuned toward a target.
   recorded runs (any such failure would have failed a scenario, and every
   scenario passed), so the change cannot alter them. Chaos was run a third
   time on the same 5 seeds.
+- Third chaos run (`2026-10-09T01-03-54-407Z-chaos.json`, git ab9c3e7):
+  seeds 1 to 5 completed 59, 51, 60, 58 and 52 of 60 (mean 0.933, min
+  0.85, max 1.0), with 33 transport retries (none still failed), no control
+  failure, 0 duplicate side effects, a consistent hub, and every miss a
+  deadline. The laptop's lid was closed at 18:18:37 PDT during seed 5
+  (`pmset -g log`: "Clamshell Sleep" on battery), and the machine slept from
+  18:19:35 to 18:34:40 PDT. Seed 5's longest recorded case is 1077 s against
+  a 180 s deadline, which only a host stall explains, so its 8 deadline
+  misses are not a reliable measurement. Seeds 1 to 4 ended before the sleep
+  (no case over 181 s) and completed 228 of 240.
+- Ablations (git ab9c3e7) ran while the machine slept between brief wakes.
+  Idempotency-Key handling off
+  (`2026-10-09T01-34-56-328Z-ablation-idempotency.json`): 59/60 completed,
+  50/60 passed, 27 duplicate side effects in the simulated systems against
+  0 in standard mode. The duplicates are the measurement and do not depend
+  on timing. Scenarios stalled for 16 to 17 minutes three times (two
+  blocks of concurrent scenarios, then the serial R03), and R05's "timed
+  out waiting for closeout approval" comes from a stall, not from the
+  ablation. Retries off
+  (`2026-10-09T02-42-19-526Z-ablation-retries.json`): 44/60 completed,
+  43/60 passed, 0 duplicates. Every incomplete case is a scenario whose
+  fault needs a step retry (the stage blocks after one attempt), plus R11,
+  whose blocker is classified `integration_outage` instead of
+  `provisioning_stalled` without retries. Those outcomes are structural, but
+  the run's timings include stalls.
+- The llama run (`npm run eval:llama`) was not recorded in this round: by
+  the time the ablations finished, the lid was closed and the machine slept
+  between brief wakes, so a run would have measured the sleep. The earlier
+  trial numbers in `PROGRESS.md` stay trial numbers.
+- Harness change (`feat(eval): flag runs during which the host slept or
+  stalled`): every run now records host stalls (gaps of more than 5 s in a
+  1 s wall-clock timer, which is how a system sleep appears), per chaos seed
+  and per run, and the README marks a stalled run or seed as not reliable
+  for timeouts and deadlines. The runs above predate it; their sleep is
+  documented here from the power log and the recorded durations.

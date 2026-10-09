@@ -1,5 +1,6 @@
 // Run metrics (SPEC 12.4). Pure functions over per-scenario results, so the
 // arithmetic is unit tested (eval-metrics.test.ts) apart from any server.
+import type { HostStalls } from "./host.ts";
 import type { SystemId } from "../../src/shared/domain.ts";
 import type { Category } from "../scenarios/types.ts";
 import type { CaseFacts } from "./assertions.ts";
@@ -53,6 +54,8 @@ export type EvalRun = {
   timing: { scenarioP50Ms: number; scenarioP95Ms: number; totalMs: number };
   /** Requests the harness retried with the same Idempotency-Key after a transport failure, and those that still failed (absent in runs recorded before it existed). */
   harnessTransport?: { retries: number; failures: number };
+  /** Host stalls (system sleep, a frozen harness) seen during the run; absent in runs recorded before the detector existed. */
+  host?: HostStalls;
   failures: Array<{ scenarioId: string; reason: FailureReasonCode; detail: string }>;
   scenarios: ScenarioResult[];
 };
@@ -193,6 +196,7 @@ export type ChaosSeedSummary = {
   cases: number;
   failures: Record<"bot_patience" | "deadline" | "case_failed", number>;
   harness?: { controlRetries: number; controlFailures: number; botRequestErrors: number; transportRetries?: number; transportFailures?: number };
+  host?: HostStalls;
 };
 
 export function chaosAggregate(perSeed: ChaosSeedSummary[]) {

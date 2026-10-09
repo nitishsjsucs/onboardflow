@@ -1,9 +1,16 @@
 // Console table for a run, and the README Results block rendered only from
 // recorded eval/results/latest-*.json files (readme-results.test.ts checks
 // that the README block equals this rendering).
+import type { HostStalls } from "./host.ts";
 import type { EvalRun } from "./metrics.ts";
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+const secs = (ms: number) => `${Math.round(ms / 1000)} s`;
+
+/** "none", or the stalls with a warning that wall-clock timeouts and deadlines are not reliable. */
+export function describeStalls(h: HostStalls): string {
+  return h.stalls === 0 ? "none" : `${h.stalls} (${secs(h.stalledMs)} in total, longest ${secs(h.longestMs)}): wall-clock timeouts and deadlines in this run are not reliable`;
+}
 
 export function printRun(run: EvalRun): string {
   const lines = [
@@ -17,6 +24,7 @@ export function printRun(run: EvalRun): string {
     `follow-ups ${run.followups.created}, correct department ${pct(run.followups.correctDepartmentRate)}, drafted by an LLM ${pct(run.followups.draftedByLlmRate)}` +
       (run.followups.llmSchemaValidRate !== null ? `, LLM schema-valid ${pct(run.followups.llmSchemaValidRate)}, category agreement ${pct(run.followups.llmCategoryAgreement ?? 0)}, LLM p50 ${run.followups.llmLatencyP50Ms} ms` : ""),
     `timing p50 ${run.timing.scenarioP50Ms} ms, p95 ${run.timing.scenarioP95Ms} ms, total ${(run.timing.totalMs / 1000).toFixed(1)} s`,
+    ...(run.host ? [`host stalls over 5 s: ${describeStalls(run.host)}`] : []),
     ...run.failures.map((f) => `FAIL ${f.scenarioId} ${f.reason}: ${f.detail}`),
   ];
   return lines.join("\n");
@@ -53,7 +61,8 @@ export function renderResults(runs: EvalRun[]): string {
         const harness = s.harness
           ? `; harness: ${transport}${s.harness.controlRetries} control retries, ${s.harness.botRequestErrors} bot request errors${s.harness.controlFailures > 0 ? `, **${s.harness.controlFailures} control actions failed (schedule not fully applied)**` : ""}`
           : "";
-        out.push(`| Seed ${s.seed} | ${s.completed}/${s.cases}; not completed: ${s.failures.case_failed} failed, ${s.failures.bot_patience} bot patience, ${s.failures.deadline} deadline${harness} |`);
+        const host = s.host && s.host.stalls > 0 ? `; **host stalled ${secs(s.host.stalledMs)}, deadlines not reliable**` : "";
+        out.push(`| Seed ${s.seed} | ${s.completed}/${s.cases}; not completed: ${s.failures.case_failed} failed, ${s.failures.bot_patience} bot patience, ${s.failures.deadline} deadline${harness}${host} |`);
       }
     }
     if (r.mode === "standard" || r.mode.startsWith("ablation")) {
@@ -71,6 +80,7 @@ export function renderResults(runs: EvalRun[]): string {
     out.push(`| Audit coverage (regression check) | ${r.regression.audit.coverage} |`);
     out.push(`| Live hub equals D1 reconcile after the run | ${r.regression.hubConsistency.matchesReconcile ? "yes" : "no"} |`);
     out.push(`| Scenario time p50 / p95, wall time | ${(r.timing.scenarioP50Ms / 1000).toFixed(1)} s / ${(r.timing.scenarioP95Ms / 1000).toFixed(1)} s, ${(r.timing.totalMs / 1000).toFixed(0)} s |`);
+    if (r.host) out.push(`| Host stalls over 5 s (system sleep or a frozen harness) | ${describeStalls(r.host)} |`);
     out.push("");
   }
   return out.join("\n").trimEnd();

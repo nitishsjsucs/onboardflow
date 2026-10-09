@@ -103,6 +103,31 @@ describe("chaos results rendering", () => {
     );
   });
 
+  it("flags a seed during which the host stalled", () => {
+    const row = renderResults([
+      {
+        runId: "r",
+        startedAt: "2026-10-08T00:00:00.000Z",
+        gitSha: "abcdef0",
+        mode: "chaos",
+        llmProvider: "stub",
+        seeds: [5],
+        environment: { runtime: "local wrangler dev (Miniflare/workerd)" },
+        config: { concurrency: 10 },
+        totals: { startedCases: 60, scenarios: 60, completed: 52, completionRate: 0.8667, passed: 52, passRate: 0.8667 },
+        byCategory: {},
+        chaos: { perSeed: [{ seed: 5, completed: 52, cases: 60, failures: { case_failed: 0, bot_patience: 0, deadline: 8 }, host: { stalls: 1, stalledMs: 905_000, longestMs: 905_000 } }], meanCompletion: 0.8667, minCompletion: 0.8667, maxCompletion: 0.8667 },
+        integration: { calls: 0, retriedCalls: 0, replays: 0, duplicateSideEffects: 0 },
+        followups: { llmSchemaValidRate: null },
+        regression: { audit: { coverage: 1 }, hubConsistency: { matchesReconcile: true } },
+        timing: { scenarioP50Ms: 0, scenarioP95Ms: 0, totalMs: 0 },
+        host: { stalls: 1, stalledMs: 905_000, longestMs: 905_000 },
+      } as unknown as EvalRun,
+    ]).split("\n");
+    expect(row.find((l) => l.startsWith("| Seed 5 |"))).toBe("| Seed 5 | 52/60; not completed: 0 failed, 0 bot patience, 8 deadline; **host stalled 905 s, deadlines not reliable** |");
+    expect(row).toContain("| Host stalls over 5 s (system sleep or a frozen harness) | 1 (905 s in total, longest 905 s): wall-clock timeouts and deadlines in this run are not reliable |");
+  });
+
   it("renders runs recorded before the counters existed without them", () => {
     expect(seedRow()).toBe("| Seed 3 | 0/60; not completed: 5 failed, 0 bot patience, 55 deadline |");
   });
