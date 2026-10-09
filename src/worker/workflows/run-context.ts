@@ -114,7 +114,12 @@ export async function completeStage(ctx: RunCtx, stage: StageId, stepName: strin
   return { completed: applied };
 }
 
-/** Marks the stage blocked for this round (guarded on the round), with the classified reason. */
+/**
+ * Marks the stage blocked for this round (guarded on the round), with the classified reason.
+ * A `complete` stage can be blocked again: after a restart the run replays every completed
+ * operation, and if a replay fails (for example during an outage) the stage must become
+ * retryable, or no coordinator could open its retry gate. completeStage completes it again.
+ */
 export async function markBlocked(ctx: RunCtx, stage: StageId, round: number, reason: BlockedReason & { operation?: string; system?: SystemId }, stepName: string) {
   const w = await writer(ctx, stepName);
   const detail = { ...reason, round };
@@ -123,7 +128,7 @@ export async function markBlocked(ctx: RunCtx, stage: StageId, round: number, re
     mutation: w.db
       .prepare(
         `UPDATE case_stages SET status = 'blocked', blocked_reason_json = ?, updated_at = ?, last_mutation_id = ?
-          WHERE ${stageWhere} AND round = ? AND status IN ('active','blocked','waiting_on_employee','awaiting_approval')`,
+          WHERE ${stageWhere} AND round = ? AND status IN ('active','blocked','waiting_on_employee','awaiting_approval','complete')`,
       )
       .bind(JSON.stringify(detail), w.now, w.stamp, ctx.employeeId, stage, round),
     applied: stamped("case_stages", stageWhere, [ctx.employeeId, stage], w.stamp),

@@ -166,7 +166,14 @@ export async function runOp(ctx: RunCtx, stage: StageId, op: OperationId): Promi
         throw new NonRetryableError(`stage ${stage} exhausted recovery rounds at ${op}`);
       }
       const blockedName = `${stage}.${op}.mark-blocked#r${round}`;
-      await ctx.step.do(blockedName, CHECK_STEP, () => markBlocked(ctx, stage, round, { ...reason, operation: op, system: OPERATIONS[op].system }, blockedName));
+      const { blocked } = await ctx.step.do(blockedName, CHECK_STEP, () => markBlocked(ctx, stage, round, { ...reason, operation: op, system: OPERATIONS[op].system }, blockedName));
+      if (!blocked) {
+        // The stage could not be marked blocked for this round, so no coordinator could ever open the retry gate.
+        // Fail the case with an audited reason instead of waiting out the whole wait budget.
+        const name = `${stage}.${op}.unblockable#r${round}`;
+        await ctx.step.do(name, CHECK_STEP, () => failCase(ctx, stage, "workflow_error", name, { operation: op, reason: reason.message, cause: "stage_not_blockable" }));
+        throw new NonRetryableError(`stage ${stage} could not be marked blocked at ${op} round ${round}`);
+      }
       await ctx.step.sendEvent({ kind: "stage_blocked", stage, round });
       const opened = await awaitGate(ctx, { stage, label: `${op}.retry`, round, spec: { kind: "retry", stage, round } });
       round = opened.satisfied && opened.kind === "round" ? opened.round : round + 1;
