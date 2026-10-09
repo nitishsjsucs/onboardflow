@@ -77,7 +77,7 @@ export async function awaitGate(ctx: RunCtx, g: Gate): Promise<GateResult> {
     try {
       const ev = await ctx.step.waitForEvent<{ round?: number; reason?: string; ref?: string }>(`${base}.wait#r${g.round}.${k}`, {
         type: `wake_${g.stage}`,
-        timeout: ctx.cfg.gates.waitTimeoutMs,
+        timeout: ctx.limits.gateWaitTimeoutMs ?? ctx.cfg.gates.waitTimeoutMs,
       });
       // Wake-ups are validated and logged, never trusted: only the D1 re-check decides.
       const parsed = WakePayload.safeParse(ev.payload);

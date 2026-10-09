@@ -88,6 +88,7 @@ describe("detectBlockers: the six kinds", () => {
     const blocked = { it_provisioning: { status: "blocked", blockedReason: { class: "retryable" as const, operation: "it.order-device" as const, round: 1 } } };
     expect(detectBlockers(snap({ caseStatus: "complete" }, blocked), T0)).toEqual([]);
     expect(detectBlockers(snap({ caseStatus: "failed" }, blocked), T0)).toEqual([]);
+    expect(detectBlockers(snap({ caseStatus: "not_started" }, blocked), T0)).toEqual([]);
   });
 });
 

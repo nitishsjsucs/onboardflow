@@ -55,10 +55,14 @@ describe("D1 gates with bounded waits", () => {
   it("passes after one bounded wait when the wake-up is lost", async () => {
     const intro = await fastWorkflows();
     try {
-      await startCase("E071");
+      // a 5 s bounded wait (instead of the 1 s test default), so the silent completion below lands inside
+      // the first wait even on a loaded machine and the count of checks does not depend on timing
+      await startCase("E071", { gateWaitTimeoutMs: 5_000 });
       await waitForStage("E071", "paperwork", "waiting_on_employee");
+      const [inst] = await intro.get();
+      expect(await inst!.waitForStepResult({ name: "paperwork.tasks.check#r1.1" })).toMatchObject({ satisfied: false });
       await finishPaperworkSilently("E071");
-      const passed = await waitFor(() => gatePassed("E071", "paperwork"), { what: "paperwork gate", timeoutMs: 15_000 });
+      const passed = await waitFor(() => gatePassed("E071", "paperwork"), { what: "paperwork gate", timeoutMs: 20_000 });
       expect(passed.checks).toBe(2);
       await waitForStage("E071", "manager_approval", "awaiting_approval");
       expect((await caseRow("E071"))!.status).toBe("awaiting_approval");
@@ -71,7 +75,8 @@ describe("D1 gates with bounded waits", () => {
   it("spends one extra check on a stale wake-up, and ignores an invalid wake payload", async () => {
     const intro = await fastWorkflows();
     try {
-      const instanceId = await startCase("E072");
+      // a 60 s bounded wait, so only the scripted events below wake the gate (never a timeout under load)
+      const instanceId = await startCase("E072", { gateWaitTimeoutMs: 60_000 });
       await waitForStage("E072", "paperwork", "waiting_on_employee");
       const [inst] = await intro.get();
       await inst!.waitForStepResult({ name: "paperwork.tasks.check#r1.1" });

@@ -23,6 +23,8 @@ export type RunLimits = {
   maxRecoveryRounds: number;
   maxApprovalRounds: number;
   pollMax: number;
+  /** Bounded wait per gate check; defaults to GATE_WAIT_TIMEOUT_MS. Tests override it (EVAL_HOOKS only) to take timeouts out of a race. */
+  gateWaitTimeoutMs?: number;
 };
 
 export type RunCtx = {
