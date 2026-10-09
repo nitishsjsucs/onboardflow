@@ -250,3 +250,22 @@ with its reason. Nothing here is tuned toward a target.
   CI gate passed. It is the first run that records its command. The fixes
   touched restart replays, the workspace preference replay, the license
   bundle lock, cursors and live subscriptions; no scenario changed.
+- Fifth chaos run, the first under the deadline rule
+  (`2026-10-09T04-30-14-390Z-chaos.json`, git 6248014, clean tree,
+  `npm run eval:chaos`, started 21:30 PDT on AC power, lid open). Since
+  the fourth run: the deadline rule and the bot cutoff above, started-case
+  counting, run provenance, the stall watch that starts once the server is
+  healthy (this is the first chaos run with it), and the product fixes of
+  the review round up to 6248014 (restart replays, workspace preference
+  replay, license bundle lock, cursors, refusing sub-agent paths and forged
+  SDK headers). The last review fix, re-checking live subscriptions before
+  every state push (9c55e58), was committed after this run ended and is
+  not in it; the harness opens no live subscription. Fault tables, seeds
+  and bot policies are unchanged. Seeds 1 to 5 completed 57, 58, 60, 58
+  and 56 of 60 (289/300,
+  mean 0.9633, min 0.9333, max 1.0), 0 duplicate side effects, a
+  consistent hub, 0 transport retries, 0 control retries or failures, 0
+  bot request errors, no host stall, and the run took 945 s. All 11 misses
+  are deadlines; none of those cases had completed by the end of the seed,
+  and the slowest counted case took 170.5 s. No case failed and no bot
+  gave up.
