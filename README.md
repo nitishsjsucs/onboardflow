@@ -48,7 +48,7 @@ Design decisions are recorded in [docs/adr](docs/adr) and the domain vocabulary 
 | Auth | `AUTH_MODE=dev`: RS256 JWT minted by `/dev/login` with a locally generated key, verified by the same code as production; persona picker | `AUTH_MODE=access`: hostname Access application, `Cf-Access-Jwt-Assertion` verified against the team's JWKS with `iss` and `aud` |
 | CSRF defenses | Origin + `X-OnboardFlow` + required `Idempotency-Key`; dev cookie `SameSite=Strict` | same checks; Access cookie set to `SameSite=Lax`, HttpOnly |
 | Secrets | `.dev.vars` from `npm run dev:keys`; tests use Miniflare bindings; evals generate a fresh set per run | `wrangler secret put SIM_API_KEY` |
-| LLM (follow-up wording only) | deterministic stub (default), or an OpenAI-compatible server such as llama-server | stub by default |
+| LLM (follow-up wording only) | deterministic stub (default), or an OpenAI-compatible server such as llama-server with Qwen3-1.7B Q4_0 | stub by default; optionally Workers AI `@cf/qwen/qwen3-30b-a3b-fp8` through AI Gateway (built, never run) |
 | HR, IT, Facilities | **simulated**, same Worker, `/sim/*` | **still simulated**, same Worker, `/sim/*` |
 | Clock | real, or an offset clock with `SIM_CLOCK=on` (evals and tests) | real only |
 | Fault injection, eval hooks, eviction route | `EVAL_HOOKS=on` in eval runs | off; the routes answer 404 |
@@ -90,6 +90,8 @@ npm run eval:ci       # 60 scripted scenarios, CI gate
 npm run eval:scale    # all 150 synthetic employees, no faults
 npm run eval:chaos    # 60 employees x 5 seeds, seeded faults and policy bots (about 20 minutes)
 npm run eval:ablate   # the 60 scenarios with Idempotency-Key handling off, then with retries off
+npm run eval:llama    # standard mode with llama-server (Qwen3-1.7B Q4_0, port 8110) drafting follow-up wording
+npm run llm:smoke     # one structured-output request against the local llama-server
 ```
 
 The harness creates a fresh local D1 per run (migrations and the committed seed), generates fresh secrets into that run's own `.dev.vars`, starts `wrangler dev` (port 8781 by default, `--port` to change), pins the simulated clock to 2026-10-08 (the seed's reference date, so results do not drift with the calendar), and plays each scenario over HTTP as the real personas. Results are written to `eval/results/`.
@@ -167,7 +169,7 @@ docs/adr/          architecture decision records 0001 to 0008
 
 ## Not built in this version
 
-From the specification's Tier 2: the llama eval run and LLM quality metrics, the Workers AI provider, the Integrations and Audit explorer pages, and the demo driver. The OpenAI-compatible provider exists and is unit tested, but no eval run with a real model has been recorded.
+From the specification's Tier 2: the Integrations and Audit explorer pages and the demo driver. The Workers AI provider exists and is unit tested against a fake binding, but it has never run against Cloudflare (it needs an account and the production AI binding).
 
 ## Troubleshooting
 

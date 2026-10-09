@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commits 26 (chaos mode) and 27 (ablations) done; next is commit 28 (Workers AI provider, llama eval mode, LLM metrics, llm:smoke). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commits 26 (chaos), 27 (ablations) and 28 (Workers AI provider, llama eval mode, LLM metrics, llm:smoke) done; next is commit 29 (Integrations and Audit explorer pages). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -39,8 +39,8 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 | (extra) | fix(workflow): apply exponential retry backoff once, not compounded by the engine | done |
 | 26 | feat(eval): chaos mode with seeded fault schedules and policy bots (T2) | done |
 | 27 | feat(eval): idempotency and retry ablations (T2) | done |
-| 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | next |
-| 29 | feat(web): integrations and audit explorer pages (T2) | todo |
+| 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | done |
+| 29 | feat(web): integrations and audit explorer pages (T2) | next |
 | 30 | feat(scripts): demo driver (T2) | todo |
 | 31 | chore(eval): record chaos, ablation and llama results (T2) | todo |
 
@@ -78,7 +78,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 9. Test and eval seam: `CaseAgent.startCase(cmd, limits)` passes tighter loop bounds (for example `waitBudget: 2`) to the workflow, which honors them only when `EVAL_HOOKS=on`. Used by the wait-budget test so it runs in seconds instead of 120 bounded waits.
 10. Task gates mark the stage `waiting_on_employee` inside the first failed gate check step and ping the CaseAgent with non-durable `reportProgress`, instead of a separate step plus `sendEvent`; this keeps the worst-case step count at the SPEC's 561.
 11. Blocker rule details the SPEC leaves open: `employee_task_overdue` is one blocker per waiting stage (subject `checklist:<stage>`, detail lists the overdue task ids) rather than one per task; integration and data-issue blockers auto-resolve only once the blocked operation succeeds after the blocker opened (or the stage completes), which is what R13 expects; auto-resolved and manually resolved blockers cancel their open follow-up. The stub provider records `drafted_by = "stub"` (not `llm:`), so the LLM rate metric stays honest.
-12. The Workers AI provider (Tier 2) is not built; `LLM_PROVIDER=workers-ai` yields a provider that always fails, so drafting falls back to templates.
+12. The Workers AI provider (`src/worker/llm/workers-ai.ts`) is built and unit tested with a fake binding; without the AI binding (everywhere except env.production) `LLM_PROVIDER=workers-ai` yields a provider that always fails, so drafting falls back to templates. It has never run against Cloudflare.
 13. Hub rollups count `revision_requested` stages as `waiting`; incidents use open `integration_outage` and `provisioning_stalled` blockers detected in the last 15 minutes, grouped by system.
 14. API details the SPEC leaves open: `PATCH /api/employees/:id` takes exactly one field per request (each correction is its own audited change); `/api/me/checklist` also returns the employee's open `blockers` for the portal; approval list items carry `resubmittable`; People Ops coordinators see closeout approvals plus rejected approvals of both checkpoints; every response carries `X-Request-Id` (the audit test correlates audit rows by it). `cases.scan` writes no user audit row of its own (what it opens or resolves is audited as agent actions), so the audit test excludes it with that reason.
 15. Eval hooks: the `/api/dev/*` guard runs before authentication so the paths are plain 404s outside dev mode; every hook mutation goes through the same Idempotency-Key wrapper (a replayed clock advance does not advance twice). Profile corruption is audited as `eval.fault_set` with `detail.corrupt`, since the closed AuditAction catalog has no separate corruption action. The hooks are not in `API_ROUTES` (that registry lists the product API the role matrix covers); `eval-hooks.test.ts` checks they are admin only. `DELETE /api/dev/faults` also accepts `system`.
@@ -89,6 +89,7 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 
 20. Chaos mode choices (also in `eval/results/CHANGELOG.md`): chaos runs use the production retry base (2 s) and a 1 s poll interval (`CHAOS_VARS`), because its faults, outage windows and bots run in real seconds; and instead of SPEC 12.3's single 4-day clock advance (which cannot make any committed-seed task overdue from the pinned 2026-10-08) the harness jumps 90 days at a seeded 5 to 15 s and then advances 3 days every 20 s. Faultable operations are the nine POST operations; `stall` applies to the three polled resources. The orchestrator (not a bot) clears a stall a seeded 5 to 30 s after its stage starts and applies photo corruption after paperwork (as in F6). Coordinator bots retry or give up only when the case shows the stage blocked. People Ops also signs off closeouts after a seeded delay (SPEC 12.3 does not say who does). Chaos case failures are classified `case_failed`, `bot_patience` (a bot gave up on one of its blockers) or `deadline`.
 21. `DELETE /api/dev/faults` also accepts `ids` (chaos ends outage windows and stalls by id).
+23. LLM: `--llm llama` (standard mode only) starts llama-server on port 8110 (this machine's allocation; SPEC 12.1 says 8080) with `-np 1 -c 8192 -ngl 99 --jinja` unless one is already healthy there, and stops it if it started it. LLM metrics come from the `followup.created` audit detail (`llm.provider`, `latencyMs`, `error`), which the scan now records. The draft schema moved to `src/shared/followup-draft.ts` so `scripts/llm-smoke.ts` (a raw request with the same shape) needs no worker types. Trial (not recorded): 4 of 4 follow-ups drafted by Qwen3-1.7B were schema-valid, p50 about 1.9 s; `npm run llm:smoke` returned a valid draft in 1.4 s.
 22. Ablations (`npm run eval:ablate`) rerun the 60 scripted scenarios with `IDEMPOTENCY_KEYS=off` (simulator key handling off; API keys stay on) or `RETRY_LIMIT=0`, without a gate. Trial (not recorded): with keys off, F-it-lost-response wrote 2 device orders and R11 3; with retries off, F-it-transient stayed blocked.
 
 ## Known noise and caveats

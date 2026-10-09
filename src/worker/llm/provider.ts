@@ -4,6 +4,7 @@
 import type { AppConfig } from "../config.ts";
 import { OpenAiCompatibleProvider } from "./openai-compatible.ts";
 import { StubLlmProvider } from "./stub.ts";
+import { type AiBinding, WorkersAiProvider } from "./workers-ai.ts";
 
 export type CompleteJsonRequest = {
   system: string;
@@ -39,7 +40,7 @@ export class ProviderUnavailable implements LlmProvider {
   }
 }
 
-export function createLlmProvider(config: AppConfig, _env: Env, fetcher?: typeof fetch): LlmProvider {
+export function createLlmProvider(config: AppConfig, env: Env, fetcher?: typeof fetch): LlmProvider {
   switch (config.llm.provider) {
     case "stub":
       return new StubLlmProvider();
@@ -50,8 +51,10 @@ export function createLlmProvider(config: AppConfig, _env: Env, fetcher?: typeof
         ...(config.llm.apiKey ? { apiKey: config.llm.apiKey } : {}),
         ...(fetcher ? { fetcher } : {}),
       });
-    case "workers-ai":
-      // Tier 2 (SPEC 21): not built in v1. Drafting falls back to templates.
-      return new ProviderUnavailable(`workers-ai:${config.llm.model}`, "the Workers AI provider is not part of this build");
+    case "workers-ai": {
+      const ai = (env as Env & { AI?: AiBinding }).AI;
+      if (!ai) return new ProviderUnavailable(`workers-ai:${config.llm.model}`, "the AI binding is not configured (it exists only in env.production)");
+      return new WorkersAiProvider(ai, config.llm.model, config.llm.gatewayId);
+    }
   }
 }

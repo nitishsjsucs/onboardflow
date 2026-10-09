@@ -531,6 +531,7 @@ export class CaseAgent extends Agent<Env, CaseState> {
                   dueAt: new Date(Date.parse(detectedAt) + 86_400_000).toISOString(),
                   draftedBy: draft.draftedBy,
                   llmSuggestedCategory: draft.suggestedCategory,
+                  llm: { provider: this.#drafter().providerId, latencyMs: draft.latencyMs, error: draft.error ?? null },
                 },
                 actor,
               ),

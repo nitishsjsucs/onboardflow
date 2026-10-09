@@ -16,6 +16,7 @@ import type { Scenario } from "../scenarios/types.ts";
 import { executeAction, ExpectationError, Harness, type ScenarioRun, UnknownActionError } from "./actions.ts";
 import { caseFacts, evaluateExpectations } from "./assertions.ts";
 import { ciGate, computeMetrics, type EvalRun, type ScenarioResult } from "./metrics.ts";
+import { ensureLlama, LLAMA_BASE_URL } from "./llama.ts";
 import { printRun } from "./report.ts";
 import { writeRunSecrets } from "./secrets.ts";
 import { assertDevBuild, EVAL_VARS, git, hubConsistency, pool, prepareDatabase, ROOT, SIMULATED_NOW, snapshot, startServer, versionOf } from "./server.ts";
@@ -116,7 +117,9 @@ async function main() {
   // Ablations (SPEC 12.4) rerun the 60 scripted scenarios with one mechanism switched off,
   // to show that the mechanism, not luck, produces the standard results.
   const ablation: Record<string, string> = mode === "ablation-idempotency" ? { IDEMPOTENCY_KEYS: "off" } : mode === "ablation-retries" ? { RETRY_LIMIT: "0" } : {};
-  if (values.llm !== "stub") throw new Error("--llm llama is Tier 2 and not built in this version; use --llm stub");
+  const llm = values.llm ?? "stub";
+  if (llm !== "stub" && llm !== "llama") throw new Error(`--llm must be stub or llama, got ${llm}`);
+  if (llm === "llama" && mode !== "standard") throw new Error("--llm llama runs with --mode standard only");
   const concurrency = Number(values.concurrency ?? (mode === "scale" ? 10 : 6));
 
   assertDevBuild(ROOT);
@@ -129,12 +132,15 @@ async function main() {
   console.log(`eval ${runId}: preparing ${stateDir}`);
   prepareDatabase(ROOT, stateDir);
   const { path: envFile } = await writeRunSecrets(stateDir);
+  // --llm llama: an OpenAI-compatible llama-server drafts follow-up wording (never decisions)
+  const llama = llm === "llama" ? await ensureLlama(stateDir) : null;
+  const llmVars: Record<string, string> = llm === "llama" ? { LLM_PROVIDER: "openai", LLM_BASE_URL: LLAMA_BASE_URL, LLM_MODEL: "qwen3-1.7b" } : { LLM_PROVIDER: "stub" };
   const server = await startServer(ROOT, {
     stateDir,
     envFile,
     port: Number(values.port),
     inspectorPort: Number(values["inspector-port"]),
-    vars: { ...EVAL_VARS, ...ablation, LLM_PROVIDER: "stub" },
+    vars: { ...EVAL_VARS, ...ablation, ...llmVars },
   });
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
@@ -169,7 +175,7 @@ async function main() {
       startedAt,
       gitSha: git(["rev-parse", "HEAD"]),
       mode,
-      llmProvider: "stub",
+      llmProvider: llm === "llama" ? "llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)" : "stub",
       seeds: [],
       environment: {
         runtime: "local wrangler dev (Miniflare/workerd)",
@@ -197,7 +203,7 @@ async function main() {
     const body = JSON.stringify(run, null, 2) + "\n";
     if (!values.only) {
       writeFileSync(join(out, `${runId}.json`), body);
-      writeFileSync(join(out, `latest-${mode}-stub.json`), body);
+      writeFileSync(join(out, `latest-${mode}-${llm}.json`), body);
     }
     console.log(`\n${printRun(run)}`);
     if (values.gate === "ci") {
@@ -212,6 +218,7 @@ async function main() {
     exitCode = 1;
   } finally {
     await server.stop();
+    await llama?.stop();
     if (!values.keep && exitCode === 0) rmSync(join(ROOT, "eval/.state", runId), { recursive: true, force: true });
   }
   process.exit(exitCode);

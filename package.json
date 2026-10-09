@@ -29,7 +29,9 @@
     "eval:scale": "node eval/harness/run.ts --mode scale --llm stub",
     "eval:chaos": "node eval/harness/run.ts --mode chaos --llm stub --seeds 5",
     "eval:ablate": "node eval/harness/run.ts --mode ablation-idempotency && node eval/harness/run.ts --mode ablation-retries",
-    "results:readme": "node scripts/results-to-readme.ts"
+    "eval:llama": "node eval/harness/run.ts --mode standard --llm llama",
+    "results:readme": "node scripts/results-to-readme.ts",
+    "llm:smoke": "node scripts/llm-smoke.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.1",

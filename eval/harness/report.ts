@@ -14,7 +14,8 @@ export function printRun(run: EvalRun): string {
       .map(([k, c]) => `  ${k.padEnd(20)} ${c.completed}/${c.scenarios} completed, ${c.passed}/${c.scenarios} passed`),
     `integration calls ${run.integration.calls}, retried ${run.integration.retriedCalls}, replays ${run.integration.replays}, duplicate side effects ${run.integration.duplicateSideEffects}`,
     `regression: blockers precision ${run.regression.blockers.precision} recall ${run.regression.blockers.recall}; audit coverage ${run.regression.audit.coverage}; full 8-stage trails ${run.regression.audit.completedCasesWithFull8StageTrail}; hub consistent ${run.regression.hubConsistency.matchesReconcile}`,
-    `follow-ups ${run.followups.created}, correct department ${pct(run.followups.correctDepartmentRate)}`,
+    `follow-ups ${run.followups.created}, correct department ${pct(run.followups.correctDepartmentRate)}, drafted by an LLM ${pct(run.followups.draftedByLlmRate)}` +
+      (run.followups.llmSchemaValidRate !== null ? `, LLM schema-valid ${pct(run.followups.llmSchemaValidRate)}, category agreement ${pct(run.followups.llmCategoryAgreement ?? 0)}, LLM p50 ${run.followups.llmLatencyP50Ms} ms` : ""),
     `timing p50 ${run.timing.scenarioP50Ms} ms, p95 ${run.timing.scenarioP95Ms} ms, total ${(run.timing.totalMs / 1000).toFixed(1)} s`,
     ...run.failures.map((f) => `FAIL ${f.scenarioId} ${f.reason}: ${f.detail}`),
   ];
@@ -24,14 +25,14 @@ export function printRun(run: EvalRun): string {
 /** The README Results block, rendered from recorded runs only. */
 export function renderResults(runs: EvalRun[]): string {
   const rank = (m: string) => ["standard", "chaos", "scale", "ablation-idempotency", "ablation-retries"].indexOf(m) + 1 || 9;
-  const sorted = [...runs].sort((a, b) => rank(a.mode) - rank(b.mode) || a.mode.localeCompare(b.mode));
+  const sorted = [...runs].sort((a, b) => rank(a.mode) - rank(b.mode) || a.llmProvider.localeCompare(b.llmProvider) || a.mode.localeCompare(b.mode));
   const out: string[] = [];
   for (const r of sorted) {
     const date = r.startedAt.slice(0, 10);
     const cmd =
-      r.mode === "standard" ? "npm run eval:ci" : r.mode === "scale" ? "npm run eval:scale" : r.mode === "chaos" ? "npm run eval:chaos" : `node eval/harness/run.ts --mode ${r.mode}`;
+      r.mode === "standard" && r.llmProvider.startsWith("llama") ? "npm run eval:llama" : r.mode === "standard" ? "npm run eval:ci" : r.mode === "scale" ? "npm run eval:scale" : r.mode === "chaos" ? "npm run eval:chaos" : `node eval/harness/run.ts --mode ${r.mode}`;
     const titles: Record<string, string> = {
-      standard: "Standard mode (regression suite, scripted recovery)",
+      standard: r.llmProvider.startsWith("llama") ? "Standard mode with a local LLM drafting follow-up wording" : "Standard mode (regression suite, scripted recovery)",
       scale: "Scale mode (all 150 synthetic employees, no faults)",
       chaos: `Chaos mode (seeded faults and policy bots, ${r.seeds.length} seeds)`,
       "ablation-idempotency": "Ablation: Idempotency-Key handling switched off in the simulated systems",
@@ -56,6 +57,9 @@ export function renderResults(runs: EvalRun[]): string {
       for (const [k, c] of Object.entries(r.byCategory)) out.push(`| ${k.replace("_", " ")} | ${c.passed}/${c.scenarios} passed |`);
     }
     out.push(`| Integration calls (retried, replayed) | ${r.integration.calls} (${r.integration.retriedCalls}, ${r.integration.replays}) |`);
+    if (r.followups.llmSchemaValidRate !== null) {
+      out.push(`| Follow-ups drafted by the LLM (schema-valid / attempted) | ${r.followups.created} created, ${pct(r.followups.llmSchemaValidRate)} valid, category agrees with the rules ${pct(r.followups.llmCategoryAgreement ?? 0)}, p50 ${r.followups.llmLatencyP50Ms} ms |`);
+    }
     out.push(`| Duplicate side effects in the simulated systems | ${r.integration.duplicateSideEffects} |`);
     out.push(`| Audit coverage (regression check) | ${r.regression.audit.coverage} |`);
     out.push(`| Live hub equals D1 reconcile after the run | ${r.regression.hubConsistency.matchesReconcile ? "yes" : "no"} |`);

@@ -115,6 +115,10 @@ export function computeMetrics(results: ScenarioResult[], extra: { startedCases:
   let fCreated = 0;
   let fCorrect = 0;
   let fLlm = 0;
+  let fAttempted = 0;
+  let fValid = 0;
+  let fAgree = 0;
+  const latencies: number[] = [];
   for (const r of results) {
     const f = r.facts;
     if (!f) continue;
@@ -128,6 +132,10 @@ export function computeMetrics(results: ScenarioResult[], extra: { startedCases:
     fCreated += f.followups.created;
     fCorrect += f.followups.correctDepartment;
     fLlm += f.followups.draftedByLlm;
+    fAttempted += f.followups.llmAttempted ?? 0;
+    fValid += f.followups.llmSchemaValid;
+    fAgree += f.followups.llmCategoryAgrees;
+    latencies.push(...(f.followups.llmLatenciesMs ?? []));
     for (const [sys, s] of Object.entries(f.bySystem)) {
       const t = bySystem[sys as SystemId];
       if (!t) continue;
@@ -149,7 +157,15 @@ export function computeMetrics(results: ScenarioResult[], extra: { startedCases:
       audit: { auditableActions: auditable, auditedActions: audited, coverage: ratio(audited, auditable), completedCasesWithFull8StageTrail: trails },
       hubConsistency: extra.hub,
     },
-    followups: { created: fCreated, correctDepartmentRate: ratio(fCorrect, fCreated), draftedByLlmRate: ratio(fLlm, fCreated), llmSchemaValidRate: null, llmCategoryAgreement: null, llmLatencyP50Ms: null },
+    followups: {
+      created: fCreated,
+      correctDepartmentRate: ratio(fCorrect, fCreated),
+      draftedByLlmRate: ratio(fLlm, fCreated),
+      // null for the stub provider, which is not an LLM (SPEC 12.4)
+      llmSchemaValidRate: fAttempted === 0 ? null : ratio(fValid, fAttempted),
+      llmCategoryAgreement: fValid === 0 ? null : ratio(fAgree, fValid),
+      llmLatencyP50Ms: latencies.length === 0 ? null : percentile(latencies, 50),
+    },
     timing: { scenarioP50Ms: percentile(durations, 50), scenarioP95Ms: percentile(durations, 95), totalMs: extra.totalMs },
     failures: results.filter((r) => !r.passed).map((r) => ({ scenarioId: r.scenarioId, reason: r.failureReason ?? "expectation_failed", detail: r.failures.join("; ").slice(0, 1000) })),
   };

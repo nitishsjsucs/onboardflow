@@ -3,12 +3,14 @@
 // the LLM (when enabled) only drafts wording and suggests a category that is
 // stored and compared, never acted on (ADR 0004). Any failure, timeout or
 // schema violation falls back to the deterministic template.
-import { z } from "zod";
-import { BLOCKER_KINDS, type BlockerKind } from "../../shared/domain.ts";
+import type { BlockerKind } from "../../shared/domain.ts";
+import { DRAFT_JSON_SCHEMA, DraftSchema } from "../../shared/followup-draft.ts";
 import { STAGE_BY_ID } from "../../shared/stages.ts";
 import { errorMessage } from "../integrations/errors.ts";
 import type { LlmProvider } from "../llm/provider.ts";
 import type { BlockerCandidate } from "./blocker-rules.ts";
+
+export { DRAFT_JSON_SCHEMA, DraftSchema };
 
 export type Draft = {
   title: string;
@@ -17,23 +19,6 @@ export type Draft = {
   suggestedCategory: BlockerKind | null;
   latencyMs: number | null;
   error?: string;
-};
-
-export const DraftSchema = z.object({
-  title: z.string().min(3).max(80),
-  description: z.string().min(3).max(600),
-  suggestedCategory: z.enum(BLOCKER_KINDS),
-});
-
-export const DRAFT_JSON_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["title", "description", "suggestedCategory"],
-  properties: {
-    title: { type: "string", maxLength: 80 },
-    description: { type: "string", maxLength: 600 },
-    suggestedCategory: { type: "string", enum: [...BLOCKER_KINDS] },
-  },
 };
 
 const SYSTEM_NAMES = { hr: "HR", it: "IT", facilities: "Facilities" } as const;

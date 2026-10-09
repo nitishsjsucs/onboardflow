@@ -31,7 +31,7 @@ export type CaseFacts = {
   auditedActions: number;
   full8StageTrail: boolean;
   blockersDetected: Array<{ kind: string; stage: string }>;
-  followups: { created: number; correctDepartment: number; draftedByLlm: number; llmSchemaValid: number; llmCategoryAgrees: number };
+  followups: { created: number; correctDepartment: number; draftedByLlm: number; llmSchemaValid: number; llmCategoryAgrees: number; llmAttempted: number; llmLatenciesMs: number[] };
 };
 
 const roundOf = (step: string) => Number(/#r(\d+)/.exec(step)?.[1] ?? 0);
@@ -164,6 +164,27 @@ export function caseFacts(s: Snapshot): CaseFacts {
     auditedActions: audited,
     full8StageTrail: STAGE_IDS.every((st) => completedStages.has(st)),
     blockersDetected: s.blockers.map((b) => ({ kind: b.kind, stage: b.stage_id })),
-    followups: { created: followups.length, correctDepartment: correct, draftedByLlm: followups.filter((f) => f.draftedBy?.startsWith("llm:")).length, llmSchemaValid: schemaValid, llmCategoryAgrees: agrees },
+    followups: {
+      created: followups.length,
+      correctDepartment: correct,
+      draftedByLlm: followups.filter((f) => f.draftedBy?.startsWith("llm:")).length,
+      llmSchemaValid: schemaValid,
+      llmCategoryAgrees: agrees,
+      ...llmAudit(s),
+    },
   };
+}
+
+/** LLM attempts and latencies, from the followup.created audit detail (the provider "stub" is not an LLM). */
+function llmAudit(s: Snapshot): { llmAttempted: number; llmLatenciesMs: number[] } {
+  let attempted = 0;
+  const latencies: number[] = [];
+  for (const a of s.audit) {
+    if (a.action !== "followup.created") continue;
+    const d = JSON.parse(a.detail_json) as { draftedBy?: string; llm?: { provider?: string; latencyMs?: number | null } };
+    if (!d.llm?.provider || d.llm.provider === "stub") continue;
+    attempted++;
+    if (d.draftedBy?.startsWith("llm:") && typeof d.llm.latencyMs === "number") latencies.push(d.llm.latencyMs);
+  }
+  return { llmAttempted: attempted, llmLatenciesMs: latencies };
 }

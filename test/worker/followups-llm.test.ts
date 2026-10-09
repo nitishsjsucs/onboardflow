@@ -85,3 +85,37 @@ describe("OpenAI-compatible provider", () => {
     expect(createLlmProvider(cfg, env).id).toBe("openai:qwen3-1.7b");
   });
 });
+
+describe("Workers AI provider (fake binding)", () => {
+  it("calls env.AI.run(model, { messages, response_format }, { gateway: { id } }) and reads the chat output", async () => {
+    const { WorkersAiProvider } = await import("../../src/worker/llm/workers-ai.ts");
+    const run = vi.fn(async () => ({ choices: [{ message: { content: '{"title":"Fix the cost center","description":"Correct it and retry.","suggestedCategory":"data_issue"}' } }] }));
+    const p = new WorkersAiProvider({ run }, "@cf/qwen/qwen3-30b-a3b-fp8", "onboardflow");
+    const d = await new FollowUpDrafter(p).draft(candidate, { employeeName: "Avery" });
+    expect(d).toMatchObject({ title: "Fix the cost center", draftedBy: "llm:workers-ai:@cf/qwen/qwen3-30b-a3b-fp8", suggestedCategory: "data_issue" });
+    const [model, inputs, options] = run.mock.calls[0] as unknown as [string, { messages: unknown[]; response_format: { type: string; json_schema: { name: string } }; max_tokens: number }, { gateway: { id: string } }];
+    expect(model).toBe("@cf/qwen/qwen3-30b-a3b-fp8");
+    expect(inputs.messages).toHaveLength(2);
+    expect(inputs.response_format).toMatchObject({ type: "json_schema", json_schema: { name: "follow_up" } });
+    expect(options).toEqual({ gateway: { id: "onboardflow" } });
+  });
+
+  it("accepts a plain string response, and falls back to the template on failure", async () => {
+    const { WorkersAiProvider } = await import("../../src/worker/llm/workers-ai.ts");
+    const ok = new WorkersAiProvider({ run: async () => ({ response: '{"title":"Fix it now","description":"Do the fix.","suggestedCategory":"data_issue"}' }) }, "m");
+    expect((await ok.completeJson({ system: "s", user: "u", schemaName: "x", jsonSchema: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 })).text).toContain("Fix it now");
+    const broken = new WorkersAiProvider({ run: async () => { throw new Error("gateway down"); } }, "m");
+    expect((await new FollowUpDrafter(broken).draft(candidate, { employeeName: "Avery" })).draftedBy).toBe("template");
+  });
+
+  it("is selected with LLM_PROVIDER=workers-ai only when the AI binding exists", async () => {
+    const { WorkersAiProvider } = await import("../../src/worker/llm/workers-ai.ts");
+    const cfg = parseConfig({ ...env, LLM_PROVIDER: "workers-ai" } as Env);
+    const missing = createLlmProvider(cfg, env);
+    expect(missing).not.toBeInstanceOf(WorkersAiProvider);
+    await expect(missing.completeJson({ system: "s", user: "u", schemaName: "x", jsonSchema: {}, maxTokens: 10, temperature: 0, timeoutMs: 100 })).rejects.toThrow(/AI binding/);
+    const withAi = createLlmProvider(cfg, { ...env, AI: { run: async () => ({}) } } as unknown as Env);
+    expect(withAi).toBeInstanceOf(WorkersAiProvider);
+    expect(withAi.id).toBe("workers-ai:qwen3-1.7b");
+  });
+});

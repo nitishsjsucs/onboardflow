@@ -29,6 +29,8 @@ export type NewFollowUp = {
   dueAt: string | null;
   draftedBy: string;
   llmSuggestedCategory: string | null;
+  /** Provider latency and outcome, kept in the followup.created audit for LLM metrics. */
+  llm?: { provider: string; latencyMs: number | null; error: string | null };
 };
 
 export function blockerExists(blockerId: string): Condition {
@@ -84,7 +86,7 @@ export function openBlockerStatements(
         entityId: taskId,
         employeeId: b.employeeId,
         stageId: b.stageId,
-        detail: { blockerId: b.id, assignee: f.assignee, draftedBy: f.draftedBy },
+        detail: { blockerId: b.id, assignee: f.assignee, draftedBy: f.draftedBy, ...(f.llm ? { llm: f.llm, suggestedCategory: f.llmSuggestedCategory } : {}) },
       },
       { sql: "EXISTS (SELECT 1 FROM tasks WHERE id = ?)", binds: [taskId] },
     ),
