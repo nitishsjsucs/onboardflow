@@ -105,7 +105,7 @@ export function caseRoutes() {
     const q = query(c, AuditQuery.pick({ cursor: true, limit: true }));
     if (!q.ok) return q.response;
     const limit = pageLimit(q.value.limit);
-    const after = decodeCursor<number>(q.value.cursor) ?? 0;
+    const after = decodeCursor(q.value.cursor, "number") ?? 0;
     const rows = await c.env.DB.prepare("SELECT * FROM audit_events WHERE employee_id = ? AND seq > ? ORDER BY seq LIMIT ?").bind(id, after, limit + 1).all<AuditRow>();
     return c.json(toPage(rows.results, limit, toAuditView, (x) => x.seq));
   });
@@ -116,7 +116,7 @@ export function caseRoutes() {
     const q = query(c, PageQuery);
     if (!q.ok) return q.response;
     const limit = pageLimit(q.value.limit);
-    const after = decodeCursor<number>(q.value.cursor) ?? 0;
+    const after = decodeCursor(q.value.cursor, "number") ?? 0;
     const rows = await c.env.DB.prepare("SELECT rowid AS rid, * FROM integration_calls WHERE employee_id = ? AND rowid > ? ORDER BY rowid LIMIT ?")
       .bind(id, after, limit + 1)
       .all<IntegrationCallRow>();

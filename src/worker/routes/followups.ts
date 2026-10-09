@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { FollowupsQuery } from "../../shared/api.ts";
 import { requireRole } from "../auth/middleware.ts";
 import { TASK_COLUMNS, type TaskRow, toTaskView } from "../db/repo.ts";
-import type { AppEnv } from "../http.ts";
+import { apiError, type AppEnv } from "../http.ts";
 import { decodeCursor, pageLimit, query, toPage } from "./util.ts";
 
 export function followupRoutes() {
@@ -20,12 +20,14 @@ export function followupRoutes() {
       where.push("status = ?");
       binds.push(status);
     }
+    // Coordinators see only their own department's queue (fail closed without one); admins may filter.
+    if (p.role === "coordinator" && !p.department) return apiError(c, 403, "forbidden", "coordinator account has no department");
     const dept = p.role === "coordinator" ? p.department : q.value.department;
     if (dept) {
       where.push("assignee = ?");
       binds.push(dept);
     }
-    const after = decodeCursor<string>(q.value.cursor);
+    const after = decodeCursor(q.value.cursor, "string");
     if (after) {
       where.push("id > ?");
       binds.push(after);

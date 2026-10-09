@@ -49,13 +49,32 @@ export function encodeCursor(v: string | number): string {
   return btoa(JSON.stringify(v)).replace(/=+$/, "");
 }
 
-export function decodeCursor<T extends string | number>(cursor: string | undefined): T | null {
-  if (!cursor) return null;
-  try {
-    return JSON.parse(atob(cursor)) as T;
-  } catch {
-    return null;
+/** A cursor the server did not issue for this list; app.onError answers 400 `invalid_cursor`. */
+export class InvalidCursorError extends Error {
+  constructor() {
+    super("cursor is not valid for this list");
+    this.name = "InvalidCursorError";
   }
+}
+
+/**
+ * Decodes a pagination cursor of the expected kind. Anything else (bad
+ * base64, bad JSON, an object, a fraction) throws InvalidCursorError, so a
+ * client-supplied value never reaches SQL with an unexpected type.
+ */
+export function decodeCursor(cursor: string | undefined, kind: "string"): string | null;
+export function decodeCursor(cursor: string | undefined, kind: "number"): number | null;
+export function decodeCursor(cursor: string | undefined, kind: "string" | "number"): string | number | null {
+  if (!cursor) return null;
+  let v: unknown;
+  try {
+    v = JSON.parse(atob(cursor));
+  } catch {
+    throw new InvalidCursorError();
+  }
+  if (kind === "string" && typeof v === "string") return v;
+  if (kind === "number" && typeof v === "number" && Number.isSafeInteger(v)) return v;
+  throw new InvalidCursorError();
 }
 
 /** Slices limit+1 rows into a page; `key` extracts the cursor value of the last item. */

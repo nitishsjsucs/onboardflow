@@ -54,7 +54,7 @@ export function employeeRoutes() {
       const like = `%${q.value.q}%`;
       binds.push(like, like, like);
     }
-    const after = decodeCursor<string>(q.value.cursor);
+    const after = decodeCursor(q.value.cursor, "string");
     if (after) {
       where.push("e.id > ?");
       binds.push(after);

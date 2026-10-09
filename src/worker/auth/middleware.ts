@@ -16,6 +16,7 @@ type PrincipalRow = {
   staff_id: string | null;
   emp_name: string | null;
   staff_name: string | null;
+  staff_kind: string | null;
   department: string | null;
 };
 
@@ -23,7 +24,7 @@ export async function loadPrincipal(db: D1Database, email: string): Promise<Prin
   const row = await db
     .prepare(
       `SELECT u.email, u.role, u.employee_id, u.staff_id,
-              e.first_name || ' ' || e.last_name AS emp_name, s.display_name AS staff_name, s.department
+              e.first_name || ' ' || e.last_name AS emp_name, s.display_name AS staff_name, s.kind AS staff_kind, s.department
          FROM app_users u
          LEFT JOIN employees e ON e.id = u.employee_id
          LEFT JOIN staff s ON s.id = u.staff_id
@@ -32,6 +33,11 @@ export async function loadPrincipal(db: D1Database, email: string): Promise<Prin
     .bind(email)
     .first<PrincipalRow>();
   if (!row || !isRole(row.role)) return null;
+  // Fail closed on inconsistent accounts: a staff role must match its staff row's kind (the schema does not
+  // tie the two), a coordinator needs a department, and an employee needs an employee row. Otherwise
+  // department-scoped queues would have nothing to scope by.
+  if (row.role === "employee" ? row.emp_name === null : row.staff_kind !== row.role) return null;
+  if (row.role === "coordinator" && !isDepartment(row.department)) return null;
   const p: Principal = { email: row.email, role: row.role, displayName: row.emp_name ?? row.staff_name ?? row.email };
   if (row.employee_id) p.employeeId = row.employee_id;
   if (row.staff_id) p.staffId = row.staff_id;

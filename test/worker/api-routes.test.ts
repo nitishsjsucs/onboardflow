@@ -141,6 +141,16 @@ describe("mutation routes return the documented shapes", () => {
 });
 
 describe("request validation", () => {
+  beforeAll(async () => {
+    // a real pending approval, so the decision probe reaches body validation instead of a 404
+    await DB.prepare(
+      `INSERT INTO approvals (id, employee_id, stage_id, checkpoint, round, approver_role, approver_staff_id, status, request_json, requested_at, due_at)
+       VALUES ('apr:E022:manager_approval:1', 'E022', 'manager_approval', 'manager_approval', 1, 'manager', (SELECT manager_id FROM employees WHERE id = 'E022'), 'pending', '{}', ?, ?)`,
+    )
+      .bind(new Date().toISOString(), new Date(Date.now() + 86_400_000).toISOString())
+      .run();
+  });
+
   it("rejects malformed bodies and queries with 400 and the error envelope", async () => {
     const bad = [
       await api("/api/approvals/apr:E022:manager_approval:1/decision", { as: "A01", body: { decision: "maybe" } }),
@@ -151,13 +161,37 @@ describe("request validation", () => {
       await api("/api/employees?limit=1000", { as: "A01" }),
       await api("/api/blockers?kind=nope", { as: "A01" }),
     ];
-    for (const r of bad) {
-      // the decision on an unknown approval is a 404 before validation
-      if (r.status === 404) continue;
-      expect(r.status).toBe(400);
-      expect(valid(ErrorEnvelopeSchema, r, 400).error.code).toBe("invalid_request");
-    }
+    for (const r of bad) expect(valid(ErrorEnvelopeSchema, r, 400).error.code).toBe("invalid_request");
+    expect((await api("/api/approvals/apr:E022:manager_approval:9/decision", { as: "A01", body: { decision: "approve" } })).status).toBe(404);
     expect((await api("/api/cases/E022/stages/nope/retry", { as: "A01", body: {} })).status).toBe(404);
     expect((await api("/api/cases/E999/start", { as: "A01", body: {} })).status).toBe(404);
+  });
+
+  it("rejects a cursor the server did not issue with 400 invalid_cursor, never a SQL error", async () => {
+    const object = btoa('{"a":1}');
+    const fraction = btoa("1.5");
+    const garbage = "%%%";
+    const probes: Array<[string, string]> = [
+      [`/api/employees?cursor=${object}`, "C01"],
+      [`/api/approvals?cursor=${object}`, "A01"],
+      [`/api/blockers?cursor=${object}`, "A01"],
+      [`/api/followups?cursor=${object}`, "A01"],
+      [`/api/audit?cursor=${object}`, "A01"],
+      [`/api/audit?cursor=${fraction}`, "A01"],
+      [`/api/cases/E022/audit?cursor=${object}`, "E022"],
+      [`/api/cases/E022/integrations?cursor=${btoa('"x"')}`, "A01"],
+      [`/api/employees?cursor=${garbage}`, "A01"],
+    ];
+    for (const [path, as] of probes) {
+      const r = await api(path, { as });
+      expect(r.status, path).toBe(400);
+      expect(valid(ErrorEnvelopeSchema, r, 400).error.code, path).toBe("invalid_cursor");
+      expect(JSON.stringify(r.body), path).not.toMatch(/D1_|SQL/);
+    }
+    // a cursor the server issued still pages
+    const first = await api("/api/employees?limit=2", { as: "A01" });
+    const next = await api(`/api/employees?limit=2&cursor=${first.body.nextCursor}`, { as: "A01" });
+    expect(next.status).toBe(200);
+    expect(next.body.items[0].id).toBe("E003");
   });
 });

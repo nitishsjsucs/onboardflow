@@ -30,7 +30,7 @@ export function approvalRoutes() {
       // People Ops decides closeout and resubmits rejected requests of either checkpoint.
       where.push("(a.checkpoint = 'closeout' OR a.status = 'rejected')");
     }
-    const after = decodeCursor<string>(q.value.cursor);
+    const after = decodeCursor(q.value.cursor, "string");
     if (after) {
       where.push("a.id > ?");
       binds.push(after);

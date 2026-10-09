@@ -89,3 +89,25 @@ describe("eval hooks exist only in dev mode", () => {
     expect(sim.status).toBe(404);
   });
 });
+
+describe("unexpected errors", () => {
+  it("answer 500 with a generic message and the request id, never the internal error text", async () => {
+    const failing = {
+      prepare() {
+        throw new Error("D1_ERROR: secret internal detail");
+      },
+      batch() {
+        throw new Error("D1_ERROR: secret internal detail");
+      },
+    };
+    const token = await mintAccessToken(await emailOf("A01"));
+    const res = await appFetch("http://localhost/api/me", { headers: { "Cf-Access-Jwt-Assertion": token } }, { DB: failing });
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: { code: string; message: string; requestId: string } };
+    expect(body.error.code).toBe("internal_error");
+    expect(body.error.message).toBe("internal error");
+    expect(body.error.requestId).not.toBe("unknown");
+    expect(res.headers.get("X-Request-Id")).toBe(body.error.requestId);
+    expect(JSON.stringify(body)).not.toContain("secret internal detail");
+  });
+});

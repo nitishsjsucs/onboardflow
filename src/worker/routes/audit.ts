@@ -26,7 +26,7 @@ export function auditRoutes() {
       where.push("employee_id = ?");
       binds.push(q.value.employeeId);
     }
-    const before = decodeCursor<number>(q.value.cursor);
+    const before = decodeCursor(q.value.cursor, "number");
     if (before !== null) {
       where.push("seq < ?");
       binds.push(before);

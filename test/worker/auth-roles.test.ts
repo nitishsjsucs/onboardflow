@@ -266,3 +266,32 @@ describe("exactly four roles", () => {
     expect([...matrixRoles].sort()).toEqual([...ROLES].sort());
   });
 });
+
+describe("principal loading fails closed on inconsistent accounts", () => {
+  beforeAll(async () => {
+    // app_users.role is not tied to staff.kind by the schema; these accounts pass every CHECK
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO staff (id, email, display_name, kind, department, org_unit) VALUES ('PX1', 'px1@onboardflow.test', 'Fixture Admin Row', 'admin', NULL, NULL)"),
+      env.DB.prepare("INSERT INTO staff (id, email, display_name, kind, department, org_unit) VALUES ('PX2', 'px2@onboardflow.test', 'Fixture Manager Row', 'manager', NULL, 'Engineering')"),
+      env.DB.prepare("INSERT INTO app_users (email, role, staff_id) VALUES ('px1@onboardflow.test', 'coordinator', 'PX1')"),
+      env.DB.prepare("INSERT INTO app_users (email, role, staff_id) VALUES ('px2@onboardflow.test', 'admin', 'PX2')"),
+    ]);
+  });
+
+  it("refuses a coordinator account whose staff row has no department, instead of showing every department's queue", async () => {
+    for (const path of ["/api/blockers?status=all", "/api/followups?status=all", "/api/me"]) {
+      const r = await call(path, { as: "px1@onboardflow.test" });
+      expect(r.status, path).toBe(403);
+      expect(((await r.json()) as { error: { code: string } }).error.code).toBe("not_provisioned");
+    }
+  });
+
+  it("refuses a role that does not match the staff row's kind", async () => {
+    expect((await call("/api/audit", { as: "px2@onboardflow.test" })).status).toBe(403);
+  });
+
+  it("still loads consistent accounts", async () => {
+    expect((await call("/api/blockers", { as: "C03" })).status).toBe(200);
+    expect((await call("/api/audit", { as: "A01" })).status).toBe(200);
+  });
+});

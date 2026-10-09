@@ -23,7 +23,7 @@ import { followupRoutes } from "./routes/followups.ts";
 import { integrationRoutes } from "./routes/integrations.ts";
 import { meRoutes } from "./routes/me.ts";
 import { taskRoutes } from "./routes/tasks.ts";
-import { requireIdempotencyKey } from "./routes/util.ts";
+import { InvalidCursorError, requireIdempotencyKey } from "./routes/util.ts";
 import { simApp } from "./sims/app.ts";
 
 export const APP_VERSION = "1.0.0";
@@ -92,8 +92,10 @@ export function createApp() {
 
   app.notFound((c) => apiError(c, 404, "not_found", "not found"));
   app.onError((err, c) => {
-    console.error("unhandled error", err);
-    return apiError(c, 500, "internal_error", err instanceof Error ? err.message : "internal error");
+    if (err instanceof InvalidCursorError) return apiError(c, 400, "invalid_cursor", err.message);
+    // The detail stays in the server log (with the request id); clients get a generic message.
+    console.error("unhandled error", c.get("requestId"), err);
+    return apiError(c, 500, "internal_error", "internal error");
   });
 
   return app;
