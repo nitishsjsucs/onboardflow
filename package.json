@@ -31,7 +31,8 @@
     "eval:ablate": "node eval/harness/run.ts --mode ablation-idempotency && node eval/harness/run.ts --mode ablation-retries",
     "eval:llama": "node eval/harness/run.ts --mode standard --llm llama",
     "results:readme": "node scripts/results-to-readme.ts",
-    "llm:smoke": "node scripts/llm-smoke.ts"
+    "llm:smoke": "node scripts/llm-smoke.ts",
+    "demo:drive": "node scripts/demo-drive.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.9.1",

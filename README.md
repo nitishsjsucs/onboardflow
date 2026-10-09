@@ -71,6 +71,14 @@ Open the printed URL, pick a persona on the login page (three employees, three m
 
 To serve the production-like build instead: `npm run build && npm run serve:local` (wrangler dev on the built Worker).
 
+To see the dashboards with something on them, the demo driver fills the local state with a seeded mix of cases: it resets `.wrangler/state`, applies the migrations and the seed, starts `wrangler dev` on the build, pins the simulated clock, and drives all 150 employees over HTTP as the personas. 42 cases complete and the rest are held in each of the eight stages: 24 each at the four human checkpoints (paperwork, manager approval, orientation, closeout approval), and 3 each at intake, IT, Facilities and provisioning verification, where only a simulated outage (a sustained 503 for that one employee) can hold a case, so those 12 show real integration blockers. Then `npm run serve:local` serves that state (on the real clock, without the eval hooks).
+
+```sh
+npm run build && npm run dev:keys
+npm run demo:drive            # --port and --inspector-port if 8787/9229 are taken, --seed to reshuffle
+npm run serve:local
+```
+
 ### Checks
 
 ```sh
@@ -169,7 +177,7 @@ docs/adr/          architecture decision records 0001 to 0008
 
 ## Not built in this version
 
-From the specification's Tier 2: the demo driver. The Workers AI provider exists and is unit tested against a fake binding, but it has never run against Cloudflare (it needs an account and the production AI binding).
+Every feature in the specification's Tier 1 and Tier 2 scope is built. The Workers AI provider exists and is unit tested against a fake binding, but it has never run against Cloudflare (it needs an account and the production AI binding).
 
 ## Troubleshooting
 

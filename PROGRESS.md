@@ -5,7 +5,7 @@ This file records where the build stands so a later agent can continue without r
 
 ## Commit plan position
 
-Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commits 26 (chaos), 27 (ablations), 28 (Workers AI provider, llama eval mode, LLM metrics, llm:smoke) and 29 (Integrations and Audit pages) done; next is commit 30 (demo driver). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
+Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progress: commits 26 (chaos), 27 (ablations), 28 (Workers AI provider, llama eval mode, LLM metrics, llm:smoke), 29 (Integrations and Audit pages) and 30 (demo driver) done; next is commit 31 (record chaos, ablation and llama results, re-record standard and scale). Nothing has been pushed; the remote `origin` is set to https://github.com/nitishsjsucs/onboardflow.git.
 
 | # | Commit (SPEC Section 21) | Status |
 |---|---|---|
@@ -41,13 +41,13 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 | 27 | feat(eval): idempotency and retry ablations (T2) | done |
 | 28 | feat(llm): Workers AI provider, llama eval mode, LLM metrics, llm:smoke (T2) | done |
 | 29 | feat(web): integrations and audit explorer pages (T2) | done |
-| 30 | feat(scripts): demo driver (T2) | next |
-| 31 | chore(eval): record chaos, ablation and llama results (T2) | todo |
+| 30 | feat(scripts): demo driver (T2) | done |
+| 31 | chore(eval): record chaos, ablation and llama results (T2) | next |
 
 ## Check status (last run, 2026-10-08)
 
 - `npm run typecheck`: pass (worker, web, node projects)
-- `npm test`: pass (42 files, 315 tests: worker in workerd, node, web)
+- `npm test`: pass (43 files, 317 tests: worker in workerd, node, web)
 - `npm run build`: pass (`check-bundle` ok)
 - `npm run typegen:check`: up to date
 - `npm run seed:check`: ok (sha256 56851eead5f6b2a6e9d22866bf9dd5e7533ccb4f20cc0d3270a09839a1f9a85e)
@@ -89,8 +89,10 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2 in progres
 
 20. Chaos mode choices (also in `eval/results/CHANGELOG.md`): chaos runs use the production retry base (2 s) and a 1 s poll interval (`CHAOS_VARS`), because its faults, outage windows and bots run in real seconds; and instead of SPEC 12.3's single 4-day clock advance (which cannot make any committed-seed task overdue from the pinned 2026-10-08) the harness jumps 90 days at a seeded 5 to 15 s and then advances 3 days every 20 s. Faultable operations are the nine POST operations; `stall` applies to the three polled resources. The orchestrator (not a bot) clears a stall a seeded 5 to 30 s after its stage starts and applies photo corruption after paperwork (as in F6). Coordinator bots retry or give up only when the case shows the stage blocked. People Ops also signs off closeouts after a seeded delay (SPEC 12.3 does not say who does). Chaos case failures are classified `case_failed`, `bot_patience` (a bot gave up on one of its blockers) or `deadline`.
 21. `DELETE /api/dev/faults` also accepts `ids` (chaos ends outage windows and stalls by id).
-23. LLM: `--llm llama` (standard mode only) starts llama-server on port 8110 (this machine's allocation; SPEC 12.1 says 8080) with `-np 1 -c 8192 -ngl 99 --jinja` unless one is already healthy there, and stops it if it started it. LLM metrics come from the `followup.created` audit detail (`llm.provider`, `latencyMs`, `error`), which the scan now records. The draft schema moved to `src/shared/followup-draft.ts` so `scripts/llm-smoke.ts` (a raw request with the same shape) needs no worker types. Trial (not recorded): 4 of 4 follow-ups drafted by Qwen3-1.7B were schema-valid, p50 about 1.9 s; `npm run llm:smoke` returned a valid draft in 1.4 s.
 22. Ablations (`npm run eval:ablate`) rerun the 60 scripted scenarios with `IDEMPOTENCY_KEYS=off` (simulator key handling off; API keys stay on) or `RETRY_LIMIT=0`, without a gate. Trial (not recorded): with keys off, F-it-lost-response wrote 2 device orders and R11 3; with retries off, F-it-transient stayed blocked.
+23. LLM: `--llm llama` (standard mode only) starts llama-server on port 8110 (this machine's allocation; SPEC 12.1 says 8080) with `-np 1 -c 8192 -ngl 99 --jinja` unless one is already healthy there, and stops it if it started it. LLM metrics come from the `followup.created` audit detail (`llm.provider`, `latencyMs`, `error`), which the scan now records. The draft schema moved to `src/shared/followup-draft.ts` so `scripts/llm-smoke.ts` (a raw request with the same shape) needs no worker types. Trial (not recorded): 4 of 4 follow-ups drafted by Qwen3-1.7B were schema-valid, p50 about 1.9 s; `npm run llm:smoke` returned a valid draft in 1.4 s.
+24. Demo driver (`npm run demo:drive`, SPEC 16): "the rest spread across the 8 stages" is read as 24 cases at each of the four human checkpoints and 3 at each of intake, IT, Facilities and provisioning verification, which can only hold a case under a simulated outage (a sustained per-employee 503), so those 12 are the "handful of faults". It reuses the eval harness (fresh local state, dev build, `EVAL_VARS`, pinned clock) and defaults to port 8787 like `serve:local`; on this machine run it with `--port 8781 --inspector-port 9231`. Verified here: the resulting local D1 holds exactly that mix with 12 open `integration_outage` blockers.
+
 
 ## Known noise and caveats
 
