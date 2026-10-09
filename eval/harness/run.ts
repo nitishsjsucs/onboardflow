@@ -239,12 +239,8 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
   const outcomes = [];
-  const hostBySeed = new Map<number, ReturnType<ReturnType<typeof watchHost>["stop"]>>();
-  for (const seed of seeds) {
-    const watch = watchHost();
-    outcomes.push(await runChaosSeed(seed, runId, { port: o.port, inspectorPort: o.inspectorPort, concurrency: 10 }));
-    hostBySeed.set(seed, watch.stop());
-  }
+  // each seed records its own host stalls, watched from a healthy server onward
+  for (const seed of seeds) outcomes.push(await runChaosSeed(seed, runId, { port: o.port, inspectorPort: o.inspectorPort, concurrency: 10 }));
   const results = outcomes.flatMap((x) => x.results);
   const hub = { matchesReconcile: outcomes.every((x) => x.hub.matchesReconcile), diffs: outcomes.flatMap((x) => x.hub.diffs.map((d) => `seed ${x.seed}: ${d}`)) };
   const metrics = computeMetrics(results, { startedCases: results.length, totalMs: Date.now() - t0, hub });
@@ -273,8 +269,8 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
     },
     simulatedNow: SIMULATED_NOW,
     ...metrics,
-    chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures, harness }) => ({ seed, completed, cases, failures, harness, host: hostBySeed.get(seed) }))),
-    host: mergeStalls([...hostBySeed.values()]),
+    chaos: chaosAggregate(outcomes.map(({ seed, completed, cases, failures, harness, host }) => ({ seed, completed, cases, failures, harness, host }))),
+    host: mergeStalls(outcomes.map((x) => x.host)),
     harnessTransport: {
       retries: outcomes.reduce((n, x) => n + x.harness.transportRetries, 0),
       failures: outcomes.reduce((n, x) => n + x.harness.transportFailures, 0),

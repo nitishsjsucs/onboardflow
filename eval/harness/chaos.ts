@@ -11,6 +11,7 @@ import { generateDataset } from "../../src/shared/synthetic/generate.ts";
 import { SCENARIOS } from "../scenarios/index.ts";
 import { Harness, type HttpResult } from "./actions.ts";
 import { caseFacts } from "./assertions.ts";
+import { type HostStalls, watchHost } from "./host.ts";
 import type { ScenarioResult } from "./metrics.ts";
 import {
   type BotMemory,
@@ -47,6 +48,8 @@ export type SeedOutcome = {
   harness: HarnessHealth;
   results: ScenarioResult[];
   hub: { matchesReconcile: boolean; diffs: string[] };
+  /** Host stalls while the seed's cases ran (from a healthy server to the end of the seed). */
+  host: HostStalls;
 };
 
 /** Control calls ride out the API idempotency store's 60 s in-progress window of a request the runtime dropped. */
@@ -150,6 +153,10 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
   prepareDatabase(ROOT, stateDir);
   const { path: envFile } = await writeRunSecrets(stateDir);
   const server = await startServer(ROOT, { stateDir, envFile, port: opts.port, inspectorPort: opts.inspectorPort, vars: { ...EVAL_VARS, ...CHAOS_VARS, LLM_PROVIDER: "stub" } });
+  // Watch for host stalls only from here: prepareDatabase above blocks this
+  // process on synchronous `wrangler d1` calls, which the detector would
+  // otherwise count as a stall although no case has started.
+  const watch = watchHost();
   try {
     const h = new Harness(server.baseUrl, dataset);
     const admin = h.emailFor("admin", "");
@@ -454,8 +461,9 @@ export async function runChaosSeed(seed: number, runId: string, opts: { port: nu
         `harness: ${health.transportRetries} transport retries (${health.transportFailures} still failed), ${health.controlRetries} control retries, ${health.controlFailures} control failures, ${health.botRequestErrors} bot request errors`,
     );
     if (health.controlFailures > 0) console.warn(`chaos seed ${seed}: the committed schedule was not fully applied (${health.controlFailures} control actions failed); this seed is flagged in the results`);
-    return { seed, completed, cases: SCENARIOS.length, failures, harness: health, results, hub };
+    return { seed, completed, cases: SCENARIOS.length, failures, harness: health, results, hub, host: watch.stop() };
   } finally {
+    watch.stop();
     await server.stop();
   }
 }

@@ -195,3 +195,9 @@ with its reason. Nothing here is tuned toward a target.
   two synchronous `wrangler d1` calls block the harness's event loop (timed
   afterwards at about 2.1 s on a quieter machine); the file cannot say
   whether the gap fell there or while cases ran.
+- Harness change (`fix(eval): watch chaos host stalls from a healthy server
+  onward`): each chaos seed now starts its stall detector after its server
+  is healthy, as standard mode already did, so the harness's own blocking
+  D1 setup is no longer inside the window. Recorded numbers do not change;
+  the fourth run above predates the change and keeps its flag. Not yet
+  exercised by a recorded chaos run.
