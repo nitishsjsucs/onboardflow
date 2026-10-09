@@ -117,7 +117,7 @@ Everything below is rendered by `npm run results:readme` from `eval/results/late
 <!-- results:start -->
 #### Standard mode (regression suite, scripted recovery)
 
-Command `npm run eval:ci` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git 6dbf935, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode standard --llm stub --gate ci` (via `npm run eval:ci`), run 2026-10-09 (git 395d60e at start, clean tree), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -127,11 +127,13 @@ Command `npm run eval:ci` (inferred from the mode; this run predates recorded co
 | onboarding | 20/20 passed |
 | integration failure | 24/24 passed |
 | recovery | 16/16 passed |
-| Integration calls (retried, replayed) | 1280 (60, 27) |
+| Integration calls (retried, replayed) | 1284 (60, 28) |
 | Duplicate side effects in the simulated systems | 0 |
+| Harness requests retried after a dropped local proxy connection (still failed) | 1 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 2.9 s / 4.9 s, 40 s |
+| Scenario time p50 / p95, wall time | 2.7 s / 3.6 s, 36 s |
+| Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Standard mode with a local LLM drafting follow-up wording
 

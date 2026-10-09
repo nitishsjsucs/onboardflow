@@ -244,3 +244,9 @@ with its reason. Nothing here is tuned toward a target.
   start requests ran) and in chaos mode (which counted every case). No
   recorded run shows a case left `not_started`, so recorded numbers do not
   change.
+- Standard mode re-run after the review fixes (`npm run eval:ci`, git
+  395d60e, clean tree, on AC power): 60/60 completed, 60/60 passed, 0
+  duplicate side effects, audit coverage 1, hub consistent, no host stall,
+  CI gate passed. It is the first run that records its command. The fixes
+  touched restart replays, the workspace preference replay, the license
+  bundle lock, cursors and live subscriptions; no scenario changed.
