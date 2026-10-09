@@ -383,3 +383,16 @@ with its reason. Nothing here is tuned toward a target.
     50/60 with 16 transport retries.
   The worktree and the diagnostic state directories were deleted
   afterwards.
+- Chaos mode a third time (`npm run eval:chaos`, git ea190b8, clean tree,
+  built from that commit with `dist/` unchanged, started 2026-10-09 13:29
+  PDT on AC power): **not a valid measurement.** At 13:39 PDT, during seed
+  3, the laptop lid was closed and the machine entered clamshell sleep
+  (`pmset -g log`: "Entering DarkWake state due to 'Clamshell Sleep'"),
+  then slept with brief dark wakes, later on battery. The harness flagged
+  5 host stalls (258 s in total, longest 129 s) in seeds 3 to 5. Recorded
+  as written: 180/300, per-seed 58, 34, 43, 15, 30 (mean 0.6), 0
+  duplicate side effects, 55 transport retries (0 still failed), 1 failed
+  case (E059 again). Seed 2 (13:33 to 13:36 PDT, before the sleep) had 26
+  deadlines and 32 transport retries; no cause was isolated. It is
+  committed like every run; it is the latest, so the README Results block
+  shows it, with a note.
