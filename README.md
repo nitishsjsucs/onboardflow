@@ -117,7 +117,7 @@ Everything below is rendered by `npm run results:readme` from `eval/results/late
 <!-- results:start -->
 #### Standard mode (regression suite, scripted recovery)
 
-Command `npm run eval:ci`, run 2026-10-08 (git 1a18873), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `npm run eval:ci`, run 2026-10-09 (git 6dbf935), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -127,15 +127,36 @@ Command `npm run eval:ci`, run 2026-10-08 (git 1a18873), provider `stub`, local 
 | onboarding | 20/20 passed |
 | integration failure | 24/24 passed |
 | recovery | 16/16 passed |
-| Integration calls (retried, replayed) | 1284 (60, 28) |
+| Integration calls (retried, replayed) | 1280 (60, 27) |
 | Duplicate side effects in the simulated systems | 0 |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 4.3 s / 6.0 s, 51 s |
+| Scenario time p50 / p95, wall time | 2.9 s / 4.9 s, 40 s |
+
+#### Chaos mode (seeded faults and policy bots, 5 seeds)
+
+Command `npm run eval:chaos`, run 2026-10-09 (git ab9c3e7), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
+
+| Metric | Value |
+|---|---|
+| Cases started | 300 |
+| Completed | 280/300 (93.3%) |
+| Completion per seed (mean, min, max) | 93.3%, 85.0%, 100.0% |
+| Seed 1 | 59/60; not completed: 0 failed, 0 bot patience, 1 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Seed 2 | 51/60; not completed: 0 failed, 0 bot patience, 9 deadline; harness: 26 transport retries, 0 control retries, 0 bot request errors |
+| Seed 3 | 60/60; not completed: 0 failed, 0 bot patience, 0 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Seed 4 | 58/60; not completed: 0 failed, 0 bot patience, 2 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Seed 5 | 52/60; not completed: 0 failed, 0 bot patience, 8 deadline; harness: 7 transport retries, 0 control retries, 0 bot request errors |
+| Integration calls (retried, replayed) | 9871 (4166, 95) |
+| Duplicate side effects in the simulated systems | 0 |
+| Harness requests retried after a dropped local proxy connection (still failed) | 33 (0) |
+| Audit coverage (regression check) | 1 |
+| Live hub equals D1 reconcile after the run | yes |
+| Scenario time p50 / p95, wall time | 121.0 s / 180.2 s, 1849 s |
 
 #### Scale mode (all 150 synthetic employees, no faults)
 
-Command `npm run eval:scale`, run 2026-10-08 (git 1a18873), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
+Command `npm run eval:scale`, run 2026-10-09 (git 6dbf935), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
 
 | Metric | Value |
 |---|---|
@@ -145,8 +166,54 @@ Command `npm run eval:scale`, run 2026-10-08 (git 1a18873), provider `stub`, loc
 | Duplicate side effects in the simulated systems | 0 |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 6.1 s / 15.8 s, 105 s |
+| Scenario time p50 / p95, wall time | 4.7 s / 6.2 s, 76 s |
+
+#### Ablation: Idempotency-Key handling switched off in the simulated systems
+
+Command `node eval/harness/run.ts --mode ablation-idempotency`, run 2026-10-09 (git ab9c3e7), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+
+| Metric | Value |
+|---|---|
+| Cases started | 60 |
+| Completed | 59/60 (98.3%) |
+| Passed (completed and every expectation held) | 50/60 |
+| onboarding | 20/20 passed |
+| integration failure | 18/24 passed |
+| recovery | 12/16 passed |
+| Integration calls (retried, replayed) | 1295 (60, 0) |
+| Duplicate side effects in the simulated systems | 27 |
+| Harness requests retried after a dropped local proxy connection (still failed) | 1 (0) |
+| Audit coverage (regression check) | 1 |
+| Live hub equals D1 reconcile after the run | yes |
+| Scenario time p50 / p95, wall time | 4.1 s / 1025.8 s, 4036 s |
+
+#### Ablation: step retries switched off (RETRY_LIMIT=0)
+
+Command `node eval/harness/run.ts --mode ablation-retries`, run 2026-10-09 (git ab9c3e7), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+
+| Metric | Value |
+|---|---|
+| Cases started | 60 |
+| Completed | 44/60 (73.3%) |
+| Passed (completed and every expectation held) | 43/60 |
+| onboarding | 19/20 passed |
+| integration failure | 9/24 passed |
+| recovery | 15/16 passed |
+| Integration calls (retried, replayed) | 1017 (25, 24) |
+| Duplicate side effects in the simulated systems | 0 |
+| Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
+| Audit coverage (regression check) | 1 |
+| Live hub equals D1 reconcile after the run | yes |
+| Scenario time p50 / p95, wall time | 5.2 s / 782.0 s, 1220 s |
 <!-- results:end -->
+
+**Reading these results.** Dates in the block are UTC; every run above was made on the evening of 2026-10-08 Pacific time, on one laptop that was also running other repositories' test suites. All files, including the runs not shown, are committed in `eval/results/`, and every change between runs is logged in [eval/results/CHANGELOG.md](eval/results/CHANGELOG.md).
+
+- **Chaos** is the informative number: 280 of 300 cases completed across the 5 seeds (per-seed mean 93.3%, min 85%, max 100%), with 0 duplicate side effects and every miss a deadline (no case failed and no bot gave up). The p95 of 180 s is the per-case deadline. Seed 5 overlapped a system sleep (the lid was closed at 18:18 PDT; its longest case lasted 1077 s against the 180 s deadline), so its 8 misses are not a reliable measurement; seeds 1 to 4 ended before the sleep and completed 228 of 240. Chaos runs in real time, so machine load moves it.
+- **Earlier chaos runs** on the same seeds are committed and not hidden: the first (git 2ed49fe) completed 230 of 300, but in seed 3 the harness failed to end a Facilities outage window after a local runtime error, so every case in that seed stopped at Facilities (0/60). The second (git 3b3ed1a) completed 210 of 300, with 248 bot requests in seeds 3 and 4 lost to dropped connections in `wrangler dev`'s local proxy. Each led to a harness fix (the orchestrator retries its own control calls; the harness retries a dropped request with the same Idempotency-Key, which the API is designed for). Fault tables, seeds and bot policies did not change.
+- **Scale** also ran a first time at the same commit and completed 148 of 150: two harness requests got a plain-text 500 from the local runtime and the harness stopped driving those two cases. The 150/150 run is shown because it is the latest run, not because it is the better one.
+- **Ablations** show what each mechanism buys. With Idempotency-Key handling off in the simulated systems, retried and replayed calls produced 27 duplicate side effects (0 in standard mode). With step retries off, 16 cases stayed blocked where a transient fault needed a retry. Both ablations ran while the machine slept between brief wakes: their wall times and p95 include those stalls, and the one ablation case that did not complete with keys off (R05) timed out during a stall rather than because of the ablation. New runs record host stalls and flag them in this block.
+- **Not recorded in this round:** the local-LLM run (`npm run eval:llama`). By the time the ablations finished the machine was asleep, and a run would have measured the sleep. The follow-up drafting path with Qwen3-1.7B was exercised in an unrecorded trial and by `npm run llm:smoke`; no LLM numbers are claimed here.
 
 ## Deploy (Cloudflare account required)
 
@@ -182,3 +249,5 @@ Every feature in the specification's Tier 1 and Tier 2 scope is built. The Worke
 ## Troubleshooting
 
 Worker test runs print `uncaught exception` lines such as `Aborting engine: User called restart`, `broken.outputGateBroken`, `eval-evict` and occasional "Worker's code had hung" messages. They come from steps that fail on purpose, restarts, terminations and evictions; tests assert outcomes, not log silence. The "Missing required secrets" warning during tests and builds is expected: tests pass secrets as Miniflare bindings.
+
+Under load, `wrangler dev`'s local ProxyWorker can drop its connection to the Worker. It retries a GET itself ("recovered on attempt 2 after a dropped connection to the UserWorker") and answers a POST with a plain-text 500, `Error: Network connection lost.` The eval harness retries such a request with the same Idempotency-Key and counts it in the results. A browser user would see the request fail and could repeat the action. Eval timeouts and chaos deadlines are wall-clock: run evals with the machine awake (lid open, on power), since every run records host stalls and the Results block flags them. Kept eval logs (`--keep`) also show "Worker's code had hung" errors that belong to no request; the passing 150/150 scale run logged 150 of them.

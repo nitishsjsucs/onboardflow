@@ -1,8 +1,8 @@
 {
-  "runId": "2026-10-09T00-14-18-955Z-standard",
-  "startedAt": "2026-10-09T00:14:22.076Z",
-  "gitSha": "6dbf935cb0c772d9b458f728d60cc490dca268bd",
-  "mode": "standard",
+  "runId": "2026-10-09T01-34-56-328Z-ablation-idempotency",
+  "startedAt": "2026-10-09T01:35:02.636Z",
+  "gitSha": "ab9c3e700008e742235a77f1dda837d8ab64ccc8",
+  "mode": "ablation-idempotency",
   "llmProvider": "stub",
   "seeds": [],
   "environment": {
@@ -25,10 +25,10 @@
   "totals": {
     "startedCases": 60,
     "scenarios": 60,
-    "completed": 60,
-    "completionRate": 1,
-    "passed": 60,
-    "passRate": 1
+    "completed": 59,
+    "completionRate": 0.9833,
+    "passed": 50,
+    "passRate": 0.8333
   },
   "byCategory": {
     "onboarding": {
@@ -39,43 +39,43 @@
     "integration_failure": {
       "scenarios": 24,
       "completed": 24,
-      "passed": 24
+      "passed": 18
     },
     "recovery": {
       "scenarios": 16,
-      "completed": 16,
-      "passed": 16
+      "completed": 15,
+      "passed": 12
     }
   },
   "integration": {
-    "calls": 1280,
+    "calls": 1295,
     "retriedCalls": 60,
-    "replays": 27,
-    "duplicateSideEffects": 0,
+    "replays": 0,
+    "duplicateSideEffects": 27,
     "bySystem": {
       "hr": {
-        "calls": 456,
-        "ok": 432,
+        "calls": 461,
+        "ok": 446,
         "retryable": 11,
         "fatal": 3,
         "timeouts": 1,
-        "replayed": 9
+        "replayed": 0
       },
       "it": {
-        "calls": 483,
-        "ok": 443,
+        "calls": 489,
+        "ok": 461,
         "retryable": 26,
         "fatal": 1,
         "timeouts": 1,
-        "replayed": 12
+        "replayed": 0
       },
       "facilities": {
-        "calls": 341,
-        "ok": 312,
+        "calls": 345,
+        "ok": 322,
         "retryable": 20,
         "fatal": 1,
         "timeouts": 1,
-        "replayed": 6
+        "replayed": 0
       }
     }
   },
@@ -88,10 +88,10 @@
       "recall": 1
     },
     "audit": {
-      "auditableActions": 2525,
-      "auditedActions": 2525,
+      "auditableActions": 2538,
+      "auditedActions": 2538,
       "coverage": 1,
-      "completedCasesWithFull8StageTrail": 60
+      "completedCasesWithFull8StageTrail": 59
     },
     "hubConsistency": {
       "matchesReconcile": true,
@@ -107,12 +107,67 @@
     "llmLatencyP50Ms": null
   },
   "timing": {
-    "scenarioP50Ms": 2942,
-    "scenarioP95Ms": 4941,
-    "totalMs": 40472
+    "scenarioP50Ms": 4093,
+    "scenarioP95Ms": 1025761,
+    "totalMs": 4035876
   },
-  "failures": [],
+  "failures": [
+    {
+      "scenarioId": "F-hr-lost-response",
+      "reason": "expectation_failed",
+      "detail": "side effects hr.create-worker: expected 1, got 2; replayed hr.create-worker: no replayed call"
+    },
+    {
+      "scenarioId": "F-hr-stall",
+      "reason": "expectation_failed",
+      "detail": "side effects hr.start-document-verification: expected 1, got 2; replayed hr.start-document-verification: no replayed call"
+    },
+    {
+      "scenarioId": "F-it-lost-response",
+      "reason": "expectation_failed",
+      "detail": "side effects it.order-device: expected 1, got 2; replayed it.order-device: no replayed call"
+    },
+    {
+      "scenarioId": "F-it-stall",
+      "reason": "expectation_failed",
+      "detail": "side effects it.order-device: expected 1, got 2; replayed it.order-device: no replayed call"
+    },
+    {
+      "scenarioId": "F-facilities-lost-response",
+      "reason": "expectation_failed",
+      "detail": "side effects facilities.issue-badge: expected 1, got 2; replayed facilities.issue-badge: no replayed call"
+    },
+    {
+      "scenarioId": "F-facilities-stall",
+      "reason": "expectation_failed",
+      "detail": "side effects facilities.issue-badge: expected 1, got 2; replayed facilities.issue-badge: no replayed call"
+    },
+    {
+      "scenarioId": "R05",
+      "reason": "expectation_failed",
+      "detail": "timed out waiting for closeout approval pending for E116; terminal: expected complete, got awaiting_approval; side effects hr.create-worker: expected 1, got 2; side effects hr.start-document-verification: expected 1, got 2; side effects it.create-account: expected 1, got 2; side effects it.assign-licenses: expected 1, got 2; side effects hr.activate-worker: expected 1, got 0"
+    },
+    {
+      "scenarioId": "R06",
+      "reason": "expectation_failed",
+      "detail": "side effects hr.create-worker: expected 1, got 2; side effects hr.start-document-verification: expected 1, got 2; side effects it.create-account: expected 1, got 2; side effects it.assign-licenses: expected 1, got 2; side effects it.order-device: expected 1, got 2; side effects facilities.assign-workspace: expected 1, got 2; side effects facilities.issue-badge: expected 1, got 2"
+    },
+    {
+      "scenarioId": "R11",
+      "reason": "expectation_failed",
+      "detail": "side effects it.order-device: expected 1, got 3; replayed it.order-device: no replayed call"
+    },
+    {
+      "scenarioId": "R16",
+      "reason": "expectation_failed",
+      "detail": "side effects hr.create-worker: expected 1, got 2; side effects hr.start-document-verification: expected 1, got 2; side effects it.create-account: expected 1, got 2; side effects it.assign-licenses: expected 1, got 2; side effects it.order-device: expected 1, got 2; side effects facilities.assign-workspace: expected 1, got 2; side effects facilities.issue-badge: expected 1, got 2; side effects hr.enroll-orientation: expected 1, got 2"
+    }
+  ],
   "chaos": null,
+  "harnessTransport": {
+    "retries": 1,
+    "failures": 0
+  },
   "scenarios": [
     {
       "scenarioId": "O01",
@@ -120,7 +175,7 @@
       "employeeId": "E011",
       "completed": true,
       "passed": true,
-      "durationMs": 3098,
+      "durationMs": 5045,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -178,7 +233,7 @@
       "employeeId": "E009",
       "completed": true,
       "passed": true,
-      "durationMs": 3078,
+      "durationMs": 5144,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -236,7 +291,7 @@
       "employeeId": "E003",
       "completed": true,
       "passed": true,
-      "durationMs": 3098,
+      "durationMs": 5039,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -294,7 +349,7 @@
       "employeeId": "E001",
       "completed": true,
       "passed": true,
-      "durationMs": 3096,
+      "durationMs": 5199,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -352,7 +407,7 @@
       "employeeId": "E006",
       "completed": true,
       "passed": true,
-      "durationMs": 3095,
+      "durationMs": 5044,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -410,7 +465,7 @@
       "employeeId": "E002",
       "completed": true,
       "passed": true,
-      "durationMs": 3107,
+      "durationMs": 5199,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -468,7 +523,7 @@
       "employeeId": "E008",
       "completed": true,
       "passed": true,
-      "durationMs": 3713,
+      "durationMs": 4796,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -526,7 +581,7 @@
       "employeeId": "E018",
       "completed": true,
       "passed": true,
-      "durationMs": 2746,
+      "durationMs": 3417,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -584,7 +639,7 @@
       "employeeId": "E014",
       "completed": true,
       "passed": true,
-      "durationMs": 2941,
+      "durationMs": 3240,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -642,7 +697,7 @@
       "employeeId": "E017",
       "completed": true,
       "passed": true,
-      "durationMs": 2102,
+      "durationMs": 2005,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -700,7 +755,7 @@
       "employeeId": "E020",
       "completed": true,
       "passed": true,
-      "durationMs": 3023,
+      "durationMs": 3498,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -758,7 +813,7 @@
       "employeeId": "E023",
       "completed": true,
       "passed": true,
-      "durationMs": 2942,
+      "durationMs": 4357,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -816,7 +871,7 @@
       "employeeId": "E042",
       "completed": true,
       "passed": true,
-      "durationMs": 3016,
+      "durationMs": 4236,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -874,7 +929,7 @@
       "employeeId": "E028",
       "completed": true,
       "passed": true,
-      "durationMs": 2342,
+      "durationMs": 2881,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -932,7 +987,7 @@
       "employeeId": "E004",
       "completed": true,
       "passed": true,
-      "durationMs": 3231,
+      "durationMs": 3203,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -990,7 +1045,7 @@
       "employeeId": "E026",
       "completed": true,
       "passed": true,
-      "durationMs": 3283,
+      "durationMs": 3252,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1048,7 +1103,7 @@
       "employeeId": "E036",
       "completed": true,
       "passed": true,
-      "durationMs": 3494,
+      "durationMs": 3086,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1106,7 +1161,7 @@
       "employeeId": "E032",
       "completed": true,
       "passed": true,
-      "durationMs": 3249,
+      "durationMs": 3212,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1164,7 +1219,7 @@
       "employeeId": "E035",
       "completed": true,
       "passed": true,
-      "durationMs": 3269,
+      "durationMs": 2933,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1222,7 +1277,7 @@
       "employeeId": "E024",
       "completed": true,
       "passed": true,
-      "durationMs": 2854,
+      "durationMs": 2207,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1280,7 +1335,7 @@
       "employeeId": "E038",
       "completed": true,
       "passed": true,
-      "durationMs": 3567,
+      "durationMs": 2532,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1338,7 +1393,7 @@
       "employeeId": "E041",
       "completed": true,
       "passed": true,
-      "durationMs": 3414,
+      "durationMs": 2498,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1396,7 +1451,7 @@
       "employeeId": "E044",
       "completed": true,
       "passed": true,
-      "durationMs": 4910,
+      "durationMs": 5211,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1453,25 +1508,28 @@
       "category": "integration_failure",
       "employeeId": "E047",
       "completed": true,
-      "passed": true,
-      "durationMs": 3495,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 3112,
+      "failures": [
+        "side effects hr.create-worker: expected 1, got 2",
+        "replayed hr.create-worker: no replayed call"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
         "calls": 20,
         "retriedCalls": 1,
-        "replays": 1,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 1,
         "bySystem": {
           "hr": {
             "calls": 8,
-            "ok": 6,
+            "ok": 7,
             "retryable": 1,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 1
+            "replayed": 0
           },
           "it": {
             "calls": 7,
@@ -1512,7 +1570,7 @@
       "employeeId": "E050",
       "completed": true,
       "passed": true,
-      "durationMs": 3724,
+      "durationMs": 3274,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1570,7 +1628,7 @@
       "employeeId": "E053",
       "completed": true,
       "passed": true,
-      "durationMs": 3841,
+      "durationMs": 4093,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1638,7 +1696,7 @@
       "employeeId": "E056",
       "completed": true,
       "passed": true,
-      "durationMs": 4941,
+      "durationMs": 4640,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1705,25 +1763,28 @@
       "category": "integration_failure",
       "employeeId": "E059",
       "completed": true,
-      "passed": true,
-      "durationMs": 5418,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 5756,
+      "failures": [
+        "side effects hr.start-document-verification: expected 1, got 2",
+        "replayed hr.start-document-verification: no replayed call"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
         "calls": 32,
         "retriedCalls": 0,
-        "replays": 1,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 1,
         "bySystem": {
           "hr": {
             "calls": 20,
-            "ok": 19,
+            "ok": 20,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 1
+            "replayed": 0
           },
           "it": {
             "calls": 7,
@@ -1774,7 +1835,7 @@
       "employeeId": "E062",
       "completed": true,
       "passed": true,
-      "durationMs": 3628,
+      "durationMs": 4605,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1832,7 +1893,7 @@
       "employeeId": "E065",
       "completed": true,
       "passed": true,
-      "durationMs": 4006,
+      "durationMs": 4104,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1890,7 +1951,7 @@
       "employeeId": "E068",
       "completed": true,
       "passed": true,
-      "durationMs": 5835,
+      "durationMs": 988759,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1947,17 +2008,20 @@
       "category": "integration_failure",
       "employeeId": "E071",
       "completed": true,
-      "passed": true,
-      "durationMs": 4038,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 3921,
+      "failures": [
+        "side effects it.order-device: expected 1, got 2",
+        "replayed it.order-device: no replayed call"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
         "calls": 20,
         "retriedCalls": 1,
-        "replays": 1,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 1,
         "bySystem": {
           "hr": {
             "calls": 7,
@@ -1969,11 +2033,11 @@
           },
           "it": {
             "calls": 8,
-            "ok": 6,
+            "ok": 7,
             "retryable": 1,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 1
+            "replayed": 0
           },
           "facilities": {
             "calls": 5,
@@ -2006,7 +2070,7 @@
       "employeeId": "E074",
       "completed": true,
       "passed": true,
-      "durationMs": 2802,
+      "durationMs": 3765,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2064,7 +2128,7 @@
       "employeeId": "E005",
       "completed": true,
       "passed": true,
-      "durationMs": 2841,
+      "durationMs": 986078,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2132,7 +2196,7 @@
       "employeeId": "E077",
       "completed": true,
       "passed": true,
-      "durationMs": 3192,
+      "durationMs": 986077,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2199,17 +2263,20 @@
       "category": "integration_failure",
       "employeeId": "E080",
       "completed": true,
-      "passed": true,
-      "durationMs": 4028,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 985772,
+      "failures": [
+        "side effects it.order-device: expected 1, got 2",
+        "replayed it.order-device: no replayed call"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
         "calls": 32,
         "retriedCalls": 0,
-        "replays": 1,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 1,
         "bySystem": {
           "hr": {
             "calls": 7,
@@ -2221,11 +2288,11 @@
           },
           "it": {
             "calls": 20,
-            "ok": 19,
+            "ok": 20,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 1
+            "replayed": 0
           },
           "facilities": {
             "calls": 5,
@@ -2268,7 +2335,7 @@
       "employeeId": "E083",
       "completed": true,
       "passed": true,
-      "durationMs": 2889,
+      "durationMs": 984620,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2326,7 +2393,7 @@
       "employeeId": "E086",
       "completed": true,
       "passed": true,
-      "durationMs": 2926,
+      "durationMs": 985629,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2384,7 +2451,7 @@
       "employeeId": "E089",
       "completed": true,
       "passed": true,
-      "durationMs": 5066,
+      "durationMs": 5346,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2441,17 +2508,20 @@
       "category": "integration_failure",
       "employeeId": "E092",
       "completed": true,
-      "passed": true,
-      "durationMs": 2656,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 3212,
+      "failures": [
+        "side effects facilities.issue-badge: expected 1, got 2",
+        "replayed facilities.issue-badge: no replayed call"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
         "calls": 20,
         "retriedCalls": 1,
-        "replays": 1,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 1,
         "bySystem": {
           "hr": {
             "calls": 7,
@@ -2471,11 +2541,11 @@
           },
           "facilities": {
             "calls": 6,
-            "ok": 4,
+            "ok": 5,
             "retryable": 1,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 1
+            "replayed": 0
           }
         },
         "auditableActions": 40,
@@ -2500,7 +2570,7 @@
       "employeeId": "E095",
       "completed": true,
       "passed": true,
-      "durationMs": 2369,
+      "durationMs": 3214,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2558,7 +2628,7 @@
       "employeeId": "E098",
       "completed": true,
       "passed": true,
-      "durationMs": 2040,
+      "durationMs": 3409,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2626,7 +2696,7 @@
       "employeeId": "E101",
       "completed": true,
       "passed": true,
-      "durationMs": 2455,
+      "durationMs": 3561,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2693,17 +2763,20 @@
       "category": "integration_failure",
       "employeeId": "E104",
       "completed": true,
-      "passed": true,
-      "durationMs": 2718,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 2532,
+      "failures": [
+        "side effects facilities.issue-badge: expected 1, got 2",
+        "replayed facilities.issue-badge: no replayed call"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
         "calls": 32,
         "retriedCalls": 0,
-        "replays": 1,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 1,
         "bySystem": {
           "hr": {
             "calls": 7,
@@ -2723,11 +2796,11 @@
           },
           "facilities": {
             "calls": 18,
-            "ok": 17,
+            "ok": 18,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 1
+            "replayed": 0
           }
         },
         "auditableActions": 54,
@@ -2762,7 +2835,7 @@
       "employeeId": "E107",
       "completed": true,
       "passed": true,
-      "durationMs": 2441,
+      "durationMs": 1024928,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2830,7 +2903,7 @@
       "employeeId": "E110",
       "completed": true,
       "passed": true,
-      "durationMs": 2061,
+      "durationMs": 1991,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2898,7 +2971,7 @@
       "employeeId": "E029",
       "completed": true,
       "passed": true,
-      "durationMs": 2300,
+      "durationMs": 972834,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2966,7 +3039,7 @@
       "employeeId": "E113",
       "completed": true,
       "passed": true,
-      "durationMs": 2581,
+      "durationMs": 2616,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3032,34 +3105,42 @@
       "scenarioId": "R05",
       "category": "recovery",
       "employeeId": "E116",
-      "completed": true,
-      "passed": true,
-      "durationMs": 2934,
-      "failures": [],
-      "failureReason": null,
+      "completed": false,
+      "passed": false,
+      "durationMs": 1026101,
+      "failures": [
+        "timed out waiting for closeout approval pending for E116",
+        "terminal: expected complete, got awaiting_approval",
+        "side effects hr.create-worker: expected 1, got 2",
+        "side effects hr.start-document-verification: expected 1, got 2",
+        "side effects it.create-account: expected 1, got 2",
+        "side effects it.assign-licenses: expected 1, got 2",
+        "side effects hr.activate-worker: expected 1, got 0"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
-        "completed": true,
+        "completed": false,
         "failedReason": null,
-        "calls": 28,
+        "calls": 29,
         "retriedCalls": 5,
-        "replays": 4,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 4,
         "bySystem": {
           "hr": {
-            "calls": 9,
-            "ok": 7,
+            "calls": 10,
+            "ok": 10,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 2
+            "replayed": 0
           },
           "it": {
             "calls": 14,
-            "ok": 7,
+            "ok": 9,
             "retryable": 5,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 2
+            "replayed": 0
           },
           "facilities": {
             "calls": 5,
@@ -3070,9 +3151,9 @@
             "replayed": 0
           }
         },
-        "auditableActions": 50,
-        "auditedActions": 50,
-        "full8StageTrail": true,
+        "auditableActions": 49,
+        "auditedActions": 49,
+        "full8StageTrail": false,
         "blockersDetected": [
           {
             "kind": "integration_outage",
@@ -3101,45 +3182,53 @@
       "category": "recovery",
       "employeeId": "E119",
       "completed": true,
-      "passed": true,
-      "durationMs": 2423,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 1024749,
+      "failures": [
+        "side effects hr.create-worker: expected 1, got 2",
+        "side effects hr.start-document-verification: expected 1, got 2",
+        "side effects it.create-account: expected 1, got 2",
+        "side effects it.assign-licenses: expected 1, got 2",
+        "side effects it.order-device: expected 1, got 2",
+        "side effects facilities.assign-workspace: expected 1, got 2",
+        "side effects facilities.issue-badge: expected 1, got 2"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
-        "calls": 26,
+        "calls": 33,
         "retriedCalls": 0,
-        "replays": 7,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 7,
         "bySystem": {
           "hr": {
-            "calls": 9,
-            "ok": 7,
+            "calls": 11,
+            "ok": 11,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 2
+            "replayed": 0
           },
           "it": {
-            "calls": 10,
-            "ok": 7,
+            "calls": 13,
+            "ok": 13,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 3
+            "replayed": 0
           },
           "facilities": {
-            "calls": 7,
-            "ok": 5,
+            "calls": 9,
+            "ok": 9,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 2
+            "replayed": 0
           }
         },
-        "auditableActions": 46,
-        "auditedActions": 46,
+        "auditableActions": 53,
+        "auditedActions": 53,
         "full8StageTrail": true,
         "blockersDetected": [],
         "followups": {
@@ -3160,7 +3249,7 @@
       "employeeId": "E122",
       "completed": true,
       "passed": true,
-      "durationMs": 2582,
+      "durationMs": 1025774,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3218,7 +3307,7 @@
       "employeeId": "E125",
       "completed": true,
       "passed": true,
-      "durationMs": 2627,
+      "durationMs": 1025906,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3276,7 +3365,7 @@
       "employeeId": "E128",
       "completed": true,
       "passed": true,
-      "durationMs": 2591,
+      "durationMs": 1025761,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3344,7 +3433,7 @@
       "employeeId": "E131",
       "completed": true,
       "passed": true,
-      "durationMs": 3299,
+      "durationMs": 4435,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3419,17 +3508,20 @@
       "category": "recovery",
       "employeeId": "E134",
       "completed": true,
-      "passed": true,
-      "durationMs": 2718,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 3920,
+      "failures": [
+        "side effects it.order-device: expected 1, got 3",
+        "replayed it.order-device: no replayed call"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
         "calls": 33,
         "retriedCalls": 1,
-        "replays": 2,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 2,
         "bySystem": {
           "hr": {
             "calls": 7,
@@ -3441,11 +3533,11 @@
           },
           "it": {
             "calls": 21,
-            "ok": 18,
+            "ok": 20,
             "retryable": 1,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 2
+            "replayed": 0
           },
           "facilities": {
             "calls": 5,
@@ -3488,7 +3580,7 @@
       "employeeId": "E137",
       "completed": true,
       "passed": true,
-      "durationMs": 2685,
+      "durationMs": 3066,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3556,7 +3648,7 @@
       "employeeId": "E140",
       "completed": true,
       "passed": true,
-      "durationMs": 2859,
+      "durationMs": 2699,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3624,7 +3716,7 @@
       "employeeId": "E143",
       "completed": true,
       "passed": true,
-      "durationMs": 2525,
+      "durationMs": 2218,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3682,7 +3774,7 @@
       "employeeId": "E007",
       "completed": true,
       "passed": true,
-      "durationMs": 2201,
+      "durationMs": 2158,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3739,45 +3831,54 @@
       "category": "recovery",
       "employeeId": "E146",
       "completed": true,
-      "passed": true,
-      "durationMs": 2151,
-      "failures": [],
-      "failureReason": null,
+      "passed": false,
+      "durationMs": 1017943,
+      "failures": [
+        "side effects hr.create-worker: expected 1, got 2",
+        "side effects hr.start-document-verification: expected 1, got 2",
+        "side effects it.create-account: expected 1, got 2",
+        "side effects it.assign-licenses: expected 1, got 2",
+        "side effects it.order-device: expected 1, got 2",
+        "side effects facilities.assign-workspace: expected 1, got 2",
+        "side effects facilities.issue-badge: expected 1, got 2",
+        "side effects hr.enroll-orientation: expected 1, got 2"
+      ],
+      "failureReason": "expectation_failed",
       "facts": {
         "completed": true,
         "failedReason": null,
-        "calls": 30,
+        "calls": 37,
         "retriedCalls": 0,
-        "replays": 8,
-        "duplicateSideEffects": 0,
+        "replays": 0,
+        "duplicateSideEffects": 8,
         "bySystem": {
           "hr": {
-            "calls": 11,
-            "ok": 8,
+            "calls": 13,
+            "ok": 13,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 3
+            "replayed": 0
           },
           "it": {
-            "calls": 11,
-            "ok": 8,
+            "calls": 14,
+            "ok": 14,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 3
+            "replayed": 0
           },
           "facilities": {
-            "calls": 8,
-            "ok": 6,
+            "calls": 10,
+            "ok": 10,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 2
+            "replayed": 0
           }
         },
-        "auditableActions": 50,
-        "auditedActions": 50,
+        "auditableActions": 57,
+        "auditedActions": 57,
         "full8StageTrail": true,
         "blockersDetected": [],
         "followups": {
