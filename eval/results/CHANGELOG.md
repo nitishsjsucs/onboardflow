@@ -140,7 +140,7 @@ with its reason. Nothing here is tuned toward a target.
   for timeouts and deadlines. The runs above predate it; their sleep is
   documented here from the power log and the recorded durations.
 
-## 2026-10-08, local-LLM run (file names carry UTC times, 2026-10-09)
+## 2026-10-08, local-LLM run and clean ablation re-runs (file names carry UTC times, 2026-10-09)
 
 - The README Results block now lists the stub run of a mode before any
   local-LLM run of the same mode, so the CI regression gate stays first.
@@ -160,3 +160,22 @@ with its reason. Nothing here is tuned toward a target.
   does not record draft text, so wording quality is not measured.
 - Nothing in the catalog, fault tables, prompt or harness behavior changed
   for this run.
+- Both ablations re-run at git d9ed36d (`npm run eval:ablate`, started
+  20:14 PDT, lid open, on battery, Low Power Mode off) because the first
+  runs overlapped a system sleep. Neither recorded a host stall or a
+  transport retry. Nothing in the catalog, fault tables or harness behavior
+  changed between the two pairs of runs. Both pairs are committed.
+  - Idempotency-Key handling off
+    (`2026-10-09T03-14-54-049Z-ablation-idempotency.json`): 60/60
+    completed, 50/60 passed, 28 duplicate side effects, 39 s. Against the
+    first run (59/60, 50/60, 27): R05 completed this time, which confirms
+    its earlier timeout came from the sleep, and R06 counted 8 duplicates
+    instead of 7 (`hr.enroll-orientation` too). R06 restarts the case while
+    the old workflow instance is still running, so how far that instance
+    gets before termination is a race. Every other scenario matched.
+  - Step retries off (`2026-10-09T03-15-37-722Z-ablation-retries.json`):
+    44/60 completed, 43/60 passed, 0 duplicates, 205 s, the same counts
+    and integration calls (1017, 25 retried) as the first run.
+- Chaos was not re-run: one run takes about 30 minutes of real time, and
+  the laptop was on battery at under 30% with other repositories' builds
+  running, so a run could have ended in a low-battery sleep.
