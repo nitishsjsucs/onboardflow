@@ -20,6 +20,16 @@ export type ScenarioResult = {
   expectedBlockers: Array<{ kind: string; stage: string }> | null;
 };
 
+export type RunProvenance = {
+  /** The npm script that ran the harness (`npm_lifecycle_event`), if any. */
+  npmScript: string | null;
+  /** Arguments passed to eval/harness/run.ts. */
+  argv: string[];
+  headAtStart: string;
+  /** `git status --porcelain` was empty when the run started. */
+  cleanTreeAtStart: boolean;
+};
+
 export type EvalRun = {
   runId: string;
   startedAt: string;
@@ -56,6 +66,11 @@ export type EvalRun = {
   harnessTransport?: { retries: number; failures: number };
   /** Host stalls (system sleep, a frozen harness) seen during the run; absent in runs recorded before the detector existed. */
   host?: HostStalls;
+  /**
+   * How the run was invoked, read when it started (absent in runs recorded before it existed; for those the
+   * README infers the command from the mode, and `gitSha` was read when the run ended).
+   */
+  provenance?: RunProvenance;
   failures: Array<{ scenarioId: string; reason: FailureReasonCode; detail: string }>;
   scenarios: ScenarioResult[];
 };

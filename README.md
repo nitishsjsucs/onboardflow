@@ -117,7 +117,7 @@ Everything below is rendered by `npm run results:readme` from `eval/results/late
 <!-- results:start -->
 #### Standard mode (regression suite, scripted recovery)
 
-Command `npm run eval:ci`, run 2026-10-09 (git 6dbf935), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `npm run eval:ci` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git 6dbf935, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -135,7 +135,7 @@ Command `npm run eval:ci`, run 2026-10-09 (git 6dbf935), provider `stub`, local 
 
 #### Standard mode with a local LLM drafting follow-up wording
 
-Command `npm run eval:llama`, run 2026-10-09 (git 8a849de), provider `llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `npm run eval:llama` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git 8a849de, read when the run ended), provider `llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -156,7 +156,7 @@ Command `npm run eval:llama`, run 2026-10-09 (git 8a849de), provider `llama (ope
 
 #### Chaos mode (seeded faults and policy bots, 5 seeds)
 
-Command `npm run eval:chaos`, run 2026-10-09 (git f442532), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
+Command `npm run eval:chaos` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git f442532, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
 
 | Metric | Value |
 |---|---|
@@ -178,7 +178,7 @@ Command `npm run eval:chaos`, run 2026-10-09 (git f442532), provider `stub`, loc
 
 #### Scale mode (all 150 synthetic employees, no faults)
 
-Command `npm run eval:scale`, run 2026-10-09 (git 6dbf935), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
+Command `npm run eval:scale` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git 6dbf935, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
 
 | Metric | Value |
 |---|---|
@@ -192,7 +192,7 @@ Command `npm run eval:scale`, run 2026-10-09 (git 6dbf935), provider `stub`, loc
 
 #### Ablation: Idempotency-Key handling switched off in the simulated systems
 
-Command `node eval/harness/run.ts --mode ablation-idempotency`, run 2026-10-09 (git d9ed36d), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode ablation-idempotency` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git d9ed36d, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -212,7 +212,7 @@ Command `node eval/harness/run.ts --mode ablation-idempotency`, run 2026-10-09 (
 
 #### Ablation: step retries switched off (RETRY_LIMIT=0)
 
-Command `node eval/harness/run.ts --mode ablation-retries`, run 2026-10-09 (git d9ed36d), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode ablation-retries` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git d9ed36d, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|

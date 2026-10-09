@@ -15,6 +15,7 @@ export function describeStalls(h: HostStalls): string {
 export function printRun(run: EvalRun): string {
   const lines = [
     `mode ${run.mode}, provider ${run.llmProvider}, git ${run.gitSha.slice(0, 7)}, ${run.environment.runtime}`,
+    ...(run.provenance ? [`command node eval/harness/run.ts ${run.provenance.argv.join(" ")}${run.provenance.npmScript ? ` (npm run ${run.provenance.npmScript})` : ""}, tree ${run.provenance.cleanTreeAtStart ? "clean" : "with uncommitted changes"} at start`] : []),
     `scenarios ${run.totals.scenarios}, started ${run.totals.startedCases}, completed ${run.totals.completed} (${pct(run.totals.completionRate)}), passed ${run.totals.passed} (${pct(run.totals.passRate)})`,
     ...Object.entries(run.byCategory)
       .filter(([, c]) => c.scenarios > 0)
@@ -30,6 +31,23 @@ export function printRun(run: EvalRun): string {
   return lines.join("\n");
 }
 
+/** The command the README names for a run: inferred from the mode for runs that predate recorded commands. */
+export function inferredCommand(r: Pick<EvalRun, "mode" | "llmProvider">): string {
+  if (r.mode === "standard") return r.llmProvider.startsWith("llama") ? "npm run eval:llama" : "npm run eval:ci";
+  if (r.mode === "scale") return "npm run eval:scale";
+  if (r.mode === "chaos") return "npm run eval:chaos";
+  return `node eval/harness/run.ts --mode ${r.mode}`;
+}
+
+/** "Command ..., run <date> (git ...)": the recorded invocation, or an inference that says it is one. */
+export function describeInvocation(r: Pick<EvalRun, "mode" | "llmProvider" | "gitSha" | "provenance">, date: string): string {
+  const p = r.provenance;
+  if (!p) return `Command \`${inferredCommand(r)}\` (inferred from the mode; this run predates recorded commands), run ${date} (git ${r.gitSha.slice(0, 7)}, read when the run ended)`;
+  const via = p.npmScript ? ` (via \`npm run ${p.npmScript}\`)` : "";
+  const tree = p.cleanTreeAtStart ? "clean tree" : "**uncommitted changes in the tree**";
+  return `Command \`${["node eval/harness/run.ts", ...p.argv].join(" ")}\`${via}, run ${date} (git ${p.headAtStart.slice(0, 7)} at start, ${tree})`;
+}
+
 /** The README Results block, rendered from recorded runs only. */
 export function renderResults(runs: EvalRun[]): string {
   const rank = (m: string) => ["standard", "chaos", "scale", "ablation-idempotency", "ablation-retries"].indexOf(m) + 1 || 9;
@@ -41,8 +59,6 @@ export function renderResults(runs: EvalRun[]): string {
   const out: string[] = [];
   for (const r of sorted) {
     const date = r.startedAt.slice(0, 10);
-    const cmd =
-      r.mode === "standard" && r.llmProvider.startsWith("llama") ? "npm run eval:llama" : r.mode === "standard" ? "npm run eval:ci" : r.mode === "scale" ? "npm run eval:scale" : r.mode === "chaos" ? "npm run eval:chaos" : `node eval/harness/run.ts --mode ${r.mode}`;
     const titles: Record<string, string> = {
       standard: r.llmProvider.startsWith("llama") ? "Standard mode with a local LLM drafting follow-up wording" : "Standard mode (regression suite, scripted recovery)",
       scale: "Scale mode (all 150 synthetic employees, no faults)",
@@ -52,7 +68,7 @@ export function renderResults(runs: EvalRun[]): string {
     };
     out.push(`#### ${titles[r.mode] ?? r.mode}`);
     out.push("");
-    out.push(`Command \`${cmd}\`, run ${date} (git ${r.gitSha.slice(0, 7)}), provider \`${r.llmProvider}\`, ${r.environment.runtime}, concurrency ${r.config.concurrency}.`);
+    out.push(`${describeInvocation(r, date)}, provider \`${r.llmProvider}\`, ${r.environment.runtime}, concurrency ${r.config.concurrency}.`);
     out.push("");
     out.push("| Metric | Value |");
     out.push("|---|---|");

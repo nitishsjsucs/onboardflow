@@ -7,6 +7,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Harness } from "./actions.ts";
 import type { Snapshot } from "./assertions.ts";
+import type { RunProvenance } from "./metrics.ts";
 
 export type ServerOptions = {
   stateDir: string;
@@ -124,6 +125,16 @@ export function git(args: string[]): string {
   } catch {
     return "unknown";
   }
+}
+
+/** The command, commit and tree state a run starts from (recorded in its EvalRun). */
+export function runProvenance(): RunProvenance {
+  return {
+    npmScript: process.env.npm_lifecycle_event ?? null,
+    argv: process.argv.slice(2),
+    headAtStart: git(["rev-parse", "HEAD"]),
+    cleanTreeAtStart: git(["status", "--porcelain"]) === "",
+  };
 }
 
 export function versionOf(cmd: string, args: string[]): string {

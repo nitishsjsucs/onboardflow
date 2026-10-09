@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { attemptsInFinalRound, caseFacts, evaluateExpectations, type Snapshot } from "../../eval/harness/assertions.ts";
 import { blockerScores, ciGate, computeMetrics, percentile, ratio, type ScenarioResult } from "../../eval/harness/metrics.ts";
+import { describeInvocation } from "../../eval/harness/report.ts";
 import type { Scenario } from "../../eval/scenarios/types.ts";
 import { STAGE_IDS } from "../../src/shared/stages.ts";
 
@@ -153,5 +154,23 @@ describe("run metrics", () => {
     expect(percentile([5, 1, 3, 2, 4], 50)).toBe(3);
     expect(percentile([5, 1, 3, 2, 4], 95)).toBe(5);
     expect(percentile([], 50)).toBe(0);
+  });
+});
+
+describe("run invocation in the README", () => {
+  const base = { mode: "chaos", llmProvider: "stub", gitSha: "f442532aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" };
+
+  it("says when the command is inferred, for runs that predate recorded commands", () => {
+    expect(describeInvocation(base, "2026-10-09")).toBe(
+      "Command `npm run eval:chaos` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git f442532, read when the run ended)",
+    );
+  });
+
+  it("renders the recorded command, the commit at start and the tree state", () => {
+    const provenance = { npmScript: "eval:scale", argv: ["--mode", "scale", "--llm", "stub", "--keep"], headAtStart: "6dbf935bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", cleanTreeAtStart: true };
+    expect(describeInvocation({ ...base, mode: "scale", provenance }, "2026-10-09")).toBe(
+      "Command `node eval/harness/run.ts --mode scale --llm stub --keep` (via `npm run eval:scale`), run 2026-10-09 (git 6dbf935 at start, clean tree)",
+    );
+    expect(describeInvocation({ ...base, provenance: { ...provenance, npmScript: null, cleanTreeAtStart: false } }, "2026-10-09")).toContain("(git 6dbf935 at start, **uncommitted changes in the tree**)");
   });
 });

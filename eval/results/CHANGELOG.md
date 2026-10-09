@@ -230,6 +230,15 @@ with its reason. Nothing here is tuned toward a target.
   within 180 s, so under the new rule run 4 is between 285/300 (mean
   0.9500, seed 1 at 0.9333, 14 deadline misses) and the 287/300 it
   reported. Chaos was run again under the new rule (next entry).
+- Harness change (`feat(eval): record each run's command, commit at start
+  and tree state`): every run now records the arguments it was started
+  with, the npm script that started it, the commit at start (`gitSha` is
+  now that commit) and whether the working tree was clean. The README
+  renders the recorded command. For the runs recorded before this, the
+  README says that the command is inferred from the mode and that their
+  `gitSha` was read when the run ended; the 150/150 scale run, for
+  example, was started with `--keep` although the README names
+  `npm run eval:scale`.
 - Harness fix: a case counts as started only after a start request was
   accepted (202), in standard mode (O16 used to count before its own two
   start requests ran) and in chaos mode (which counted every case). No

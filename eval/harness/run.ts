@@ -15,12 +15,12 @@ import { closeoutApproved, managerApproves, orientation, paperwork } from "../sc
 import type { Scenario } from "../scenarios/types.ts";
 import { executeAction, ExpectationError, Harness, type ScenarioRun, UnknownActionError } from "./actions.ts";
 import { caseFacts, evaluateExpectations } from "./assertions.ts";
-import { ciGate, computeMetrics, type EvalRun, type ScenarioResult } from "./metrics.ts";
+import { ciGate, computeMetrics, type EvalRun, type RunProvenance, type ScenarioResult } from "./metrics.ts";
 import { mergeStalls, watchHost } from "./host.ts";
 import { ensureLlama, LLAMA_BASE_URL } from "./llama.ts";
 import { printRun } from "./report.ts";
 import { writeRunSecrets } from "./secrets.ts";
-import { assertDevBuild, EVAL_VARS, git, hubConsistency, pool, prepareDatabase, ROOT, SIMULATED_NOW, snapshot, startServer, versionOf } from "./server.ts";
+import { assertDevBuild, EVAL_VARS, hubConsistency, pool, prepareDatabase, ROOT, runProvenance, SIMULATED_NOW, snapshot, startServer, versionOf } from "./server.ts";
 
 const CASE_DEADLINE_MS = 90_000;
 
@@ -106,6 +106,8 @@ function scaleScenarios(dataset: ReturnType<typeof generateDataset>): Scenario[]
 }
 
 async function main() {
+  // read before anything runs: the command, the commit and whether the tree was clean
+  const provenance = runProvenance();
   const { values } = parseArgs({
     options: {
       mode: { type: "string", default: "standard" },
@@ -132,7 +134,7 @@ async function main() {
 
   assertDevBuild(ROOT);
   if (mode === "chaos") {
-    process.exit(await runChaosMode({ seeds: Number(values.seeds ?? 5), port: Number(values.port), inspectorPort: Number(values["inspector-port"]), keep: values.keep ?? false }));
+    process.exit(await runChaosMode({ seeds: Number(values.seeds ?? 5), port: Number(values.port), inspectorPort: Number(values["inspector-port"]), keep: values.keep ?? false, provenance }));
   }
   const dataset = generateDataset();
   const runId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${mode}`;
@@ -183,7 +185,7 @@ async function main() {
     const run: EvalRun = {
       runId,
       startedAt,
-      gitSha: git(["rev-parse", "HEAD"]),
+      gitSha: provenance.headAtStart,
       mode,
       llmProvider: llm === "llama" ? "llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)" : "stub",
       seeds: [],
@@ -208,6 +210,7 @@ async function main() {
       chaos: null,
       harnessTransport: { ...h.transport },
       host,
+      provenance,
       scenarios: results,
     };
     const out = join(ROOT, "eval/results");
@@ -237,7 +240,7 @@ async function main() {
 }
 
 /** Chaos mode: K seeds, each on a fresh state directory and wrangler dev process. */
-async function runChaosMode(o: { seeds: number; port: number; inspectorPort: number; keep: boolean }): Promise<number> {
+async function runChaosMode(o: { seeds: number; port: number; inspectorPort: number; keep: boolean; provenance: RunProvenance }): Promise<number> {
   const { CHAOS, CHAOS_VARS } = await import("./policies.ts");
   const { runChaosSeed } = await import("./chaos.ts");
   const { chaosAggregate } = await import("./metrics.ts");
@@ -254,7 +257,7 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
   const run: EvalRun = {
     runId,
     startedAt,
-    gitSha: git(["rev-parse", "HEAD"]),
+    gitSha: o.provenance.headAtStart,
     mode: "chaos",
     llmProvider: "stub",
     seeds,
@@ -282,6 +285,7 @@ async function runChaosMode(o: { seeds: number; port: number; inspectorPort: num
       retries: outcomes.reduce((n, x) => n + x.harness.transportRetries, 0),
       failures: outcomes.reduce((n, x) => n + x.harness.transportFailures, 0),
     },
+    provenance: o.provenance,
     scenarios: results,
   };
   const out = join(ROOT, "eval/results");
