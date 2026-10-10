@@ -396,3 +396,49 @@ with its reason. Nothing here is tuned toward a target.
   deadlines and 32 transport retries; no cause was isolated. It is
   committed like every run; it is the latest, so the README Results block
   shows it, with a note.
+
+## 2026-10-09, final verification pass (file names carry UTC times, some 2026-10-10)
+
+No change to the catalog, fault tables, policies, harness or product. Every
+mode was re-run from a fresh clone of this repository at 0503d3e
+(`git clone` into a temporary directory, `npm ci`, `npm run build`), whose
+code is that of ac066dd. Runs from 16:47 to 17:11 PDT, on battery with the
+lid open, load average 1.7 to 3.3 (sampled every 30 s), no host stall in
+any run. Each run started from a clean tree with a build of HEAD; between
+runs the previous run's output files were moved out of the clone. The
+files were then copied here unedited.
+
+- Standard (`npm run eval:ci`): 60/60 completed and passed, 0 duplicate
+  side effects, 1281 integration calls (60 retried, 27 replays), CI gate
+  passed, p50 2.8 s, 36 s.
+- Scale (`npm run eval:scale`), twice. The first run (23:47:49 UTC)
+  started while the standard run's output files were still uncommitted in
+  the clone, so it records "uncommitted changes" (the code was HEAD's):
+  150/150. The second (23:49:03 UTC), on a clean tree: 150/150, 0
+  duplicates, 2850 calls, 52 s. Both are committed; the README shows the
+  second.
+- Chaos (`npm run eval:chaos`): 287/300, per-seed 57, 57, 59, 58, 56
+  (mean 0.9567, min 0.9333, max 0.9833), 0 duplicates, 0 transport
+  retries, 954 s. 12 deadlines and 1 failed case (seed 3 E059,
+  `recovery_rounds_exhausted` at Facilities, as in the runs at c04aeb7,
+  676a939, d90973f and ea190b8). This is the first chaos run of the second
+  round's code on a lightly loaded, awake machine.
+- Ablations, run one at a time with the two commands `npm run eval:ablate`
+  chains, so each starts from a clean tree: Idempotency-Key handling off,
+  60/60 completed, 50/60 passed, 27 duplicates; retries off, 44/60
+  completed, 43/60 passed, 0 duplicates.
+- Local LLM (`npm run eval:llama`, llama-server started by the harness on
+  port 8110 and stopped by it): 59/60 completed and passed. F-it-validation
+  failed: the IT coordinator's license bundle correction got 409
+  `field_locked_by_approval`. Cause: the lock added in 45198a2 allows the
+  change only while an open `data_issue` blocker exists, and the CaseAgent
+  scan inserts that blocker only after drafting its follow-up (about 1 s
+  with the model), while the script corrects the field as soon as the
+  stage shows `blocked`. Diagnostics, not results files
+  (`--only F-it-validation`, which writes no file): with the model, failed
+  twice the same way; with the stub, passed. The earlier local-LLM run
+  (697c8fc, 60/60) predates the lock. Not fixed; listed under the README's
+  known limitations. The diagnostics and `npm run llm:smoke` used a
+  llama-server started by hand with the harness's arguments on port 8110
+  (stopped afterwards); the smoke check returned a schema-valid draft in
+  984 ms.

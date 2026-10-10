@@ -119,7 +119,7 @@ Everything below is rendered by `npm run results:readme` from `eval/results/late
 <!-- results:start -->
 #### Standard mode (regression suite, scripted recovery)
 
-Command `node eval/harness/run.ts --mode standard --llm stub --gate ci` (via `npm run eval:ci`), run 2026-10-09 (git 3646803 at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode standard --llm stub --gate ci` (via `npm run eval:ci`), run 2026-10-09 (git 0503d3e at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -129,60 +129,60 @@ Command `node eval/harness/run.ts --mode standard --llm stub --gate ci` (via `np
 | onboarding | 20/20 passed |
 | integration failure | 24/24 passed |
 | recovery | 16/16 passed |
-| Integration calls (retried, replayed) | 1280 (60, 27) |
+| Integration calls (retried, replayed) | 1281 (60, 27) |
 | Duplicate side effects in the simulated systems | 0 |
 | Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 9.8 s / 20.6 s, 118 s |
+| Scenario time p50 / p95, wall time | 2.8 s / 3.4 s, 36 s |
 | Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Standard mode with a local LLM drafting follow-up wording
 
-Command `npm run eval:llama` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git 697c8fc, read when the run ended), provider `llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode standard --llm llama` (via `npm run eval:llama`), run 2026-10-10 (git 0503d3e at start, clean tree, built from that commit, dist/ unchanged during the run), provider `llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
 | Cases started | 60 |
-| Completed | 60/60 (100.0%) |
-| Passed (completed and every expectation held) | 60/60 |
+| Completed | 59/60 (98.3%) |
+| Passed (completed and every expectation held) | 59/60 |
 | onboarding | 20/20 passed |
-| integration failure | 24/24 passed |
+| integration failure | 23/24 passed |
 | recovery | 16/16 passed |
-| Integration calls (retried, replayed) | 1280 (60, 27) |
-| Follow-ups drafted by the LLM (schema-valid / attempted) | 20 created, 100.0% valid, category agrees with the rules 100.0%, p50 2874 ms |
+| Integration calls (retried, replayed) | 1270 (60, 28) |
+| Follow-ups drafted by the LLM (schema-valid / attempted) | 20 created, 100.0% valid, category agrees with the rules 100.0%, p50 1192 ms |
 | Duplicate side effects in the simulated systems | 0 |
 | Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 3.5 s / 9.2 s, 56 s |
+| Scenario time p50 / p95, wall time | 2.9 s / 5.0 s, 42 s |
 | Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Chaos mode (seeded faults and policy bots, 5 seeds)
 
-Command `node eval/harness/run.ts --mode chaos --llm stub --seeds 5` (via `npm run eval:chaos`), run 2026-10-09 (git ea190b8 at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
+Command `node eval/harness/run.ts --mode chaos --llm stub --seeds 5` (via `npm run eval:chaos`), run 2026-10-09 (git 0503d3e at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
 
 | Metric | Value |
 |---|---|
 | Cases started | 300 |
-| Completed | 180/300 (60.0%) |
-| Completion per seed (mean, min, max) | 60.0%, 25.0%, 96.7% |
-| Seed 1 | 58/60; not completed: 0 failed, 0 bot patience, 2 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
-| Seed 2 | 34/60; not completed: 0 failed, 0 bot patience, 26 deadline; harness: 32 transport retries, 0 control retries, 0 bot request errors |
-| Seed 3 | 43/60; not completed: 1 failed, 0 bot patience, 16 deadline; harness: 6 transport retries, 0 control retries, 0 bot request errors; **host stalled 46 s, deadlines not reliable** |
-| Seed 4 | 15/60; not completed: 0 failed, 0 bot patience, 45 deadline; harness: 13 transport retries, 0 control retries, 0 bot request errors; **host stalled 150 s, deadlines not reliable** |
-| Seed 5 | 30/60; not completed: 0 failed, 0 bot patience, 30 deadline; harness: 4 transport retries, 0 control retries, 0 bot request errors; **host stalled 62 s, deadlines not reliable** |
-| Integration calls (retried, replayed) | 8804 (3833, 84) |
+| Completed | 287/300 (95.7%) |
+| Completion per seed (mean, min, max) | 95.7%, 93.3%, 98.3% |
+| Seed 1 | 57/60; not completed: 0 failed, 0 bot patience, 3 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Seed 2 | 57/60; not completed: 0 failed, 0 bot patience, 3 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Seed 3 | 59/60; not completed: 1 failed, 0 bot patience, 0 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Seed 4 | 58/60; not completed: 0 failed, 0 bot patience, 2 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Seed 5 | 56/60; not completed: 0 failed, 0 bot patience, 4 deadline; harness: 0 transport retries, 0 control retries, 0 bot request errors |
+| Integration calls (retried, replayed) | 9961 (4156, 96) |
 | Duplicate side effects in the simulated systems | 0 |
-| Harness requests retried after a dropped local proxy connection (still failed) | 55 (0) |
+| Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 162.5 s / 211.9 s, 1154 s |
-| Host stalls over 5 s (system sleep or a frozen harness) | 5 (258 s in total, longest 129 s): wall-clock timeouts and deadlines in this run are not reliable |
+| Scenario time p50 / p95, wall time | 103.9 s / 168.7 s, 954 s |
+| Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Scale mode (all 150 synthetic employees, no faults)
 
-Command `node eval/harness/run.ts --mode scale --llm stub` (via `npm run eval:scale`), run 2026-10-09 (git 7a61947 at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
+Command `node eval/harness/run.ts --mode scale --llm stub` (via `npm run eval:scale`), run 2026-10-09 (git 0503d3e at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 10.
 
 | Metric | Value |
 |---|---|
@@ -193,12 +193,12 @@ Command `node eval/harness/run.ts --mode scale --llm stub` (via `npm run eval:sc
 | Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 6.2 s / 9.6 s, 98 s |
+| Scenario time p50 / p95, wall time | 3.2 s / 4.1 s, 52 s |
 | Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Ablation: Idempotency-Key handling switched off in the simulated systems
 
-Command `node eval/harness/run.ts --mode ablation-idempotency` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git e082bc2, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode ablation-idempotency`, run 2026-10-10 (git 0503d3e at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -208,17 +208,17 @@ Command `node eval/harness/run.ts --mode ablation-idempotency` (inferred from th
 | onboarding | 20/20 passed |
 | integration failure | 18/24 passed |
 | recovery | 12/16 passed |
-| Integration calls (retried, replayed) | 1300 (60, 0) |
-| Duplicate side effects in the simulated systems | 28 |
+| Integration calls (retried, replayed) | 1296 (60, 0) |
+| Duplicate side effects in the simulated systems | 27 |
 | Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 3.1 s / 4.2 s, 39 s |
+| Scenario time p50 / p95, wall time | 2.7 s / 3.5 s, 36 s |
 | Host stalls over 5 s (system sleep or a frozen harness) | none |
 
 #### Ablation: step retries switched off (RETRY_LIMIT=0)
 
-Command `node eval/harness/run.ts --mode ablation-retries` (inferred from the mode; this run predates recorded commands), run 2026-10-09 (git e082bc2, read when the run ended), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
+Command `node eval/harness/run.ts --mode ablation-retries`, run 2026-10-10 (git 0503d3e at start, clean tree, built from that commit, dist/ unchanged during the run), provider `stub`, local wrangler dev (Miniflare/workerd), concurrency 6.
 
 | Metric | Value |
 |---|---|
@@ -233,23 +233,19 @@ Command `node eval/harness/run.ts --mode ablation-retries` (inferred from the mo
 | Harness requests retried after a dropped local proxy connection (still failed) | 0 (0) |
 | Audit coverage (regression check) | 1 |
 | Live hub equals D1 reconcile after the run | yes |
-| Scenario time p50 / p95, wall time | 3.1 s / 62.1 s, 205 s |
+| Scenario time p50 / p95, wall time | 2.5 s / 62.1 s, 204 s |
 | Host stalls over 5 s (system sleep or a frozen harness) | none |
 <!-- results:end -->
 
-**Reading these results.** Dates in the block are UTC. Every run above was made on the evening of 2026-10-08 Pacific time except the standard, scale and chaos runs, made on 2026-10-09 from 12:25 PDT on; all ran on one laptop that was also running other repositories' test suites. All files, including the runs not shown, are committed in `eval/results/`, and every change between runs is logged in [eval/results/CHANGELOG.md](eval/results/CHANGELOG.md).
+**Reading these results.** Dates in the block are UTC. Every run shown was made by the final verification pass on 2026-10-09 between 16:47 and 17:11 PDT (the later runs carry the UTC date 2026-10-10), in a fresh clone of this repository at 0503d3e (`git clone`, `npm ci`, `npm run build`, then each eval command as documented above). 0503d3e runs the product and harness code of ac066dd, the last code commit; the commits after it change only docs and recorded results. The laptop was on battery with the lid open and other repositories' processes running; the load average stayed between 1.7 and 3.3 (sampled every 30 s), and no run had a host stall. All runs, including the ones not shown, are committed in `eval/results/`, and every change between runs is logged in [eval/results/CHANGELOG.md](eval/results/CHANGELOG.md).
 
-- **Standard** (git 3646803, on AC power, no host stall) is the first recorded run that includes the second review round's fixes (closeout rounds, restart, dev host guard, hub debounce, token claims, live subscription re-checks, the sim key comparison and the harness's deadline and blocker rules) and the first that records the build it served: built from that commit, `dist/` unchanged during the run. All six committed standard runs, one of them with the local LLM, completed and passed 60 of 60 with 0 duplicate side effects. Its scenario times are about three times the previous run's (p50 9.8 s against 3.0 s, wall time 118 s against 40 s). No product change of this round adds a wait to the scripted path; the likely cause is machine load (load average about 5.5, other repositories' workerd processes running), which was not isolated.
-- **Chaos** is the informative number, and on this shared laptop it moves with load and sleep. **The run shown is not a valid measurement:** it started at 13:29 PDT (git ea190b8, built from that commit, `dist/` unchanged), and at 13:39, during seed 3, the laptop's lid was closed and it went into clamshell sleep, waking only briefly from then on. The harness flagged it (5 host stalls, 258 s in total, longest 129 s, in seeds 3 to 5: "wall-clock timeouts and deadlines in this run are not reliable"). It completed 180 of 300 (per-seed 58, 34, 43, 15, 30). Seed 2, before the sleep, also had 26 deadlines and 32 retried harness requests, for which no cause was isolated. It is committed and shown because it is the latest run; read the two runs below and the check after them instead.
-- **The run before it** (git d90973f, started 12:52 PDT on AC power, lid open, no host stall over 5 s, 1049 s) completed 215 of 300: per-seed 57, 52, 52, 54 and 0 (mean 71.7%), with 0 duplicate side effects, 84 deadlines and 1 failed case (seed 3's E059 used up the workflow's bounded recovery rounds at Facilities, as in the fourth run). Seed 5, the last, ran from roughly 13:06 PDT (each seed takes about 3.5 minutes), when other repositories' builds pushed the load average from about 4 to between 11 and 15 on 10 cores (sampled every 30 s), and none of its 60 cases finished within 180 s. Seed 5's schedule makes it the most sensitive seed: IT is down from 17.7 s to 101.9 s (two overlapping windows), Facilities from 65.6 s to 116 s and HR from 42.4 s to 74.9 s, so every case finishes close to its deadline and a slower machine pushes all of them past it.
-- **The first run with the second review round's fixes** (git 676a939, 12:30 PDT, AC power, no host stall, load average 16 to 20) completed 265 of 300 (per-seed 59, 57, 59, 53, 37: mean 88.3%), also with seed 5 lowest.
-- **Is the new code slower?** Not in a way that explains these runs, by two checks logged in the CHANGELOG (diagnostics, not results files): seed 5 run alone four times, alternating the code of 35ebbec (before the second round) and of d90973f, at load average 3 to 6, completed 56 of 60 every time (p50 126.8 and 129.1 s for the old code, 128.9 and 126.8 s for the new). The standard suite, run alternately on both, completed 60 of 60 every time, with a p50 about 6% higher for the new code (3.10 and 3.01 s against 2.93 and 2.81 s), a difference that two runs each cannot separate from noise. The workflow did about the same work in every chaos run (9,534 to 10,044 integration calls).
-- **The last chaos run before the second review round** (git 6248014, 2026-10-08 21:30 PDT, AC power, lid open, no host stall) completed 289 of 300 under the same deadline rule (per-seed 57, 58, 60, 58, 56: mean 96.3%, min 93.3%, max 100%), all 11 misses deadlines, no failed case. It predates 9c55e58 and every fix of the second round. All these runs are committed; the Results block shows the latest one because it is the latest, not because it is either the better or the worse.
-- **Earlier chaos runs** (the first four) on the same seeds are committed and not hidden, but they counted completion differently: the harness read it from a snapshot taken after the whole seed finished, and the bots kept working cases past their deadline, so a case that completed after its deadline was counted. An independent review found this; the fix and what each old run counted are in the CHANGELOG. The fourth run (git c04aeb7) reported 287 of 300 (per-seed mean 95.7%, min 93.3%); two of its counted cases were closed 180.4 and 180.5 s after their start, so under the deadline rule it is between 285 (mean 95.0%) and 287. It also had the first failed case of any run (seed 3's E059 used up the workflow's bounded recovery rounds at Facilities, as designed). The third (git 5e2635b) reported 280 of 300, counting four late cases, one of them in seed 5, which overlapped a system sleep (its longest case lasted 1077 s). The first (git 6f9a11d) reported 230 of 300, but in seed 3 the harness failed to end a Facilities outage window after a local runtime error (0/60 in that seed). The second (git a510536) reported 210 of 300, with 248 bot requests in seeds 3 and 4 lost to dropped connections in `wrangler dev`'s local proxy, and counted 36 late cases. Each of the first two led to a harness fix (the orchestrator retries its own control calls; the harness retries a dropped request with the same Idempotency-Key, which the API is designed for). Fault tables, seeds and bot policies did not change in any of these runs.
-- **Scale** (git 7a61947, 2026-10-09 12:28 PDT, AC power, no host stall, built from that commit) completed 150 of 150 with 0 duplicate side effects and a consistent hub, and includes the second review round's fixes. The two earlier scale runs (git f5c8cfb, before both review rounds) are committed too: the first completed 148 of 150 (two harness requests got a plain-text 500 from the local runtime and the harness stopped driving those two cases), the second 150 of 150.
-- **Which code each run measured.** The standard, scale and chaos runs shown include both review rounds' fixes. The ablation runs (git e082bc2) and the local-LLM run (git 697c8fc) predate every review-round product fix (the first round's 39840f1, 68effc0, a294819, 2fdf494, 45198a2 and 9c55e58, and the second round's f25b018, 447aa02, fa9aaec, 2ded851, 68429a3, 4e0446c and f420833) and were not re-recorded.
-- **Ablations** show what each mechanism buys. The runs shown were re-recorded at 20:14 PDT with the lid open and no host stall. With Idempotency-Key handling off in the simulated systems, retried and replayed calls produced 28 duplicate side effects (0 in standard mode): all 60 cases completed, but 10 failed their exactly-once expectations. With step retries off, 16 cases stayed blocked where a fault needed a step retry (44/60 completed), with 0 duplicates. The first ablation runs (git 5e2635b) ran while the machine slept between brief wakes and are committed too. Retries off gave the same 44/60 completed and 43/60 passed. Keys off gave 59/60 completed and 27 duplicates: R05 timed out during a stall (it completes in the clean run), and R06 counted one duplicate fewer. R06 restarts a case while its old workflow instance is still running, so how far that instance gets before it is terminated varies by a step between runs.
-- **Local LLM** (`npm run eval:llama`, git 697c8fc): the same 60 scenarios with llama-server running Qwen3-1.7B Q4_0 on the laptop's GPU drafting the wording of every follow-up. It was recorded later the same evening (20:09 PDT, lid open, no host stall), because the first attempt was due while the machine slept. All 20 follow-ups were drafted by the model rather than the template, with a p50 of 2.9 s per draft, and the workflow results match the stub run (60/60 passed, 0 duplicates). Read the 100% schema-valid and 100% category-agreement figures as "the drafting path works end to end", not as model quality: llama-server constrains the output to the JSON schema, whose category field is an enum, and the prompt names the blocker kind the rules already decided. The model never decides anything ([ADR 0004](docs/adr/0004-rules-decide-llm-drafts.md)), and the run does not measure whether its wording is better than the template's.
+- **Which code each run measured.** Every mode was re-recorded in this pass, so every run shown includes both review rounds' fixes. Earlier runs of each mode are committed too; the ablation runs and the first local-LLM run among them predate every review-round product fix.
+- **Standard** completed and passed 60 of 60 with 0 duplicate side effects, and the CI gate passed. All six committed standard runs with the stub provider (git 04ac941 to 0503d3e) completed and passed 60 of 60.
+- **Chaos** is the informative number. This run completed 287 of 300 (per-seed 57, 57, 59, 58, 56: mean 95.7%, min 93.3%, max 98.3%) with 0 duplicate side effects and 0 retried harness requests. Of the 13 cases not completed, 12 missed the 180 s deadline (6 still in IT, Facilities or orientation, 6 at closeout) and 1 failed: seed 3's E059 used up the workflow's bounded recovery rounds at Facilities (`recovery_rounds_exhausted`), as it did in the chaos runs at c04aeb7, 676a939, d90973f and ea190b8. On this shared laptop chaos moves with load and sleep: the same code (ac066dd) recorded 265 of 300 at load average 16 to 20 (git 676a939), 215 of 300 when the load reached 11 to 15 during seed 5 (git d90973f, seed 5 at 0 of 60), and 180 of 300 in a run that overlapped clamshell sleep and is flagged as invalid (git ea190b8). The last run before the second review round (git 6248014, 2026-10-08 21:30 PDT, no host stall) completed 289 of 300 (mean 96.3%, min 93.3%). The CHANGELOG also logs a check that the second round's code is not slower (seed 5 alone and the standard suite, alternating old and new code: same completion, p50 within noise).
+- **Earlier chaos runs** (the first four, before the deadline rule) counted completion differently: the harness read it from a snapshot taken after the whole seed finished, and the bots kept working cases past their deadline, so a case that completed after its deadline was counted. An independent review found this; the fix and what each old run counted are in the CHANGELOG. They reported 230, 210, 280 and 287 of 300; the first two each led to a harness fix (the orchestrator retries its own control calls; the harness retries a request dropped by `wrangler dev`'s local proxy with the same Idempotency-Key). Fault tables, seeds and bot policies did not change in any chaos run.
+- **Scale** completed 150 of 150 with 0 duplicate side effects and a consistent hub. This pass made two scale runs: the first started while the standard run's output files sat uncommitted in the clone (same code), so it is recorded with "uncommitted changes" and is committed but not shown; it also completed 150 of 150. The run shown was then made on a clean tree. Of the earlier scale runs, one (git f5c8cfb) completed 148 of 150 after two harness requests got a plain-text 500 from the local runtime; the others completed 150 of 150.
+- **Ablations** show what each mechanism buys. With Idempotency-Key handling off in the simulated systems, retried and replayed calls produced 27 duplicate side effects (0 in standard mode): all 60 cases completed, but 10 failed their exactly-once expectations. With step retries off, 16 cases stayed blocked where a fault needed a step retry (44 of 60 completed, 43 passed), with 0 duplicates. The earlier ablation runs gave the same retries-off result (44 of 60 completed, 43 passed) both times, and with keys off 59 of 60 completed with 27 duplicates (git 5e2635b, a run that overlapped system sleep, in which R05 timed out during a stall) and 60 of 60 with 28 (git e082bc2); R06 restarts a case while its old workflow instance is still running, so how far that instance gets before it is terminated varies by a step between runs.
+- **Local LLM** (`npm run eval:llama`): the same 60 scenarios with llama-server running Qwen3-1.7B Q4_0 on the laptop's GPU drafting the wording of every follow-up. **59 of 60 completed and passed.** The miss, F-it-validation, is a product race introduced by the first review round's license bundle lock (45198a2), which the earlier local-LLM run (git 697c8fc, 60 of 60) predates: the lock lets the bundle change only while an open `data_issue` blocker exists, and the CaseAgent scan inserts that blocker only after it has drafted the follow-up. With the model drafting (about 1 s), the scripted IT coordinator corrects the bundle as soon as the stage shows `blocked`, before the blocker exists, and gets 409 `field_locked_by_approval`. The stub drafts instantly, so every stub run passes this scenario. A diagnostic outside the results files (`--only F-it-validation`) failed the same way twice with the model and passed once with the stub. It is listed under known limitations and not fixed in this version. All 20 follow-ups were drafted by the model, with a p50 of 1.2 s per draft. Read the 100% schema-valid and 100% category-agreement figures as "the drafting path works end to end", not as model quality: llama-server constrains the output to the JSON schema, whose category field is an enum, and the prompt names the blocker kind the rules already decided. The model never decides anything ([ADR 0004](docs/adr/0004-rules-decide-llm-drafts.md)), and the run does not measure whether its wording is better than the template's.
 
 ## Deploy (Cloudflare account required)
 
@@ -290,6 +286,7 @@ Known limitations:
 - Live subscriptions are authorized when the WebSocket upgrades and re-checked before every state push (dashboard sockets at least once a minute, since the hub reconciles every 60 s): a socket whose Access token expired, or whose account was deactivated or lost the role, is closed then. A socket on a case that never changes is not re-checked until something changes.
 - An employee can complete the checklist tasks of a stage that has not started yet, including the four orientation tasks while provisioning is still running: tasks are created at intake and completion checks only ownership and open status. The scripted scenarios rely on early completion (O07 finishes paperwork before its gate is checked, and every scripted happy path completes orientation tasks right after the manager approves), so restricting it would change the measured behavior and needs a catalog change and new runs; it is not done in this version.
 - If the platform refuses a restart and creating the replacement instance then fails, the restart is already committed: the API answers 202 (a retry with the same Idempotency-Key replays it) and the CaseAgent retries the instance creation on a schedule (2 to 32 s, five attempts). If all five fail, the case shows `in_progress` with no running workflow until an admin restarts it again.
+- Once the manager's approval has been requested, the license bundle can change only to correct an open `data_issue` blocker on it. The CaseAgent scan inserts that blocker only after it has drafted the follow-up, so between the IT stage showing `blocked` and the blocker appearing, a correction is refused with 409 `field_locked_by_approval` and has to be repeated. With the stub the window is short, and every recorded standard run with the stub passes the scenario that corrects the bundle; with an LLM drafting it lasts at least as long as the draft (p50 1.2 s with the local model), and the scripted F-it-validation scenario fails in the local-LLM run because it corrects the bundle inside that window. Not fixed in this version.
 - After the HR worker was created, a coordinator can still correct the cost center. If an admin then restarts the case, replaying the stored worker creation sends a different request under the same Idempotency-Key, which the simulated HR system refuses (422). The intake stage blocks as a data issue that no field correction can clear (only restoring the old value would); retries fail the same way until the stage's recovery rounds run out and the workflow fails the case with `recovery_rounds_exhausted` (audited). No second worker is created. Both paths are pinned by tests in `test/worker/workflow-restart.test.ts`.
 
 ## Troubleshooting
