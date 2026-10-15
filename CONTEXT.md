@@ -11,10 +11,14 @@ Terms used in the code, the tests and the docs. All people are synthetic; HR, IT
 | Checkpoint | A human approval inside the workflow: manager_approval (the employee's manager) and closeout (People Ops). Admins may decide on behalf, which is audited. |
 | Round | The attempt counter of a stage: approval rounds at checkpoints (at most 3, plus one per admin restart after a final rejection), recovery rounds at operation stages. Closeout has both: its activation counts recovery rounds from the round its approval was granted in. Retry, resubmit and that restart advance it. |
 | Blocker | A rule-detected obstacle with a kind (integration_outage, data_issue, provisioning_stalled, approval_overdue, employee_task_overdue, approval_rejected), an owner department and a severity. At most one open blocker per dedupe key. |
+| Checklist task | An employee task of a stage (paperwork or orientation), created at intake. It can be completed only once its stage has started (409 `stage_not_started` before). |
 | Follow-up | The task created with each blocker for the owning department. Completing it does not unblock anything by itself; blockers auto-resolve only when their condition clears. |
 | Provisioning item | A resource in a simulated system tracked for the case (HR worker, documents, orientation; IT account, licenses, device; Facilities workspace, badge) with status and poll count. |
 | Simulated system | The HR, IT or Facilities stand-in under `/sim/*`, with real HTTP semantics, idempotency keys, async resources and injectable faults. Not a real integration. |
 | Integration call | One HTTP attempt from a workflow step to a simulated system, logged in `integration_calls` with an `integration.call` audit row. |
+| Service principal | The identity `service-token:<client id>` of the Access service token the production verification script uses, provisioned as an admin (staff V01). It has no email, so no person can sign in as it. |
+| Persona login | One of the owner's plus-addresses (nitishsancs+hr@gmail.com and so on) mapped in production onto a seed row (a coordinator, a manager or an employee) so the owner can act in each role through Access. |
+| Daily draft cap | `LLM_DAILY_DRAFT_LIMIT`: how many follow-up drafts per UTC day may call a real LLM; after that the template wording is used. |
 | Guarded mutation | A state change written as one stamped `UPDATE ... WHERE <guard>` with its audit and stored response in the same batch (ADR 0008). |
 
 ## Roles
