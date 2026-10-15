@@ -288,6 +288,27 @@ Known limitations:
 - Once the manager's approval has been requested, the license bundle can change only to correct an open `data_issue` blocker on it. The CaseAgent scan inserts that blocker only after it has drafted the follow-up, so between the IT stage showing `blocked` and the blocker appearing, a correction is refused with 409 `field_locked_by_approval` and has to be repeated. With the stub the window is short, and every recorded standard run with the stub passes the scenario that corrects the bundle; with an LLM drafting it lasts at least as long as the draft (p50 1.2 s with the local model), and the scripted F-it-validation scenario fails in the local-LLM run because it corrects the bundle inside that window. Not fixed in this version.
 - After the HR worker was created, a coordinator can still correct the cost center. If an admin then restarts the case, replaying the stored worker creation sends a different request under the same Idempotency-Key, which the simulated HR system refuses (422). The intake stage blocks as a data issue that no field correction can clear (only restoring the old value would); retries fail the same way until the stage's recovery rounds run out and the workflow fails the case with `recovery_rounds_exhausted` (audited). No second worker is created. Both paths are pinned by tests in `test/worker/workflow-restart.test.ts`.
 
+## Dependency advisories
+
+`npm ci` reports 3 high severity advisories (`npm audit`, 2026-10-15). All three are one advisory, [GHSA-6qxp-vccf-f47h](https://github.com/advisories/GHSA-6qxp-vccf-f47h) (CVSS 7.5): the MCP TypeScript SDK's OAuth client could send stored credentials to an authorization server chosen by the MCP server it connects to.
+
+| Package | Installed | Flagged because | Fixed in |
+|---|---|---|---|
+| `@modelcontextprotocol/sdk` | 1.30.0 | affected range 1.12.0 to 1.30.1 | 1.31.0 |
+| `@modelcontextprotocol/client` | 2.0.0 | affected range 2.0.0 to 2.1.0 | 2.2.0 |
+| `agents` | 0.27.0 | depends on the two above | 0.28.1 (pins sdk 1.32.1, client and server 2.3.1) |
+
+Not upgraded, because no compatible upgrade exists: `agents` 0.27.0 declares the MCP packages as required peers pinned to exact versions (client 2.0.0, sdk 1.30.0, server 2.0.0), so the fixed MCP releases cannot be installed next to it, and the first `agents` release with fixed pins (0.28.x, published 2026-10-09 and 2026-10-13) is a breaking release under semver for 0.x. Moving to it means re-verifying the SDK internals this design relies on (SPEC Section 15.5: workflow callback steps, schedule rounding, restart behavior) and re-recording every eval mode; that is left for a later version.
+
+Not reachable in this app:
+
+- The advisory covers the OAuth client only (an `authProvider` on an HTTP transport, `withOAuth()`, or direct `auth()` and `fetchToken()` calls); MCP servers and stdio clients are not affected.
+- OnboardFlow never imports an `@modelcontextprotocol` package; they are in `package.json` only because `agents` 0.27.0 requires them as peers.
+- In `agents` 0.27.0, an agent creates an MCP OAuth client only for an MCP server registered with `addMcpServer()`: on start it restores only servers stored in its own MCP table (none here), and it treats a request as an OAuth callback only if it matches a stored server's callback URL. No OnboardFlow agent registers a server.
+- The Worker refuses every request to `/agents/*` that is not a WebSocket upgrade (403), and live connections are read-only, so no client can reach an agent's request handler or call its methods.
+
+The SDK's MCP client code is still in the Worker bundle, unused. `test/node/dependency-advisories.test.ts` fails if any source file starts importing an MCP package or registering an MCP server, which would make the advisory reachable.
+
 ## Troubleshooting
 
 Worker test runs print `uncaught exception` lines such as `Aborting engine: User called restart`, `broken.outputGateBroken`, `eval-evict` and occasional "Worker's code had hung" messages. They come from steps that fail on purpose, restarts, terminations and evictions; tests assert outcomes, not log silence. The "Missing required secrets" warning during tests and builds is expected: tests pass secrets as Miniflare bindings.
