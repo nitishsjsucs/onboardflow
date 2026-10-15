@@ -1,0 +1,477 @@
+{
+  "kind": "onboardflow-production-verification",
+  "host": "onboardflow-production.nitish-ratakonda.workers.dev",
+  "gitSha": "03decf79bce3a019ee310573cb7b62b3b4528733",
+  "startedAt": "2026-10-15T21:32:38.402Z",
+  "finishedAt": "2026-10-15T21:35:57.896Z",
+  "principal": "service-token:57bde46fa6c7c76f10ef71d896782f9e.access",
+  "plan": [
+    {
+      "employeeId": "E141",
+      "path": "data_issue"
+    },
+    {
+      "employeeId": "E142",
+      "path": "happy"
+    },
+    {
+      "employeeId": "E143",
+      "path": "happy"
+    }
+  ],
+  "verdicts": {
+    "casesComplete": "3/3",
+    "cpuWithinFreeLimits": "no: 9 invocations over their limit",
+    "workflowInvocationsSeen": false,
+    "subrequestLimitErrors": 0,
+    "stepsPerInstanceMax": 72,
+    "stepsWithinFreeLimits": "yes (max 72 of 1,024 per instance; 206 of the account's 3,000 a day)",
+    "llmDrafts": "1 of 1 follow-ups drafted by the model",
+    "neuronsEstimated": 3.166525
+  },
+  "cases": [
+    {
+      "employeeId": "E141",
+      "path": "data_issue",
+      "status": "complete",
+      "failureReason": null,
+      "error": null,
+      "instanceId": "onb-E141-1",
+      "startedAt": "2026-10-15T21:32:38.403Z",
+      "finishedAt": "2026-10-15T21:35:37.895Z",
+      "durationMs": 179492,
+      "actions": [
+        {
+          "what": "PATCH /api/employees/E141",
+          "status": 200
+        },
+        {
+          "what": "POST /api/cases/E141/start",
+          "status": 202
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Abadge_photo/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Adirect_deposit/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Aemergency_contact/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Ai9_section1/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Aoffer_docs/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Aw4/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/approvals/apr%3AE141%3Amanager_approval%3A1/decision",
+          "status": 200
+        },
+        {
+          "what": "PATCH /api/employees/E141",
+          "status": 200
+        },
+        {
+          "what": "POST /api/cases/E141/stages/it_provisioning/retry",
+          "status": 202
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Aattend_orientation/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Aenroll_mfa/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Ameet_buddy/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE141%3Asecurity_training/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/approvals/apr%3AE141%3Acloseout%3A1/decision",
+          "status": 200
+        }
+      ],
+      "requests": 68,
+      "unexpectedBlocks": [],
+      "blockers": [
+        {
+          "kind": "data_issue",
+          "ownerDepartment": "it",
+          "status": "resolved",
+          "subject": "it.assign-licenses"
+        }
+      ],
+      "followUps": [
+        {
+          "taskId": "fu:blk:E141:data_issue:it_provisioning:it.assign-licenses:1792100015776",
+          "blockerKind": "data_issue",
+          "draftedBy": "llm:workers-ai:@cf/qwen/qwen3-30b-a3b-fp8",
+          "provider": "workers-ai:@cf/qwen/qwen3-30b-a3b-fp8",
+          "latencyMs": 1105,
+          "error": null,
+          "usage": {
+            "promptTokens": 230,
+            "completionTokens": 69
+          }
+        }
+      ]
+    },
+    {
+      "employeeId": "E142",
+      "path": "happy",
+      "status": "complete",
+      "failureReason": null,
+      "error": null,
+      "instanceId": "onb-E142-1",
+      "startedAt": "2026-10-15T21:32:38.405Z",
+      "finishedAt": "2026-10-15T21:35:31.876Z",
+      "durationMs": 173471,
+      "actions": [
+        {
+          "what": "POST /api/cases/E142/start",
+          "status": 202
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Abadge_photo/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Adirect_deposit/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Aemergency_contact/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Ai9_section1/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Aoffer_docs/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Aw4/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/approvals/apr%3AE142%3Amanager_approval%3A1/decision",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Aattend_orientation/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Aenroll_mfa/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Ameet_buddy/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE142%3Asecurity_training/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/approvals/apr%3AE142%3Acloseout%3A1/decision",
+          "status": 200
+        }
+      ],
+      "requests": 64,
+      "unexpectedBlocks": [],
+      "blockers": [],
+      "followUps": []
+    },
+    {
+      "employeeId": "E143",
+      "path": "happy",
+      "status": "complete",
+      "failureReason": null,
+      "error": null,
+      "instanceId": "onb-E143-1",
+      "startedAt": "2026-10-15T21:32:38.406Z",
+      "finishedAt": "2026-10-15T21:35:19.906Z",
+      "durationMs": 161500,
+      "actions": [
+        {
+          "what": "POST /api/cases/E143/start",
+          "status": 202
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Abadge_photo/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Adirect_deposit/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Aemergency_contact/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Ai9_section1/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Aoffer_docs/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Aw4/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/approvals/apr%3AE143%3Amanager_approval%3A1/decision",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Aattend_orientation/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Aenroll_mfa/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Ameet_buddy/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/tasks/chk%3AE143%3Asecurity_training/complete",
+          "status": 200
+        },
+        {
+          "what": "POST /api/approvals/apr%3AE143%3Acloseout%3A1/decision",
+          "status": 200
+        }
+      ],
+      "requests": 61,
+      "unexpectedBlocks": [],
+      "blockers": [],
+      "followUps": []
+    }
+  ],
+  "workflowSteps": {
+    "onb-E141-1": {
+      "step": 72,
+      "waitForEvent": 5,
+      "sleep": 4
+    },
+    "onb-E142-1": {
+      "step": 67,
+      "waitForEvent": 4,
+      "sleep": 4
+    },
+    "onb-E143-1": {
+      "step": 67,
+      "waitForEvent": 4,
+      "sleep": 4
+    }
+  },
+  "cpu": {
+    "events": 449,
+    "eventsWithCpuTime": 449,
+    "groups": [
+      {
+        "kind": "durable object CaseAgent (rpc)",
+        "limitMs": 30000,
+        "limitSource": "Durable Objects: 30 s CPU per request (both plans)",
+        "invocations": 117,
+        "withCpuTime": 117,
+        "cpuMs": {
+          "p50": 5,
+          "p95": 11,
+          "p99": 16,
+          "max": 28
+        },
+        "wallMs": {
+          "p50": 297,
+          "max": 1725
+        },
+        "overLimit": 0,
+        "outcomes": {
+          "ok": 117
+        }
+      },
+      {
+        "kind": "durable object OpsHubAgent (alarm)",
+        "limitMs": 30000,
+        "limitSource": "Durable Objects: 30 s CPU per request (both plans)",
+        "invocations": 16,
+        "withCpuTime": 16,
+        "cpuMs": {
+          "p50": 4,
+          "p95": 7,
+          "p99": 7,
+          "max": 7
+        },
+        "wallMs": {
+          "p50": 117,
+          "max": 220
+        },
+        "overLimit": 0,
+        "outcomes": {
+          "ok": 16
+        }
+      },
+      {
+        "kind": "durable object OpsHubAgent (rpc)",
+        "limitMs": 30000,
+        "limitSource": "Durable Objects: 30 s CPU per request (both plans)",
+        "invocations": 76,
+        "withCpuTime": 76,
+        "cpuMs": {
+          "p50": 0,
+          "p95": 5,
+          "p99": 10,
+          "max": 10
+        },
+        "wallMs": {
+          "p50": 54,
+          "max": 104
+        },
+        "overLimit": 0,
+        "outcomes": {
+          "ok": 76
+        }
+      },
+      {
+        "kind": "worker fetch /api/*",
+        "limitMs": 10,
+        "limitSource": "Workers Free: 10 ms CPU per HTTP request",
+        "invocations": 187,
+        "withCpuTime": 187,
+        "cpuMs": {
+          "p50": 4,
+          "p95": 10,
+          "p99": 23,
+          "max": 25
+        },
+        "wallMs": {
+          "p50": 239,
+          "max": 2265
+        },
+        "overLimit": 9,
+        "outcomes": {
+          "ok": 187
+        }
+      },
+      {
+        "kind": "worker fetch /sim/* (loopback from workflow steps)",
+        "limitMs": 10,
+        "limitSource": "Workers Free: 10 ms CPU per HTTP request",
+        "invocations": 53,
+        "withCpuTime": 53,
+        "cpuMs": {
+          "p50": 4,
+          "p95": 8,
+          "p99": 9,
+          "max": 9
+        },
+        "wallMs": {
+          "p50": 261,
+          "max": 537
+        },
+        "overLimit": 0,
+        "outcomes": {
+          "ok": 53
+        }
+      }
+    ],
+    "overLimit": 9,
+    "notOk": {},
+    "exceptions": [],
+    "subrequestLimitErrors": 0
+  },
+  "tail": {
+    "events": 449,
+    "sampling": false,
+    "stderrTail": ""
+  },
+  "llm": {
+    "provider": "workers-ai",
+    "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "dailyDraftLimit": 20,
+    "drafts": 1,
+    "llmDrafts": 1,
+    "promptTokens": 230,
+    "completionTokens": 69,
+    "neuronsEstimated": 3.166525,
+    "rates": {
+      "input": 4625,
+      "output": 30475
+    }
+  },
+  "analytics": {
+    "window": {
+      "start": "2026-10-15T21:32:38.402Z",
+      "end": "2026-10-15T21:38:00.770Z"
+    },
+    "workers": {
+      "viewer": {
+        "accounts": [
+          {
+            "workersInvocationsAdaptive": [
+              {
+                "dimensions": {
+                  "status": "success"
+                },
+                "quantiles": {
+                  "cpuTimeP50": 4879,
+                  "cpuTimeP99": 194036
+                },
+                "sum": {
+                  "errors": 0,
+                  "requests": 249,
+                  "subrequests": 180
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "workersNote": "cpuTime quantiles are in microseconds",
+    "d1": {
+      "viewer": {
+        "accounts": [
+          {
+            "d1AnalyticsAdaptiveGroups": [
+              {
+                "dimensions": {
+                  "date": "2026-10-15"
+                },
+                "sum": {
+                  "readQueries": 4350,
+                  "rowsRead": 93833,
+                  "rowsWritten": 6618,
+                  "writeQueries": 813
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "d1Note": "whole UTC days, not only this run"
+  }
+}
