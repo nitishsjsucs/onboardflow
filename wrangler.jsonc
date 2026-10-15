@@ -59,7 +59,7 @@
         "TEAM_DOMAIN": "https://old-truth-a7dc.cloudflareaccess.com",
         // Written by scripts/prod/setup.ts once the Access application exists. Until then the Worker fails
         // closed: every route answers 500 config_placeholder (src/worker/config.ts).
-        "POLICY_AUD": "REPLACE-with-access-aud-tag",
+        "POLICY_AUD": "d806cc6de687f8273ef6b2f8c89154727601943e8f0921dc7c3c2142e33a0f94",
         "SIM_CLOCK": "off",
         "EVAL_HOOKS": "off",
         // Follow-up wording only (ADR 0004). Workers AI's 10,000 free neurons a day are shared by the account,
@@ -83,7 +83,7 @@
       ],
       "d1_databases": [
         // database_id is written by scripts/prod/setup.ts after it creates the database.
-        { "binding": "DB", "database_name": "onboardflow-prod", "database_id": "REPLACE-after-wrangler-d1-create", "migrations_dir": "migrations" }
+        { "binding": "DB", "database_name": "onboardflow-prod", "database_id": "b2068f86-1a18-46f8-87c8-09049561dc74", "migrations_dir": "migrations" }
       ]
     }
   }
