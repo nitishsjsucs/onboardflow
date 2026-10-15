@@ -210,18 +210,51 @@ async function pendingApproval(run: ScenarioRun, checkpoint: string) {
   });
 }
 
+type Checklist = { stages: Array<{ id: string; status: string }>; tasks: Array<{ id: string; stageId: string; status: string }> };
+
+async function checklist(run: ScenarioRun): Promise<Checklist> {
+  const r = await run.h.request(run.h.emailFor("employee", run.employeeId), "GET", "/api/me/checklist");
+  expectStatus(r, [200], "checklist");
+  return { stages: r.body?.stages ?? [], tasks: r.body?.tasks ?? [] };
+}
+
+function errorCode(r: HttpResult): string | undefined {
+  return (r.body as { error?: { code?: string } } | null)?.error?.code;
+}
+
+/**
+ * Completes the employee's tasks of a stage once that stage has started (the API refuses earlier
+ * completions with 409 stage_not_started). A 409 for a task that is no longer open is accepted (a
+ * duplicate pass, or a task already done); a stage_not_started refusal is a failure.
+ */
 async function completeTasks(run: ScenarioRun, stage: string, order: "forward" | "reverse") {
-  const employee = run.h.emailFor("employee", run.employeeId);
-  const tasks = await run.h.waitFor(`${stage} checklist for ${run.employeeId}`, async () => {
-    const r = await run.h.request(employee, "GET", "/api/me/checklist");
-    const all = ((r.body?.tasks ?? []) as Array<{ id: string; stageId: string; status: string }>).filter((t) => t.stageId === stage);
-    return all.length > 0 ? all : null;
+  const tasks = await run.h.waitFor(`${stage} started, with its checklist, for ${run.employeeId}`, async () => {
+    const cl = await checklist(run);
+    const started = cl.stages.some((s) => s.id === stage && s.status !== "pending");
+    const all = cl.tasks.filter((t) => t.stageId === stage);
+    return started && all.length > 0 ? all : null;
   });
   const ids = tasks.map((t) => t.id).sort();
   if (order === "reverse") ids.reverse();
   for (const id of ids) {
     const r = await as(run, "employee", "POST", `/api/tasks/${encodeURIComponent(id)}/complete`, {});
-    expectStatus(r, run.duplicatePass ? [200, 409] : [200, 409], `complete ${id}`);
+    expectStatus(r, [200, 409], `complete ${id}`);
+    if (errorCode(r) === "stage_not_started") throw new ExpectationError(`complete ${id}: HTTP 409 stage_not_started after the stage showed started`);
+  }
+}
+
+/** The employee tries every open task of a stage that has not started: each must be refused with 409 stage_not_started. */
+async function attemptTasksBeforeStage(run: ScenarioRun, stage: string) {
+  const cl = await checklist(run);
+  const status = cl.stages.find((s) => s.id === stage)?.status;
+  if (status !== "pending") throw new ExpectationError(`${stage} already started (${status}) before the early attempt`);
+  const open = cl.tasks.filter((t) => t.stageId === stage && t.status === "open").map((t) => t.id).sort();
+  if (open.length === 0) throw new ExpectationError(`no open ${stage} tasks to attempt`);
+  for (const id of open) {
+    const r = await as(run, "employee", "POST", `/api/tasks/${encodeURIComponent(id)}/complete`, {});
+    if (r.status !== 409 || errorCode(r) !== "stage_not_started") {
+      throw new ExpectationError(`complete ${id} before ${stage} started: expected 409 stage_not_started, got HTTP ${r.status} ${JSON.stringify(r.body)?.slice(0, 200)}`);
+    }
   }
 }
 
@@ -238,6 +271,8 @@ export async function executeAction(run: ScenarioRun, a: Action): Promise<void> 
     }
     case "completeEmployeeTasks":
       return completeTasks(run, a.stage, a.order === "reverse" ? "reverse" : "forward");
+    case "attemptTasksBeforeStage":
+      return attemptTasksBeforeStage(run, a.stage);
     case "decide": {
       const approval = run.duplicatePass ? { id: run.notes.findLast((n) => n.startsWith(`decided:${a.checkpoint}:`))?.split(":").slice(2).join(":") ?? "" } : await pendingApproval(run, a.checkpoint);
       const employee = run.h.dataset.employees.find((e) => e.id === id);
@@ -406,6 +441,7 @@ async function replayCheck(run: ScenarioRun, action: Action, keys: string[]): Pr
 export const SUPPORTED_ACTIONS = [
   "start",
   "completeEmployeeTasks",
+  "attemptTasksBeforeStage",
   "decide",
   "resubmit",
   "advanceClock",

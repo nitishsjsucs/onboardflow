@@ -17,7 +17,8 @@ beforeAll(async () => {
     // retry: a started case with a blocked stage (no live instance; the wake-up simply fails, never throws)
     DB.prepare("UPDATE cases SET workflow_instance_id = 'onb-E144-1', status = 'blocked' WHERE employee_id = 'E144'"),
     DB.prepare("UPDATE case_stages SET status = 'blocked', blocked_reason_json = '{\"round\":1}' WHERE employee_id = 'E144' AND stage_id = 'it_provisioning'"),
-    // complete task and decide
+    // complete task (its stage has started) and decide
+    DB.prepare("UPDATE case_stages SET status = 'waiting_on_employee' WHERE employee_id = 'E148' AND stage_id = 'paperwork'"),
     DB.prepare(
       "INSERT INTO tasks (id, employee_id, stage_id, kind, template_key, assignee, title, description, status, created_at) VALUES ('chk:E148:w4','E148','paperwork','checklist','w4','employee','W-4','d','open',?)",
     ).bind(now()),

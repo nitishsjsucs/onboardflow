@@ -72,7 +72,12 @@ export function EmployeePortalPage() {
           <h3>
             Stage {s.ordinal}: {s.name}
           </h3>
-          <TaskList tasks={data.tasks.filter((t) => t.stageId === s.id)} onComplete={onComplete} busyId={complete.isPending ? (complete.variables?.taskId ?? null) : null} />
+          <TaskList
+            tasks={data.tasks.filter((t) => t.stageId === s.id)}
+            onComplete={onComplete}
+            busyId={complete.isPending ? (complete.variables?.taskId ?? null) : null}
+            notStarted={(data.stages.find((x) => x.id === s.id)?.status ?? "pending") === "pending"}
+          />
         </section>
       ))}
       {complete.error ? <p className="error">{(complete.error as Error).message}</p> : null}

@@ -7,6 +7,7 @@ import type { WorkflowControl } from "../../src/worker/agents/workflow-control.t
 import { FollowUpDrafter } from "../../src/worker/agents/followups.ts";
 import { StubLlmProvider } from "../../src/worker/llm/stub.ts";
 import { blockerDedupeKey, blockerId } from "../../src/shared/ids.ts";
+import { api } from "../helpers/api.ts";
 import { caseAgent, cmdFor } from "../helpers/workflow.ts";
 
 const DB = env.DB;
@@ -194,6 +195,8 @@ describe("guarded commands", () => {
 
   it("completing the badge_photo task sets photo_on_file; a second completion conflicts", async () => {
     const stub = await withControl("E051", fakeControl());
+    // the paperwork stage has started (its tasks can be completed only then)
+    await DB.prepare("UPDATE case_stages SET status = 'waiting_on_employee' WHERE employee_id = 'E051' AND stage_id = 'paperwork'").run();
     await DB.prepare(
       "INSERT INTO tasks (id, employee_id, stage_id, kind, template_key, assignee, title, description, status, created_at) VALUES ('chk:E051:badge_photo','E051','paperwork','checklist','badge_photo','employee','Upload','d','open',?)",
     )
@@ -206,6 +209,32 @@ describe("guarded commands", () => {
     expect(again.status).toBe(409);
     expect(await count("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'task.completed' AND entity_id = 'chk:E051:badge_photo'")).toBe(1);
     expect(await count("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'task.completion_conflict' AND entity_id = 'chk:E051:badge_photo'")).toBe(1);
+  });
+
+  it("refuses a checklist task of a stage that has not started (409 stage_not_started, nothing written), then accepts it once the stage starts", async () => {
+    const stub = await withControl("E062", fakeControl());
+    await stub.startCase(await cmdFor("C01"));
+    await DB.prepare(
+      "INSERT INTO tasks (id, employee_id, stage_id, kind, template_key, assignee, title, description, status, created_at) VALUES ('chk:E062:enroll_mfa','E062','orientation','checklist','enroll_mfa','employee','Enroll in MFA','d','open',?)",
+    )
+      .bind(new Date().toISOString())
+      .run();
+    expect((await DB.prepare("SELECT status FROM case_stages WHERE employee_id = 'E062' AND stage_id = 'orientation'").first())).toEqual({ status: "pending" });
+    const early: { status: number; body: unknown } = await stub.completeTask("chk:E062:enroll_mfa", await cmdFor("E062"));
+    expect(early).toMatchObject({ status: 409, body: { error: { code: "stage_not_started" } } });
+    // the rule is the stage's, not the role's: an admin completing it on the employee's behalf is refused too
+    const byAdmin: { status: number } = await stub.completeTask("chk:E062:enroll_mfa", await cmdFor("A01"));
+    expect(byAdmin.status).toBe(409);
+    expect(await DB.prepare("SELECT status, completed_at FROM tasks WHERE id = 'chk:E062:enroll_mfa'").first()).toEqual({ status: "open", completed_at: null });
+    expect(await count("SELECT COUNT(*) AS n FROM audit_events WHERE entity_id = 'chk:E062:enroll_mfa'")).toBe(0);
+    // the API answers the same way
+    const viaApi = await api("/api/tasks/chk:E062:enroll_mfa/complete", { as: "E062", body: {} });
+    expect(viaApi).toMatchObject({ status: 409, body: { error: { code: "stage_not_started" } } });
+
+    await DB.prepare("UPDATE case_stages SET status = 'active', started_at = ? WHERE employee_id = 'E062' AND stage_id = 'orientation'").bind(new Date().toISOString()).run();
+    const ok: { status: number } = await stub.completeTask("chk:E062:enroll_mfa", await cmdFor("E062"));
+    expect(ok.status).toBe(200);
+    expect(await count("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'task.completed' AND entity_id = 'chk:E062:enroll_mfa'")).toBe(1);
   });
 
   it("fixField records before and after; terminate then terminate again conflicts", async () => {

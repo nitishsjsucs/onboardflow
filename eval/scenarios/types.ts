@@ -16,6 +16,8 @@ export type CorruptField = "costCenter" | "licenseBundle" | "photoOnFile";
 export type Action =
   | { do: "start" }
   | { do: "completeEmployeeTasks"; stage: "paperwork" | "orientation"; order?: "reverse" }
+  /** The employee tries the tasks of a stage that has not started: each must be refused (409 stage_not_started). */
+  | { do: "attemptTasksBeforeStage"; stage: "paperwork" | "orientation" }
   | { do: "decide"; checkpoint: Checkpoint; decision: "approve" | "reject"; as: PersonaRef; privileged?: boolean }
   | { do: "resubmit"; checkpoint: Checkpoint; as: PersonaRef }
   | { do: "advanceClock"; ms: number }

@@ -116,3 +116,65 @@ describe("transport retries", () => {
     expect(h.transport.failures).toBe(1);
   });
 });
+
+describe("employee checklist actions (tasks open only once their stage has started)", () => {
+  type Reply = { status: number; body: unknown };
+  function portal(stageStatus: () => string, onComplete: (taskId: string) => Reply) {
+    const log: string[] = [];
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/dev/login") return new Response(JSON.stringify({ token: "t" }), { status: 200 });
+      if (url.pathname === "/api/me/checklist") {
+        const status = stageStatus();
+        log.push(`GET checklist (paperwork ${status})`);
+        const tasks = ["chk:E008:w4", "chk:E008:offer_docs"].map((id) => ({ id, stageId: "paperwork", status: "open" }));
+        return new Response(JSON.stringify({ caseStatus: "in_progress", stages: [{ id: "paperwork", status }], tasks, blockers: [] }), { status: 200 });
+      }
+      const m = /^\/api\/tasks\/(.+)\/complete$/.exec(url.pathname);
+      if (m && (init?.method ?? "GET") === "POST") {
+        const id = decodeURIComponent(m[1]!);
+        log.push(`POST ${id}`);
+        const r = onComplete(id);
+        return new Response(JSON.stringify(r.body), { status: r.status });
+      }
+      return new Response("{}", { status: 404 });
+    }) as typeof fetch;
+    const h = new Harness("http://fake.test", generateDataset());
+    h.timeouts.pollMs = 1;
+    const run: ScenarioRun = { h, scenario: SCENARIOS[0]!, employeeId: "E008", notes: [], keys: { kind: "fresh" }, duplicatePass: false };
+    return { log, run };
+  }
+  const notStarted: Reply = { status: 409, body: { error: { code: "stage_not_started", message: "x" } } };
+
+  it("completeEmployeeTasks waits for the stage to start before completing its tasks", async () => {
+    let polls = 0;
+    const { log, run } = portal(() => (++polls < 3 ? "pending" : "waiting_on_employee"), () => ({ status: 200, body: {} }));
+    await executeAction(run, { do: "completeEmployeeTasks", stage: "paperwork" });
+    expect(log).toEqual([
+      "GET checklist (paperwork pending)",
+      "GET checklist (paperwork pending)",
+      "GET checklist (paperwork waiting_on_employee)",
+      "POST chk:E008:offer_docs",
+      "POST chk:E008:w4",
+    ]);
+  });
+
+  it("completeEmployeeTasks fails on a stage_not_started refusal instead of accepting it as a conflict", async () => {
+    const { run } = portal(() => "waiting_on_employee", () => notStarted);
+    await expect(executeAction(run, { do: "completeEmployeeTasks", stage: "paperwork" })).rejects.toThrow(/stage_not_started/);
+  });
+
+  it("attemptTasksBeforeStage expects every open task of a pending stage to be refused, and completes none", async () => {
+    const { log, run } = portal(() => "pending", () => notStarted);
+    await executeAction(run, { do: "attemptTasksBeforeStage", stage: "paperwork" });
+    expect(log).toEqual(["GET checklist (paperwork pending)", "POST chk:E008:offer_docs", "POST chk:E008:w4"]);
+  });
+
+  it("attemptTasksBeforeStage fails if a task is accepted, or if the stage already started", async () => {
+    const accepted = portal(() => "pending", () => ({ status: 200, body: {} }));
+    await expect(executeAction(accepted.run, { do: "attemptTasksBeforeStage", stage: "paperwork" })).rejects.toThrow(/expected 409 stage_not_started/);
+    const late = portal(() => "waiting_on_employee", () => notStarted);
+    await expect(executeAction(late.run, { do: "attemptTasksBeforeStage", stage: "paperwork" })).rejects.toThrow(/already started/);
+    expect(late.log).toEqual(["GET checklist (paperwork waiting_on_employee)"]);
+  });
+});

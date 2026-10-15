@@ -181,6 +181,22 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const now = (await this.clock()).nowIso();
     const task = await getTask(db, taskId);
     if (!task || task.employee_id !== this.employeeId) return { status: 404, body: errorBody("not_found", "unknown task", cmd.requestId) };
+    // A checklist task belongs to a stage and can be completed only once that stage has started (any status
+    // but pending; a stage never returns to pending). The check runs first for a clear answer, and again
+    // inside the guarded UPDATE. Follow-ups belong to blockers, which only exist on started stages.
+    const startedGuard =
+      task.kind === "checklist"
+        ? { sql: " AND EXISTS (SELECT 1 FROM case_stages WHERE employee_id = ? AND stage_id = ? AND status <> 'pending')", binds: [task.employee_id, task.stage_id] }
+        : { sql: "", binds: [] };
+    if (task.kind === "checklist") {
+      const stage = await db
+        .prepare("SELECT status FROM case_stages WHERE employee_id = ? AND stage_id = ?")
+        .bind(task.employee_id, task.stage_id)
+        .first<{ status: string }>();
+      if (!stage || stage.status === "pending") {
+        return { status: 409, body: errorBody("stage_not_started", `the ${task.stage_id} stage has not started yet; its tasks open when it does`, cmd.requestId) };
+      }
+    }
     const stamp = userStamp(cmd.requestId);
     const applied = stamped("tasks", "id = ?", [taskId], stamp);
     const action = task.kind === "followup" ? "followup.completed" : "task.completed";
@@ -189,8 +205,8 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const result = await runGuarded({
       db,
       mutation: db
-        .prepare("UPDATE tasks SET status = 'done', completed_at = ?, completed_by = ?, last_mutation_id = ? WHERE id = ? AND status = 'open'")
-        .bind(now, cmd.actor.email, stamp, taskId),
+        .prepare(`UPDATE tasks SET status = 'done', completed_at = ?, completed_by = ?, last_mutation_id = ? WHERE id = ? AND status = 'open'${startedGuard.sql}`)
+        .bind(now, cmd.actor.email, stamp, taskId, ...startedGuard.binds),
       applied,
       onApplied: (when) => [
         ...(task.template_key === "badge_photo"

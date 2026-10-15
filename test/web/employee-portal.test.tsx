@@ -90,4 +90,16 @@ describe("EmployeePortalPage", () => {
     release!();
     await waitFor(() => expect(calls.filter((c) => c.method === "GET").length).toBeGreaterThanOrEqual(2));
   });
+
+  it("offers no Mark done for tasks of a stage that has not started, and says when they open", async () => {
+    mockFetch(() => ({ body: checklist }));
+    renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
+    await screen.findByText("Enroll in MFA");
+    const orientation = screen.getByRole("region", { name: "Orientation and day one checklist" });
+    expect(within(orientation).queryByRole("button", { name: "Mark done" })).toBeNull();
+    expect(within(orientation).getByText("Opens when this stage starts.")).toBeTruthy();
+    // the started stage keeps its button
+    const paperwork = screen.getByRole("region", { name: "Paperwork and verification checklist" });
+    expect(within(paperwork).getByRole("button", { name: "Mark done" })).toBeTruthy();
+  });
 });

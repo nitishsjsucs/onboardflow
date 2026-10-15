@@ -136,7 +136,8 @@ describe("live WebSocket subscriptions", () => {
     const c = await connect("/agents/case-agent/E132", "E132");
     expect(c.status).toBe(101);
     await until(c.messages, (m) => m.type === "cf_agent_state");
-    // give the case one open employee task and let the agent project it (a scan refreshes the state)
+    // give the case one open employee task on a started stage and let the agent project it (a scan refreshes the state)
+    await env.DB.prepare("UPDATE case_stages SET status = 'waiting_on_employee' WHERE employee_id = 'E132' AND stage_id = 'paperwork'").run();
     await env.DB.prepare(
       "INSERT INTO tasks (id, employee_id, stage_id, kind, template_key, assignee, title, description, status, created_at) VALUES ('chk:E132:w4','E132','paperwork','checklist','w4','employee','W-4','d','open',?)",
     )

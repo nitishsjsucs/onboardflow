@@ -24,13 +24,14 @@ export const ONBOARDING: Scenario[] = [
   {
     id: "O07",
     category: "onboarding",
-    title: "Employee finishes paperwork before the workflow reaches the gate: first gate check passes, no wait",
+    title: "Employee tries the paperwork before its stage starts: every task refused (409 stage_not_started), nothing recorded; done once the stage starts",
     employeeId: "E008",
     archetype: {},
-    // one rate-limited HR call holds intake for 1.5 s, so the tasks are done before the gate is checked
+    // one rate-limited HR call holds intake for 1.5 s, so the paperwork stage is still pending when the employee tries.
+    // (Until the stage-start rule, this scenario completed the paperwork early and expected the first gate check to pass.)
     setup: [fault("E008", "hr", "create-worker", "rate_limit_429", 1, { retryAfterMs: 1500 })],
-    script: happyPath(),
-    expect: { ...complete, gateChecks: { paperwork: 1 } },
+    script: [{ do: "attemptTasksBeforeStage", stage: "paperwork" }, ...happyPath()],
+    expect: { ...complete, absentAuditActions: ["task.completion_conflict"], auditCounts: { "task.completed": 10 } },
   },
   { id: "O08", category: "onboarding", title: "Employee completes tasks out of order within each gated stage", employeeId: "E018", archetype: {}, setup: [], script: [paperwork("reverse"), managerApproves(), orientation("reverse"), closeoutApproved()], expect: complete },
   { id: "O09", category: "onboarding", title: "Manager approves within minutes", employeeId: "E014", archetype: {}, setup: [], script: happyPath(), expect: { ...complete, blockers: [] } },
