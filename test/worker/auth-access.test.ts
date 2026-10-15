@@ -133,6 +133,53 @@ describe("production key source (AUTH_MODE=access)", () => {
     expect((await appFetch("http://localhost/api/me", { headers: { "Cf-Access-Jwt-Assertion": devToken } }, override)).status).toBe(401);
   });
 
+  it("accepts an Access service token only for a provisioned service identity (Service Auth: no email, empty sub, common_name)", async () => {
+    // its own team domain: jose caches each remote key set per isolate
+    const teamDomain = "https://unit-test-svc.cloudflareaccess.com";
+    const { publicKey, privateKey } = await generateKeyPair("RS256", { extractable: true });
+    const pub = { ...(await exportJWK(publicKey)), kid: "access-2", alg: "RS256", use: "sig" };
+    const key = await importJWK({ ...(await exportJWK(privateKey)), kid: "access-2" } as JWK, "RS256");
+    const realFetch = globalThis.fetch;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url === `${teamDomain}/cdn-cgi/access/certs`) return Response.json({ keys: [pub] });
+      return realFetch(input, init);
+    });
+    const override = { AUTH_MODE: "access", TEAM_DOMAIN: teamDomain, POLICY_AUD: "aud-tag-456" };
+    const now = Math.floor(Date.now() / 1000);
+    // the shape Access signs for a service token (developers.cloudflare.com, application token)
+    const sign = (claims: Record<string, unknown>) =>
+      new SignJWT({ type: "app", iss: teamDomain, aud: ["aud-tag-456"], iat: now, exp: now + 600, ...claims }).setProtectedHeader({ alg: "RS256", kid: "access-2" }).sign(key);
+    const clientId = "e367826f93b8d71185e03fe518aff3b4.access";
+    const asService = async (claims: Record<string, unknown>) =>
+      appFetch("http://localhost/api/me", { headers: { "Cf-Access-Jwt-Assertion": await sign(claims) } }, override);
+
+    // not provisioned yet: 403, audited under the service identity
+    const denied = await asService({ sub: "", common_name: clientId });
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({ error: { code: "not_provisioned" } });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit_events WHERE action = 'auth.denied' AND actor_id = ?").bind(`service-token:${clientId}`).first()).toEqual({ n: 1 });
+
+    // provisioned as an admin (what scripts/prod/setup.ts writes): 200 with that principal
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO staff (id, email, display_name, kind, department, org_unit) VALUES ('V01', ?, 'Production verification', 'admin', NULL, NULL)").bind(`service-token:${clientId}`),
+      env.DB.prepare("INSERT INTO app_users (email, role, employee_id, staff_id, active) VALUES (?, 'admin', NULL, 'V01', 1)").bind(`service-token:${clientId}`),
+    ]);
+    const ok = await asService({ sub: "", common_name: clientId });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({ email: `service-token:${clientId}`, role: "admin" });
+
+    // anything else without an email stays a 401: a non-empty sub, no common_name, a malformed client id
+    for (const claims of [{ sub: "user-1", common_name: clientId }, { sub: "" }, { sub: "", common_name: "a b@c" }, { common_name: clientId }]) {
+      expect((await asService(claims)).status, JSON.stringify(claims)).toBe(401);
+    }
+    // an email always wins: a user token is the user, whatever else it carries
+    const user = await asService({ email: await emailOf("A01"), sub: "u", common_name: clientId });
+    expect(await user.json()).toMatchObject({ email: await emailOf("A01") });
+    // and the service identity can never be reached through an email claim (it has no @)
+    expect(`service-token:${clientId}`.includes("@")).toBe(false);
+  });
+
   it("fails closed with config_placeholder while REPLACE values remain", async () => {
     const res = await appFetch(
       "http://localhost/api/me",

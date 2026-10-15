@@ -1,5 +1,6 @@
-// Request authentication: Access JWT -> verified email -> principal from
-// app_users. Unknown or inactive emails get 403 not_provisioned and an
+// Request authentication: Access JWT -> verified identity (the email, or
+// service-token:<client id> for an Access service token) -> principal from
+// app_users. Unknown or inactive identities get 403 not_provisioned and an
 // auth.denied audit row; missing or invalid tokens get 401.
 import type { MiddlewareHandler } from "hono";
 import { isDepartment, isRole, type Role } from "../../shared/roles.ts";
