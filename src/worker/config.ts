@@ -27,7 +27,8 @@ export type AppConfig = {
   blockerScanIntervalS: number;
   hubDebounceS: number;
   approvalSlaHours: number;
-  llm: { provider: LlmProviderKind; baseUrl?: string; model: string; apiKey?: string; gatewayId?: string };
+  /** dailyDraftLimit: LLM calls allowed per UTC day (LLM_DAILY_DRAFT_LIMIT); absent means no cap. */
+  llm: { provider: LlmProviderKind; baseUrl?: string; model: string; apiKey?: string; gatewayId?: string; dailyDraftLimit?: number };
   simApiKey: string;
   simBaseUrl: string;
 };
@@ -74,6 +75,7 @@ const RawEnv = z.object({
   LLM_MODEL: z.string().min(1),
   LLM_API_KEY: z.string().optional(),
   AI_GATEWAY_ID: z.string().optional(),
+  LLM_DAILY_DRAFT_LIMIT: int().optional(),
   SIM_API_KEY: z.string().min(1),
   SIM_BASE_URL: z.string().optional(),
 });
@@ -93,7 +95,7 @@ const cache = new WeakMap<object, AppConfig>();
 export function parseConfig(env: Env): AppConfig {
   const hit = cache.get(env);
   if (hit) return hit;
-  const parsed = RawEnv.safeParse(env as Env & { LLM_API_KEY?: string; SIM_BASE_URL?: string });
+  const parsed = RawEnv.safeParse(env as Env & { LLM_API_KEY?: string; SIM_BASE_URL?: string; LLM_DAILY_DRAFT_LIMIT?: string });
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new ConfigError("config_invalid", `invalid configuration: ${issues}`);
@@ -151,6 +153,7 @@ export function parseConfig(env: Env): AppConfig {
       ...(e.LLM_BASE_URL ? { baseUrl: e.LLM_BASE_URL } : {}),
       ...(e.LLM_API_KEY ? { apiKey: e.LLM_API_KEY } : {}),
       ...(e.AI_GATEWAY_ID ? { gatewayId: e.AI_GATEWAY_ID } : {}),
+      ...(e.LLM_DAILY_DRAFT_LIMIT !== undefined ? { dailyDraftLimit: e.LLM_DAILY_DRAFT_LIMIT } : {}),
     },
     simApiKey: e.SIM_API_KEY,
     simBaseUrl: e.SIM_BASE_URL ?? "http://localhost",

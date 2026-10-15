@@ -18,6 +18,8 @@ export type Draft = {
   draftedBy: string;
   suggestedCategory: BlockerKind | null;
   latencyMs: number | null;
+  /** Token counts the provider reported (Workers AI and OpenAI-compatible servers do). */
+  usage?: { promptTokens: number; completionTokens: number };
   error?: string;
 };
 
@@ -103,6 +105,7 @@ export class FollowUpDrafter {
         draftedBy: this.#provider.id === "stub" ? "stub" : `llm:${this.#provider.id}`,
         suggestedCategory: parsed.data.suggestedCategory,
         latencyMs: r.latencyMs,
+        ...(r.usage ? { usage: r.usage } : {}),
       };
     } catch (err) {
       return { ...template, draftedBy: "template", suggestedCategory: null, latencyMs: null, error: errorMessage(err) };

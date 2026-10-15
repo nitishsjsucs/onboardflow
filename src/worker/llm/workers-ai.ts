@@ -51,7 +51,15 @@ export class WorkersAiProvider implements LlmProvider {
     });
     try {
       const out = await Promise.race([call, timeout]);
-      return { text: stripThink(textOf(out)), latencyMs: Date.now() - started };
+      const usage = (out as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } } | null)?.usage;
+      return {
+        text: stripThink(textOf(out)),
+        latencyMs: Date.now() - started,
+        // token counts, so a run can be priced in neurons from the model's published rates
+        ...(usage && typeof usage.prompt_tokens === "number" && typeof usage.completion_tokens === "number"
+          ? { usage: { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens } }
+          : {}),
+      };
     } finally {
       if (timer) clearTimeout(timer);
     }

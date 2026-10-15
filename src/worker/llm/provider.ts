@@ -2,6 +2,7 @@
 // pick the blocker kind, owner and workflow behavior (ADR 0004). A provider
 // only drafts follow-up text, and any failure falls back to a template.
 import type { AppConfig } from "../config.ts";
+import { DailyCappedProvider } from "./daily-cap.ts";
 import { OpenAiCompatibleProvider } from "./openai-compatible.ts";
 import { StubLlmProvider } from "./stub.ts";
 import { type AiBinding, WorkersAiProvider } from "./workers-ai.ts";
@@ -41,6 +42,13 @@ export class ProviderUnavailable implements LlmProvider {
 }
 
 export function createLlmProvider(config: AppConfig, env: Env, fetcher?: typeof fetch): LlmProvider {
+  const provider = createUncappedProvider(config, env, fetcher);
+  // The stub costs nothing; every real provider is capped per UTC day when LLM_DAILY_DRAFT_LIMIT is set.
+  const limit = config.llm.dailyDraftLimit;
+  return config.llm.provider === "stub" || limit === undefined ? provider : new DailyCappedProvider(provider, env.DB, limit);
+}
+
+function createUncappedProvider(config: AppConfig, env: Env, fetcher?: typeof fetch): LlmProvider {
   switch (config.llm.provider) {
     case "stub":
       return new StubLlmProvider();

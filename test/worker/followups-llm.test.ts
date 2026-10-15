@@ -119,3 +119,50 @@ describe("Workers AI provider (fake binding)", () => {
     expect(withAi.id).toBe("workers-ai:qwen3-1.7b");
   });
 });
+
+describe("daily LLM draft cap (LLM_DAILY_DRAFT_LIMIT)", () => {
+  const DB = env.DB;
+  const req = { system: "s", user: "u", schemaName: "x", jsonSchema: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 };
+  const usedOn = async (day: string) => (await DB.prepare("SELECT drafts FROM llm_daily_usage WHERE day = ?").bind(day).first<{ drafts: number }>())?.drafts ?? 0;
+
+  it("claims at most the limit per UTC day, atomically, and starts again the next day", async () => {
+    const { claimDailyDraft } = await import("../../src/worker/llm/daily-cap.ts");
+    const late = new Date("2026-03-01T23:59:59.000Z");
+    const results = await Promise.all([1, 2, 3, 4, 5].map(() => claimDailyDraft(DB, 3, late)));
+    expect(results.filter(Boolean)).toHaveLength(3);
+    expect(await usedOn("2026-03-01")).toBe(3);
+    expect(await claimDailyDraft(DB, 3, new Date("2026-03-02T00:00:00.000Z"))).toBe(true);
+    expect(await usedOn("2026-03-02")).toBe(1);
+    // a limit of 0 never calls and writes nothing
+    expect(await claimDailyDraft(DB, 0, new Date("2026-03-03T12:00:00.000Z"))).toBe(false);
+    expect(await usedOn("2026-03-03")).toBe(0);
+  });
+
+  it("caps a real provider (Workers AI here) and records its token usage; the stub is never capped", async () => {
+    const { WorkersAiProvider } = await import("../../src/worker/llm/workers-ai.ts");
+    const { DailyCappedProvider } = await import("../../src/worker/llm/daily-cap.ts");
+    const run = vi.fn(async () => ({
+      choices: [{ message: { content: '{"title":"Fix the cost center","description":"Correct it and retry.","suggestedCategory":"data_issue"}' } }],
+      usage: { prompt_tokens: 412, completion_tokens: 57 },
+    }));
+    const cfg = parseConfig({ ...env, LLM_PROVIDER: "workers-ai", LLM_MODEL: "@cf/qwen/qwen3-30b-a3b-fp8", LLM_DAILY_DRAFT_LIMIT: "2" } as Env);
+    expect(cfg.llm.dailyDraftLimit).toBe(2);
+    const capped = createLlmProvider(cfg, { ...env, AI: { run } } as unknown as Env);
+    expect(capped).toBeInstanceOf(DailyCappedProvider);
+    expect(capped.id).toBe("workers-ai:@cf/qwen/qwen3-30b-a3b-fp8");
+    const drafter = new FollowUpDrafter(capped);
+    const drafts = [];
+    for (let i = 0; i < 3; i++) drafts.push(await drafter.draft(candidate, { employeeName: "Avery" }));
+    expect(drafts.map((d) => d.draftedBy)).toEqual(["llm:workers-ai:@cf/qwen/qwen3-30b-a3b-fp8", "llm:workers-ai:@cf/qwen/qwen3-30b-a3b-fp8", "template"]);
+    expect(drafts[0]!.usage).toEqual({ promptTokens: 412, completionTokens: 57 });
+    expect(drafts[2]!.error).toMatch(/daily LLM draft limit reached \(2 per UTC day\)/);
+    // the third draft never reached the model
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(await usedOn(new Date().toISOString().slice(0, 10))).toBe(2);
+    // the stub costs nothing and is never wrapped
+    const stubCfg = parseConfig({ ...env, LLM_DAILY_DRAFT_LIMIT: "0" } as Env);
+    expect(createLlmProvider(stubCfg, env)).toBeInstanceOf(StubLlmProvider);
+    expect(() => parseConfig({ ...env, LLM_DAILY_DRAFT_LIMIT: "-1" } as Env)).toThrow(/LLM_DAILY_DRAFT_LIMIT/);
+  });
+});
+

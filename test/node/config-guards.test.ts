@@ -20,7 +20,16 @@ describe("wrangler.jsonc guards", () => {
     expect(v.EVAL_HOOKS).toBe("off");
     expect(v.SIM_CLOCK).toBe("off");
     expect(v.IDEMPOTENCY_KEYS).toBe("on");
-    expect(v.LLM_PROVIDER).toBe("stub");
+  });
+
+  it("drafts follow-up wording with Workers AI in production, capped per UTC day and without an AI Gateway", () => {
+    const v = cfg.env.production.vars;
+    expect(v.LLM_PROVIDER).toBe("workers-ai");
+    expect(Number(v.LLM_DAILY_DRAFT_LIMIT)).toBeGreaterThan(0);
+    expect(Number(v.LLM_DAILY_DRAFT_LIMIT)).toBeLessThanOrEqual(25);
+    // a named gateway must be created before use; the cap, not a gateway, bounds the neurons
+    expect(v.AI_GATEWAY_ID).toBeUndefined();
+    expect(cfg.vars.LLM_PROVIDER).toBe("stub");
   });
 
   it("requires SIM_API_KEY in production and carries no DEV_* settings there", () => {

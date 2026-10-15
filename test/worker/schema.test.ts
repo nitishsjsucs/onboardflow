@@ -46,6 +46,7 @@ describe("migrations", () => {
         "sim_side_effects",
         "sim_fault_plans",
         "sim_clock",
+        "llm_daily_usage",
       ]),
     );
   });

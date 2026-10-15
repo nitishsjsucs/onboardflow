@@ -33,7 +33,7 @@ export type NewFollowUp = {
   draftedBy: string;
   llmSuggestedCategory: string | null;
   /** Provider latency and outcome, kept in the followup.created audit for LLM metrics. */
-  llm?: { provider: string; latencyMs: number | null; error: string | null };
+  llm?: { provider: string; latencyMs: number | null; error: string | null; usage?: { promptTokens: number; completionTokens: number } };
 };
 
 export function blockerExists(blockerId: string): Condition {

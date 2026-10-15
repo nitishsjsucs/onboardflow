@@ -56,9 +56,11 @@
         "POLICY_AUD": "REPLACE-with-access-aud-tag",
         "SIM_CLOCK": "off",
         "EVAL_HOOKS": "off",
-        "LLM_PROVIDER": "stub",
+        // Follow-up wording only (ADR 0004). Workers AI's 10,000 free neurons a day are shared by the account,
+        // so at most LLM_DAILY_DRAFT_LIMIT calls per UTC day; after that the template is used.
+        "LLM_PROVIDER": "workers-ai",
         "LLM_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
-        "AI_GATEWAY_ID": "onboardflow",
+        "LLM_DAILY_DRAFT_LIMIT": "20",
         "RETRY_LIMIT": "4", "RETRY_BASE_DELAY_MS": "2000", "POLL_INTERVAL_MS": "30000", "POLL_MAX": "12",
         "INTEGRATION_TIMEOUT_MS": "10000", "GATE_WAIT_TIMEOUT_MS": "86400000", "WAIT_BUDGET": "120",
         "MAX_STAGE_ROUNDS": "4", "MAX_RECOVERY_ROUNDS": "6", "MAX_APPROVAL_ROUNDS": "3",
