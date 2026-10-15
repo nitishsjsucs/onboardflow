@@ -442,3 +442,38 @@ files were then copied here unedited.
   llama-server started by hand with the harness's arguments on port 8110
   (stopped afterwards); the smoke check returned a schema-valid draft in
   984 ms.
+
+## 2026-10-15, fixes for the open issues and the Workers Free plan (before any run of this round)
+
+Product changes since the final verification pass's runs (0503d3e), each with
+its own tests; every mode is re-recorded after them:
+
+- e8136cb: the license bundle lock also opens while a stage is blocked by a
+  fatal rejection of the bundle, and the CaseAgent scan writes each blocker
+  before it drafts the follow-up. This is the race that failed
+  F-it-validation in the local-LLM run.
+- 011804c: a checklist task can be completed only once its stage has started
+  (409 `stage_not_started` before that).
+- d89b590: `agents` 0.27.0 to 0.28.1 (the code paths this app uses are
+  unchanged apart from doc comments; see the README).
+- f85c689 and 5bcd35d: the OpsHubAgent's minute reconcile runs only while a
+  dashboard is connected, and then reconciles only when the audit trail moved
+  or 15 minutes passed; a CaseAgent notifies the hub only when the audit
+  trail moved since its last notice.
+- a3f709f: a daily cap on LLM drafts (`LLM_DAILY_DRAFT_LIMIT`). It is not set
+  in the eval configuration, so no run here is capped.
+
+Harness and catalog changes (011804c), forced by the stage-start rule, not
+tuned toward any number:
+
+- `completeEmployeeTasks` waits until the stage shows started before
+  completing its tasks, and fails on a `stage_not_started` refusal instead of
+  accepting it as a conflict. The chaos employee bot already acted only on a
+  stage in `waiting_on_employee` and is unchanged.
+- O07 asserted the old behavior: the employee finished the paperwork while
+  intake was held, and the first gate check passed. It now has the employee
+  try every paperwork task while intake is still held, expects each to be
+  refused with 409 `stage_not_started` and nothing recorded (new action
+  `attemptTasksBeforeStage`), then follows the happy path. Its expectations
+  changed accordingly (no `task.completion_conflict` audit, 10
+  `task.completed`), and the paperwork gate check count is no longer pinned.
