@@ -5,6 +5,13 @@
 // activity cannot be derived from case summaries, and summaries from 150
 // agents arrive out of order. asOfSeq stops an older read from overwriting a
 // newer one. Subscribers are coordinators and admins, read-only (ADR 0006).
+//
+// The once-a-minute safety reconcile runs only while someone watches the
+// dashboard (Workers Free plan: D1 allows 5 million rows read per day per
+// account, and one reconcile reads every case and stage row). It is armed when a
+// subscriber connects and cancels itself once no connection is left; nobody
+// sees the hub's state in between, and the next caseChanged or connect
+// reconciles from D1 again.
 import { Agent, type Connection, type ConnectionContext } from "agents";
 import { canSubscribe } from "../auth/policy.ts";
 import type { HubState } from "../../shared/agent-state.ts";
@@ -34,8 +41,33 @@ export class OpsHubAgent extends Agent<Env, HubState> {
   override async onStart() {
     this.sql`CREATE TABLE IF NOT EXISTS hub_meta (id INTEGER PRIMARY KEY CHECK (id = 1), dirty INTEGER NOT NULL DEFAULT 0, debounce_pending INTEGER NOT NULL DEFAULT 0, last_case TEXT, last_seq INTEGER)`;
     this.sql`INSERT OR IGNORE INTO hub_meta (id, dirty, debounce_pending) VALUES (1, 0, 0)`;
-    // Safety net: reconcile periodically even if a notification was lost (idempotent).
-    await this.scheduleEvery(HUB_SAFETY_INTERVAL_S, "reconcile");
+    // Earlier builds armed an unconditional every-minute "reconcile"; drop it if this object still has one.
+    for (const s of await this.listSchedules({ type: "interval" })) {
+      if (s.callback === "reconcile") await this.cancelSchedule(s.id);
+    }
+    // Subscribers survive hibernation and eviction; keep their safety reconcile armed (idempotent).
+    if (this.watched()) await this.scheduleEvery(HUB_SAFETY_INTERVAL_S, "safetyReconcile");
+  }
+
+  /** Whether any live subscription is open (hibernated WebSockets included). */
+  watched(): boolean {
+    for (const _ of this.getConnections()) return true;
+    return false;
+  }
+
+  /**
+   * Safety net while the dashboard is watched: reconcile once a minute even if a notification was lost,
+   * and re-check subscribers (revokeStaleSubscriptions runs inside reconcile). With nobody watching it
+   * cancels itself, so an idle deployment reads nothing from D1.
+   */
+  async safetyReconcile(): Promise<void> {
+    if (!this.watched()) {
+      for (const s of await this.listSchedules({ type: "interval" })) {
+        if (s.callback === "safetyReconcile") await this.cancelSchedule(s.id);
+      }
+      return;
+    }
+    await this.reconcile();
   }
 
   override shouldConnectionBeReadonly(): boolean {
@@ -43,8 +75,12 @@ export class OpsHubAgent extends Agent<Env, HubState> {
   }
 
   // Remember who subscribed, so later state pushes can re-check them (agents/subscriptions.ts).
-  override onConnect(connection: Connection, ctx: ConnectionContext): void {
+  // A new subscriber also arms the safety reconcile and asks for a debounced reconcile, so what it sees
+  // is fresh even if the hub was idle (unwatched) when cases last changed.
+  override async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
     rememberSubscriber(connection, ctx.request);
+    await this.scheduleEvery(HUB_SAFETY_INTERVAL_S, "safetyReconcile");
+    await this.#debounceReconcile();
   }
 
   /** Closes live subscriptions whose session expired or whose account may no longer see the dashboard. */
@@ -68,6 +104,10 @@ export class OpsHubAgent extends Agent<Env, HubState> {
   /** Called by CaseAgents after they refresh. Marks the hub dirty and debounces one reconcile. */
   async caseChanged(employeeId: string, asOfSeq: number): Promise<void> {
     this.sql`UPDATE hub_meta SET dirty = 1, last_case = ${employeeId}, last_seq = ${asOfSeq} WHERE id = 1`;
+    await this.#debounceReconcile();
+  }
+
+  async #debounceReconcile(): Promise<void> {
     const pending = this.sql<{ debounce_pending: number }>`SELECT debounce_pending FROM hub_meta WHERE id = 1`[0]?.debounce_pending ?? 0;
     if (pending) return;
     this.sql`UPDATE hub_meta SET debounce_pending = 1 WHERE id = 1`;
@@ -82,7 +122,7 @@ export class OpsHubAgent extends Agent<Env, HubState> {
         const clock = await loadClock(parseConfig(this.env), this.env.DB);
         const { domain, asOfSeq } = await computeHubDomain(this.env.DB, clock.nowIso());
         const current = this.state;
-        // before pushing new state (and at least every minute): drop subscribers that may no longer see it
+        // before pushing new state (and every minute while watched): drop subscribers that may no longer see it
         await this.revokeStaleSubscriptions();
         if (!current || asOfSeq >= current.asOfSeq) {
           this.setState({ ...domain, asOfSeq, reconciledAt: clock.nowIso(), version: (current?.version ?? 0) + 1 });
@@ -92,6 +132,16 @@ export class OpsHubAgent extends Agent<Env, HubState> {
       }
       return this.state;
     });
+  }
+
+  /** The last caseChanged notice (case and asOfSeq), for tests and diagnostics. */
+  lastNotice(): { last_case: string | null; last_seq: number | null } {
+    return this.sql<{ last_case: string | null; last_seq: number | null }>`SELECT last_case, last_seq FROM hub_meta WHERE id = 1`[0] ?? { last_case: null, last_seq: null };
+  }
+
+  /** Callbacks of this object's interval schedules (tests and diagnostics). */
+  async intervals(): Promise<string[]> {
+    return (await this.listSchedules({ type: "interval" })).map((s) => s.callback);
   }
 
   meta(): { dirty: number; debounce_pending: number } {

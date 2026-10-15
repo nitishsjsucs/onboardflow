@@ -95,6 +95,41 @@ describe("OpsHubAgent", () => {
     expect(after.version).toBeGreaterThan(99);
   });
 
+  it("hears from a CaseAgent refresh only when the audit trail moved (a scan of a quiet case makes no reconcile)", async () => {
+    const stub = await hub();
+    const caseStub = await getAgentByName(env.CASE_AGENT, "E127");
+    const first = await caseStub.refresh();
+    expect(await stub.lastNotice()).toEqual({ last_case: "E127", last_seq: first.asOfSeq });
+    await stub.caseChanged("E128", first.asOfSeq);
+    // nothing was audited (no workflow runs in this file): neither a refresh nor a scan tells the hub
+    await caseStub.refresh();
+    await caseStub.scanBlockers();
+    expect(await stub.lastNotice()).toEqual({ last_case: "E128", last_seq: first.asOfSeq });
+    // an audited change moves asOfSeq, and the refresh after it tells the hub again
+    expect((await api("/api/employees/E127", { as: "C01", method: "PATCH", body: { costCenter: "CC-4410" } })).status).toBe(200);
+    const moved = await caseStub.getSnapshot();
+    expect(moved.asOfSeq).toBeGreaterThan(first.asOfSeq);
+    expect(await stub.lastNotice()).toEqual({ last_case: "E127", last_seq: moved.asOfSeq });
+  });
+
+  it("arms no periodic reconcile while nobody watches, and drops the every-minute reconcile of earlier builds", async () => {
+    const stub = await hub();
+    // let any debounced reconcile from earlier tests finish first
+    await waitFor(async () => ((await stub.meta()).debounce_pending === 0 ? true : null), { timeoutMs: 10_000, what: "no debounce pending" });
+    expect(await stub.intervals()).toEqual([]);
+    // an object that still carries the unconditional schedule of an earlier build loses it on its next start
+    await runInDurableObject(stub, async (a: OpsHubAgent) => {
+      await a.scheduleEvery(60, "reconcile");
+    });
+    expect(await stub.intervals()).toEqual(["reconcile"]);
+    await evictDurableObject(stub);
+    expect(await (await hub()).intervals()).toEqual([]);
+    // the safety reconcile itself reads nothing from D1 when nobody is connected
+    const before = (await (await hub()).getSnapshot()).version;
+    await (await hub()).safetyReconcile();
+    expect((await (await hub()).getSnapshot()).version).toBe(before);
+  });
+
   it("is read-only for clients", async () => {
     await runInDurableObject(await hub(), (a: OpsHubAgent) => {
       expect(() => a.validateStateChange(a.state, {} as never)).toThrow(/read-only/);

@@ -794,6 +794,9 @@ export class CaseAgent extends Agent<Env, CaseState> {
     return n;
   }
 
+  /** asOfSeq of the last caseChanged the hub accepted from this agent (in memory: an evicted agent notifies once more). */
+  #hubNotifiedSeq: number | null = null;
+
   /** Recompute CaseState from D1 (serialized). */
   refresh(): Promise<CaseState> {
     return this.#serial.run(() => this.#refreshNow());
@@ -814,12 +817,17 @@ export class CaseAgent extends Agent<Env, CaseState> {
         },
       );
       if (checked) this.applyProjection(next);
-      // Best effort: the hub reconciles from D1 on a debounce and every minute anyway.
-      try {
-        const hub = await getAgentByName(this.env.OPS_HUB_AGENT, HUB_NAME);
-        await hub.caseChanged(this.employeeId, next.asOfSeq);
-      } catch (err) {
-        console.warn(`hub notify ${this.employeeId}: ${errorMessage(err)}`);
+      // Best effort: the hub reconciles from D1 on a debounce (and every minute while watched). Only when the
+      // audit trail moved since this agent last told it: every change the hub aggregates writes an audit row,
+      // and a periodic scan of a quiet case would otherwise make the hub re-read every case and stage row.
+      if (next.asOfSeq !== this.#hubNotifiedSeq) {
+        try {
+          const hub = await getAgentByName(this.env.OPS_HUB_AGENT, HUB_NAME);
+          await hub.caseChanged(this.employeeId, next.asOfSeq);
+          this.#hubNotifiedSeq = next.asOfSeq;
+        } catch (err) {
+          console.warn(`hub notify ${this.employeeId}: ${errorMessage(err)}`);
+        }
       }
     }
     return this.state;

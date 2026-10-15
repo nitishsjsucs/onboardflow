@@ -3,6 +3,7 @@ import { exports } from "cloudflare:workers";
 import { type Connection, getAgentByName } from "agents";
 import { describe, expect, it } from "vitest";
 import type { CaseAgent } from "../../src/worker/agents/case-agent.ts";
+import type { OpsHubAgent } from "../../src/worker/agents/ops-hub-agent.ts";
 import { CLOSE_REVOKED, revokeStaleSubscriptions } from "../../src/worker/agents/subscriptions.ts";
 import type { CaseState } from "../../src/shared/agent-state.ts";
 import { env } from "cloudflare:workers";
@@ -231,5 +232,35 @@ describe("live WebSocket subscriptions", () => {
     expect(await closedWith(goes)).toBe(4403);
     expect(stays.closeCode()).toBeNull();
     stays.ws?.close();
+  });
+
+  it("runs the hub's once-a-minute safety reconcile only while the dashboard is watched", async () => {
+    const hub = await getAgentByName(env.OPS_HUB_AGENT, "global");
+    const watched = () => runInDurableObject(hub, (a: OpsHubAgent) => a.watched());
+    const settle = async (want: boolean) => {
+      const end = Date.now() + 10_000;
+      while ((await watched()) !== want) {
+        if (Date.now() > end) throw new Error(`hub watched() never became ${want}`);
+        await new Promise((r) => setTimeout(r, 20));
+      }
+    };
+    await settle(false);
+    await hub.safetyReconcile();
+    expect(await hub.intervals()).toEqual([]);
+    // a subscriber arms it, and while watched it reconciles
+    const c = await connect("/agents/ops-hub-agent/global", "C03");
+    expect(c.status).toBe(101);
+    await until(c.messages, (m) => m.type === "cf_agent_state");
+    expect(await hub.intervals()).toEqual(["safetyReconcile"]);
+    const v1 = (await hub.getSnapshot()).version;
+    await hub.safetyReconcile();
+    expect((await hub.getSnapshot()).version).toBeGreaterThan(v1);
+    // once the last subscriber leaves, the next run reads nothing and cancels the schedule
+    c.ws?.close();
+    await settle(false);
+    const v2 = (await hub.getSnapshot()).version;
+    await hub.safetyReconcile();
+    expect((await hub.getSnapshot()).version).toBe(v2);
+    expect(await hub.intervals()).toEqual([]);
   });
 });
