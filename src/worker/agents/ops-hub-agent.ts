@@ -6,12 +6,15 @@
 // agents arrive out of order. asOfSeq stops an older read from overwriting a
 // newer one. Subscribers are coordinators and admins, read-only (ADR 0006).
 //
-// The once-a-minute safety reconcile runs only while someone watches the
-// dashboard (Workers Free plan: D1 allows 5 million rows read per day per
-// account, and one reconcile reads every case and stage row). It is armed when a
-// subscriber connects and cancels itself once no connection is left; nobody
-// sees the hub's state in between, and the next caseChanged or connect
-// reconciles from D1 again.
+// The once-a-minute safety tick runs only while someone watches the dashboard
+// (Workers Free plan: D1 allows 5 million rows read per day per account, and
+// one reconcile reads every case and stage row). It is armed when a subscriber
+// connects and cancels itself once no connection is left; nobody sees the
+// hub's state in between, and the next caseChanged or connect reconciles from
+// D1 again. While watched, a tick re-checks subscribers every minute but
+// reconciles only if the audit trail moved without a notice reaching the hub
+// (one row read), or at least every HUB_FULL_RECONCILE_S, which keeps the
+// time-based figures (overdue approvals, incident windows) current.
 import { Agent, type Connection, type ConnectionContext } from "agents";
 import { canSubscribe } from "../auth/policy.ts";
 import type { HubState } from "../../shared/agent-state.ts";
@@ -33,10 +36,13 @@ export function notBefore(nowMs: number, seconds: number): Date {
   return new Date(Math.ceil((nowMs + seconds * 1000) / 1000) * 1000);
 }
 export const HUB_SAFETY_INTERVAL_S = 60;
+export const HUB_FULL_RECONCILE_S = 900;
 
 export class OpsHubAgent extends Agent<Env, HubState> {
   override initialState: HubState = emptyHubState();
   readonly #serial = new Serial();
+  /** Wall time of the last full reconcile in this activation (0 after an eviction: the next tick reconciles). */
+  #lastFullMs = 0;
 
   override async onStart() {
     this.sql`CREATE TABLE IF NOT EXISTS hub_meta (id INTEGER PRIMARY KEY CHECK (id = 1), dirty INTEGER NOT NULL DEFAULT 0, debounce_pending INTEGER NOT NULL DEFAULT 0, last_case TEXT, last_seq INTEGER)`;
@@ -56,18 +62,26 @@ export class OpsHubAgent extends Agent<Env, HubState> {
   }
 
   /**
-   * Safety net while the dashboard is watched: reconcile once a minute even if a notification was lost,
-   * and re-check subscribers (revokeStaleSubscriptions runs inside reconcile). With nobody watching it
-   * cancels itself, so an idle deployment reads nothing from D1.
+   * Safety net while the dashboard is watched, once a minute: re-check subscribers, and reconcile if a
+   * notification was lost (the audit trail moved past the state's asOfSeq) or the last full reconcile is
+   * HUB_FULL_RECONCILE_S old. With nobody watching it cancels itself, so an idle deployment reads nothing.
+   * Returns what it did.
    */
-  async safetyReconcile(): Promise<void> {
+  async safetyReconcile(): Promise<"cancelled" | "rechecked" | "reconciled"> {
     if (!this.watched()) {
       for (const s of await this.listSchedules({ type: "interval" })) {
         if (s.callback === "safetyReconcile") await this.cancelSchedule(s.id);
       }
-      return;
+      return "cancelled";
+    }
+    const head = await this.env.DB.prepare("SELECT COALESCE(MAX(seq), 0) AS seq FROM audit_events").first<{ seq: number }>();
+    const fresh = Date.now() - this.#lastFullMs < HUB_FULL_RECONCILE_S * 1000;
+    if (fresh && (head?.seq ?? 0) === this.state.asOfSeq) {
+      await this.#serial.run(() => this.revokeStaleSubscriptions());
+      return "rechecked";
     }
     await this.reconcile();
+    return "reconciled";
   }
 
   override shouldConnectionBeReadonly(): boolean {
@@ -121,6 +135,7 @@ export class OpsHubAgent extends Agent<Env, HubState> {
         this.sql`UPDATE hub_meta SET dirty = 0, debounce_pending = 0 WHERE id = 1`;
         const clock = await loadClock(parseConfig(this.env), this.env.DB);
         const { domain, asOfSeq } = await computeHubDomain(this.env.DB, clock.nowIso());
+        this.#lastFullMs = Date.now();
         const current = this.state;
         // before pushing new state (and every minute while watched): drop subscribers that may no longer see it
         await this.revokeStaleSubscriptions();

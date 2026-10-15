@@ -32,6 +32,14 @@ async function connect(path: string, as: string, origin: string | null = "http:/
   return { status: res.status, ws, messages, closeCode: () => closeCode };
 }
 
+async function waitForValue(pred: () => Promise<boolean>, ms = 10_000): Promise<void> {
+  const end = Date.now() + ms;
+  while (!(await pred())) {
+    if (Date.now() > end) throw new Error("condition not met in time");
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
 async function closedWith(c: { closeCode: () => number | null }, ms = 10_000): Promise<number> {
   const end = Date.now() + ms;
   for (;;) {
@@ -252,14 +260,23 @@ describe("live WebSocket subscriptions", () => {
     expect(c.status).toBe(101);
     await until(c.messages, (m) => m.type === "cf_agent_state");
     expect(await hub.intervals()).toEqual(["safetyReconcile"]);
+    // the connect asked for a debounced reconcile; once it has run, a quiet tick only re-checks subscribers
+    await waitForValue(async () => (await hub.meta()).debounce_pending === 0);
+    await hub.reconcile();
     const v1 = (await hub.getSnapshot()).version;
-    await hub.safetyReconcile();
-    expect((await hub.getSnapshot()).version).toBeGreaterThan(v1);
+    expect(await hub.safetyReconcile()).toBe("rechecked");
+    expect((await hub.getSnapshot()).version).toBe(v1);
+    // an audited change whose notice never reached the hub is picked up by the next tick
+    await env.DB.prepare(
+      "INSERT INTO audit_events (id, occurred_at, actor_type, actor_id, action, entity_type, entity_id, detail_json) VALUES ('test:lost-notice', '2026-10-08T12:00:00.000Z', 'system', 'test', 'eval.fault_set', 'test', 'lost', '{}')",
+    ).run();
+    expect(await hub.safetyReconcile()).toBe("reconciled");
+    expect((await hub.getSnapshot()).version).toBe(v1 + 1);
     // once the last subscriber leaves, the next run reads nothing and cancels the schedule
     c.ws?.close();
     await settle(false);
     const v2 = (await hub.getSnapshot()).version;
-    await hub.safetyReconcile();
+    expect(await hub.safetyReconcile()).toBe("cancelled");
     expect((await hub.getSnapshot()).version).toBe(v2);
     expect(await hub.intervals()).toEqual([]);
   });
