@@ -1,7 +1,7 @@
 {
-  "runId": "2026-10-10T00-10-48-468Z-standard",
-  "startedAt": "2026-10-10T00:10:52.559Z",
-  "gitSha": "0503d3e612bf04e1524bbf115f563797b8c0be22",
+  "runId": "2026-10-15T20-49-41-179Z-standard",
+  "startedAt": "2026-10-15T20:49:54.859Z",
+  "gitSha": "08ab0317d5742e2de97011288ea41b500216b7c2",
   "mode": "standard",
   "llmProvider": "llama (openai:qwen3-1.7b, Qwen3-1.7B Q4_0)",
   "seeds": [],
@@ -25,10 +25,10 @@
   "totals": {
     "startedCases": 60,
     "scenarios": 60,
-    "completed": 59,
-    "completionRate": 0.9833,
-    "passed": 59,
-    "passRate": 0.9833
+    "completed": 60,
+    "completionRate": 1,
+    "passed": 60,
+    "passRate": 1
   },
   "byCategory": {
     "onboarding": {
@@ -38,8 +38,8 @@
     },
     "integration_failure": {
       "scenarios": 24,
-      "completed": 23,
-      "passed": 23
+      "completed": 24,
+      "passed": 24
     },
     "recovery": {
       "scenarios": 16,
@@ -48,30 +48,30 @@
     }
   },
   "integration": {
-    "calls": 1270,
+    "calls": 1280,
     "retriedCalls": 60,
-    "replays": 28,
+    "replays": 27,
     "duplicateSideEffects": 0,
     "bySystem": {
       "hr": {
-        "calls": 455,
-        "ok": 430,
+        "calls": 456,
+        "ok": 432,
         "retryable": 11,
         "fatal": 3,
         "timeouts": 1,
-        "replayed": 10
+        "replayed": 9
       },
       "it": {
-        "calls": 478,
-        "ok": 438,
+        "calls": 483,
+        "ok": 443,
         "retryable": 26,
         "fatal": 1,
         "timeouts": 1,
         "replayed": 12
       },
       "facilities": {
-        "calls": 337,
-        "ok": 308,
+        "calls": 341,
+        "ok": 312,
         "retryable": 20,
         "fatal": 1,
         "timeouts": 1,
@@ -88,10 +88,10 @@
       "recall": 1
     },
     "audit": {
-      "auditableActions": 2504,
-      "auditedActions": 2504,
+      "auditableActions": 2525,
+      "auditedActions": 2525,
       "coverage": 1,
-      "completedCasesWithFull8StageTrail": 59
+      "completedCasesWithFull8StageTrail": 60
     },
     "hubConsistency": {
       "matchesReconcile": true,
@@ -101,23 +101,17 @@
   "followups": {
     "created": 20,
     "correctDepartmentRate": 1,
-    "draftedByLlmRate": 1,
-    "llmSchemaValidRate": 1,
+    "draftedByLlmRate": 0.7,
+    "llmSchemaValidRate": 0.7,
     "llmCategoryAgreement": 1,
-    "llmLatencyP50Ms": 1192
+    "llmLatencyP50Ms": 4652
   },
   "timing": {
-    "scenarioP50Ms": 2903,
-    "scenarioP95Ms": 4988,
-    "totalMs": 41773
+    "scenarioP50Ms": 23701,
+    "scenarioP95Ms": 41621,
+    "totalMs": 267484
   },
-  "failures": [
-    {
-      "scenarioId": "F-it-validation",
-      "reason": "expectation_failed",
-      "detail": "fix licenseBundle: HTTP 409 {\"error\":{\"code\":\"field_locked_by_approval\",\"message\":\"the license bundle was part of the manager's approval request; it can change only to correct an open data issue\",\"requestId\":\"11f4b9ad-e681-4fd8-b489-5e19e2d19981\"}}; terminal: expected complete, got blocked; side effects it.assign-licenses: expected 1, got 0; side effects it.order-device: expected 1, got 0; side effects facilities.assign-workspace: expected 1, got 0; side effects facilities.issue-badge: expected 1, got 0; side effects hr.enroll-orientation: expected 1, got 0; side effects hr.activate-worker: expected 1, got 0; round it_provisioning: expected 2, got 1"
-    }
-  ],
+  "failures": [],
   "chaos": null,
   "harnessTransport": {
     "retries": 0,
@@ -136,14 +130,14 @@
       "--llm",
       "llama"
     ],
-    "headAtStart": "0503d3e612bf04e1524bbf115f563797b8c0be22",
+    "headAtStart": "08ab0317d5742e2de97011288ea41b500216b7c2",
     "cleanTreeAtStart": true,
     "build": {
-      "commit": "0503d3e612bf04e1524bbf115f563797b8c0be22",
+      "commit": "08ab0317d5742e2de97011288ea41b500216b7c2",
       "dirtyTree": false,
-      "builtAt": "2026-10-09T23:46:53.767Z",
-      "distSha256AtStart": "9ecba9487dd9edbf585a317de159b037a1c0cc7c9468a2d759eb30ed8c56f80e",
-      "distSha256AtEnd": "9ecba9487dd9edbf585a317de159b037a1c0cc7c9468a2d759eb30ed8c56f80e",
+      "builtAt": "2026-10-15T20:45:03.156Z",
+      "distSha256AtStart": "0b094d214f0ee2c12f589e850350d70c72861d1ceab3fa243f047e8157544997",
+      "distSha256AtEnd": "0b094d214f0ee2c12f589e850350d70c72861d1ceab3fa243f047e8157544997",
       "matchesHead": true
     }
   },
@@ -154,7 +148,7 @@
       "employeeId": "E011",
       "completed": true,
       "passed": true,
-      "durationMs": 3091,
+      "durationMs": 9965,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -212,7 +206,7 @@
       "employeeId": "E009",
       "completed": true,
       "passed": true,
-      "durationMs": 3081,
+      "durationMs": 9534,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -270,7 +264,7 @@
       "employeeId": "E003",
       "completed": true,
       "passed": true,
-      "durationMs": 2978,
+      "durationMs": 9969,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -328,7 +322,7 @@
       "employeeId": "E001",
       "completed": true,
       "passed": true,
-      "durationMs": 3091,
+      "durationMs": 9536,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -386,7 +380,7 @@
       "employeeId": "E006",
       "completed": true,
       "passed": true,
-      "durationMs": 3092,
+      "durationMs": 9532,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -444,7 +438,7 @@
       "employeeId": "E002",
       "completed": true,
       "passed": true,
-      "durationMs": 3090,
+      "durationMs": 9514,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -502,7 +496,7 @@
       "employeeId": "E008",
       "completed": true,
       "passed": true,
-      "durationMs": 3400,
+      "durationMs": 8974,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -560,7 +554,7 @@
       "employeeId": "E018",
       "completed": true,
       "passed": true,
-      "durationMs": 2872,
+      "durationMs": 7331,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -618,7 +612,7 @@
       "employeeId": "E014",
       "completed": true,
       "passed": true,
-      "durationMs": 2655,
+      "durationMs": 7331,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -676,7 +670,7 @@
       "employeeId": "E017",
       "completed": true,
       "passed": true,
-      "durationMs": 1998,
+      "durationMs": 4827,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -734,7 +728,7 @@
       "employeeId": "E020",
       "completed": true,
       "passed": true,
-      "durationMs": 2814,
+      "durationMs": 7300,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -792,7 +786,7 @@
       "employeeId": "E023",
       "completed": true,
       "passed": true,
-      "durationMs": 2887,
+      "durationMs": 8524,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -850,7 +844,7 @@
       "employeeId": "E042",
       "completed": true,
       "passed": true,
-      "durationMs": 2812,
+      "durationMs": 7683,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -908,7 +902,7 @@
       "employeeId": "E028",
       "completed": true,
       "passed": true,
-      "durationMs": 2329,
+      "durationMs": 23266,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -966,7 +960,7 @@
       "employeeId": "E004",
       "completed": true,
       "passed": true,
-      "durationMs": 2606,
+      "durationMs": 23235,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1024,7 +1018,7 @@
       "employeeId": "E026",
       "completed": true,
       "passed": true,
-      "durationMs": 2866,
+      "durationMs": 23901,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1082,7 +1076,7 @@
       "employeeId": "E036",
       "completed": true,
       "passed": true,
-      "durationMs": 3012,
+      "durationMs": 26363,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1140,7 +1134,7 @@
       "employeeId": "E032",
       "completed": true,
       "passed": true,
-      "durationMs": 2986,
+      "durationMs": 23375,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1198,7 +1192,7 @@
       "employeeId": "E035",
       "completed": true,
       "passed": true,
-      "durationMs": 2745,
+      "durationMs": 22278,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1256,7 +1250,7 @@
       "employeeId": "E024",
       "completed": true,
       "passed": true,
-      "durationMs": 1981,
+      "durationMs": 22287,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1314,7 +1308,7 @@
       "employeeId": "E038",
       "completed": true,
       "passed": true,
-      "durationMs": 2016,
+      "durationMs": 25161,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1372,7 +1366,7 @@
       "employeeId": "E041",
       "completed": true,
       "passed": true,
-      "durationMs": 2325,
+      "durationMs": 24502,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1430,7 +1424,7 @@
       "employeeId": "E044",
       "completed": true,
       "passed": true,
-      "durationMs": 4246,
+      "durationMs": 25491,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1488,7 +1482,7 @@
       "employeeId": "E047",
       "completed": true,
       "passed": true,
-      "durationMs": 2432,
+      "durationMs": 23404,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1546,7 +1540,7 @@
       "employeeId": "E050",
       "completed": true,
       "passed": true,
-      "durationMs": 2481,
+      "durationMs": 23701,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1604,7 +1598,7 @@
       "employeeId": "E053",
       "completed": true,
       "passed": true,
-      "durationMs": 3461,
+      "durationMs": 34258,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1652,13 +1646,11 @@
         "followups": {
           "created": 1,
           "correctDepartment": 1,
-          "draftedByLlm": 1,
-          "llmSchemaValid": 1,
-          "llmCategoryAgrees": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0,
           "llmAttempted": 1,
-          "llmLatenciesMs": [
-            951
-          ]
+          "llmLatenciesMs": []
         }
       },
       "expectedBlockers": [
@@ -1674,7 +1666,7 @@
       "employeeId": "E056",
       "completed": true,
       "passed": true,
-      "durationMs": 4043,
+      "durationMs": 33265,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1722,13 +1714,11 @@
         "followups": {
           "created": 1,
           "correctDepartment": 1,
-          "draftedByLlm": 1,
-          "llmSchemaValid": 1,
-          "llmCategoryAgrees": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0,
           "llmAttempted": 1,
-          "llmLatenciesMs": [
-            1053
-          ]
+          "llmLatenciesMs": []
         }
       },
       "expectedBlockers": [
@@ -1744,7 +1734,7 @@
       "employeeId": "E059",
       "completed": true,
       "passed": true,
-      "durationMs": 4287,
+      "durationMs": 35038,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1792,13 +1782,11 @@
         "followups": {
           "created": 1,
           "correctDepartment": 1,
-          "draftedByLlm": 1,
-          "llmSchemaValid": 1,
-          "llmCategoryAgrees": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0,
           "llmAttempted": 1,
-          "llmLatenciesMs": [
-            1012
-          ]
+          "llmLatenciesMs": []
         }
       },
       "expectedBlockers": [
@@ -1814,7 +1802,7 @@
       "employeeId": "E062",
       "completed": true,
       "passed": true,
-      "durationMs": 2903,
+      "durationMs": 20045,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1872,7 +1860,7 @@
       "employeeId": "E065",
       "completed": true,
       "passed": true,
-      "durationMs": 2902,
+      "durationMs": 19057,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1930,7 +1918,7 @@
       "employeeId": "E068",
       "completed": true,
       "passed": true,
-      "durationMs": 4104,
+      "durationMs": 26777,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1988,7 +1976,7 @@
       "employeeId": "E071",
       "completed": true,
       "passed": true,
-      "durationMs": 2225,
+      "durationMs": 23516,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2046,7 +2034,7 @@
       "employeeId": "E074",
       "completed": true,
       "passed": true,
-      "durationMs": 2066,
+      "durationMs": 25244,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2102,49 +2090,47 @@
       "scenarioId": "F-it-validation",
       "category": "integration_failure",
       "employeeId": "E005",
-      "completed": false,
-      "passed": false,
-      "durationMs": 2074,
-      "failures": [
-        "fix licenseBundle: HTTP 409 {\"error\":{\"code\":\"field_locked_by_approval\",\"message\":\"the license bundle was part of the manager's approval request; it can change only to correct an open data issue\",\"requestId\":\"11f4b9ad-e681-4fd8-b489-5e19e2d19981\"}}",
-        "terminal: expected complete, got blocked",
-        "side effects it.assign-licenses: expected 1, got 0",
-        "side effects it.order-device: expected 1, got 0",
-        "side effects facilities.assign-workspace: expected 1, got 0",
-        "side effects facilities.issue-badge: expected 1, got 0",
-        "side effects hr.enroll-orientation: expected 1, got 0",
-        "side effects hr.activate-worker: expected 1, got 0",
-        "round it_provisioning: expected 2, got 1"
-      ],
-      "failureReason": "expectation_failed",
+      "completed": true,
+      "passed": true,
+      "durationMs": 32103,
+      "failures": [],
+      "failureReason": null,
       "facts": {
-        "completed": false,
+        "completed": true,
         "failedReason": null,
-        "calls": 6,
+        "calls": 20,
         "retriedCalls": 0,
         "replays": 0,
         "duplicateSideEffects": 0,
         "bySystem": {
           "hr": {
-            "calls": 4,
-            "ok": 4,
+            "calls": 7,
+            "ok": 7,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
             "replayed": 0
           },
           "it": {
-            "calls": 2,
-            "ok": 1,
+            "calls": 8,
+            "ok": 7,
             "retryable": 0,
             "fatal": 1,
             "timeouts": 0,
             "replayed": 0
+          },
+          "facilities": {
+            "calls": 5,
+            "ok": 5,
+            "retryable": 0,
+            "fatal": 0,
+            "timeouts": 0,
+            "replayed": 0
           }
         },
-        "auditableActions": 17,
-        "auditedActions": 17,
-        "full8StageTrail": false,
+        "auditableActions": 42,
+        "auditedActions": 42,
+        "full8StageTrail": true,
         "blockersDetected": [
           {
             "kind": "data_issue",
@@ -2159,7 +2145,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            924
+            6961
           ]
         }
       },
@@ -2176,7 +2162,7 @@
       "employeeId": "E077",
       "completed": true,
       "passed": true,
-      "durationMs": 4264,
+      "durationMs": 33155,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2229,7 +2215,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            1510
+            5998
           ]
         }
       },
@@ -2246,7 +2232,7 @@
       "employeeId": "E080",
       "completed": true,
       "passed": true,
-      "durationMs": 4201,
+      "durationMs": 37876,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2299,7 +2285,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            1633
+            5733
           ]
         }
       },
@@ -2316,7 +2302,7 @@
       "employeeId": "E083",
       "completed": true,
       "passed": true,
-      "durationMs": 2207,
+      "durationMs": 26288,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2374,7 +2360,7 @@
       "employeeId": "E086",
       "completed": true,
       "passed": true,
-      "durationMs": 2324,
+      "durationMs": 24877,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2432,7 +2418,7 @@
       "employeeId": "E089",
       "completed": true,
       "passed": true,
-      "durationMs": 4386,
+      "durationMs": 29435,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2490,7 +2476,7 @@
       "employeeId": "E092",
       "completed": true,
       "passed": true,
-      "durationMs": 2061,
+      "durationMs": 21077,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2548,7 +2534,7 @@
       "employeeId": "E095",
       "completed": true,
       "passed": true,
-      "durationMs": 2082,
+      "durationMs": 21953,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2606,7 +2592,7 @@
       "employeeId": "E098",
       "completed": true,
       "passed": true,
-      "durationMs": 3058,
+      "durationMs": 27140,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2659,7 +2645,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            933
+            5129
           ]
         }
       },
@@ -2676,7 +2662,7 @@
       "employeeId": "E101",
       "completed": true,
       "passed": true,
-      "durationMs": 3748,
+      "durationMs": 36049,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2729,7 +2715,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            1192
+            4702
           ]
         }
       },
@@ -2746,7 +2732,7 @@
       "employeeId": "E104",
       "completed": true,
       "passed": true,
-      "durationMs": 4988,
+      "durationMs": 44894,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2799,7 +2785,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            2192
+            7410
           ]
         }
       },
@@ -2816,7 +2802,7 @@
       "employeeId": "E107",
       "completed": true,
       "passed": true,
-      "durationMs": 3933,
+      "durationMs": 45880,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2864,13 +2850,11 @@
         "followups": {
           "created": 1,
           "correctDepartment": 1,
-          "draftedByLlm": 1,
-          "llmSchemaValid": 1,
-          "llmCategoryAgrees": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0,
           "llmAttempted": 1,
-          "llmLatenciesMs": [
-            1623
-          ]
+          "llmLatenciesMs": []
         }
       },
       "expectedBlockers": [
@@ -2886,7 +2870,7 @@
       "employeeId": "E110",
       "completed": true,
       "passed": true,
-      "durationMs": 2998,
+      "durationMs": 8978,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2939,7 +2923,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            996
+            3780
           ]
         }
       },
@@ -2956,7 +2940,7 @@
       "employeeId": "E029",
       "completed": true,
       "passed": true,
-      "durationMs": 2935,
+      "durationMs": 8152,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3009,7 +2993,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            860
+            3047
           ]
         }
       },
@@ -3026,7 +3010,7 @@
       "employeeId": "E113",
       "completed": true,
       "passed": true,
-      "durationMs": 4874,
+      "durationMs": 40931,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3079,7 +3063,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            2611
+            4587
           ]
         }
       },
@@ -3096,7 +3080,7 @@
       "employeeId": "E116",
       "completed": true,
       "passed": true,
-      "durationMs": 4992,
+      "durationMs": 41621,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3149,7 +3133,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            2412
+            4652
           ]
         }
       },
@@ -3166,44 +3150,44 @@
       "employeeId": "E119",
       "completed": true,
       "passed": true,
-      "durationMs": 2618,
+      "durationMs": 38339,
       "failures": [],
       "failureReason": null,
       "facts": {
         "completed": true,
         "failedReason": null,
-        "calls": 30,
+        "calls": 26,
         "retriedCalls": 0,
-        "replays": 8,
+        "replays": 7,
         "duplicateSideEffects": 0,
         "bySystem": {
           "hr": {
-            "calls": 11,
-            "ok": 8,
+            "calls": 9,
+            "ok": 7,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
-            "replayed": 3
+            "replayed": 2
           },
           "it": {
-            "calls": 11,
-            "ok": 8,
+            "calls": 10,
+            "ok": 7,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
             "replayed": 3
           },
           "facilities": {
-            "calls": 8,
-            "ok": 6,
+            "calls": 7,
+            "ok": 5,
             "retryable": 0,
             "fatal": 0,
             "timeouts": 0,
             "replayed": 2
           }
         },
-        "auditableActions": 50,
-        "auditedActions": 50,
+        "auditableActions": 46,
+        "auditedActions": 46,
         "full8StageTrail": true,
         "blockersDetected": [],
         "followups": {
@@ -3224,7 +3208,7 @@
       "employeeId": "E122",
       "completed": true,
       "passed": true,
-      "durationMs": 2206,
+      "durationMs": 34938,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3282,7 +3266,7 @@
       "employeeId": "E125",
       "completed": true,
       "passed": true,
-      "durationMs": 2004,
+      "durationMs": 27395,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3340,7 +3324,7 @@
       "employeeId": "E128",
       "completed": true,
       "passed": true,
-      "durationMs": 3162,
+      "durationMs": 30343,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3393,7 +3377,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            854
+            3760
           ]
         }
       },
@@ -3410,7 +3394,7 @@
       "employeeId": "E131",
       "completed": true,
       "passed": true,
-      "durationMs": 6907,
+      "durationMs": 37513,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3467,8 +3451,8 @@
           "llmCategoryAgrees": 2,
           "llmAttempted": 2,
           "llmLatenciesMs": [
-            1147,
-            2922
+            3420,
+            3800
           ]
         }
       },
@@ -3489,7 +3473,7 @@
       "employeeId": "E134",
       "completed": true,
       "passed": true,
-      "durationMs": 3969,
+      "durationMs": 45570,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3537,13 +3521,11 @@
         "followups": {
           "created": 1,
           "correctDepartment": 1,
-          "draftedByLlm": 1,
-          "llmSchemaValid": 1,
-          "llmCategoryAgrees": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0,
           "llmAttempted": 1,
-          "llmLatenciesMs": [
-            1306
-          ]
+          "llmLatenciesMs": []
         }
       },
       "expectedBlockers": [
@@ -3559,7 +3541,7 @@
       "employeeId": "E137",
       "completed": true,
       "passed": true,
-      "durationMs": 4854,
+      "durationMs": 35361,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3612,7 +3594,7 @@
           "llmCategoryAgrees": 1,
           "llmAttempted": 1,
           "llmLatenciesMs": [
-            2069
+            6835
           ]
         }
       },
@@ -3629,7 +3611,7 @@
       "employeeId": "E140",
       "completed": true,
       "passed": true,
-      "durationMs": 5325,
+      "durationMs": 35708,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3677,13 +3659,11 @@
         "followups": {
           "created": 1,
           "correctDepartment": 1,
-          "draftedByLlm": 1,
-          "llmSchemaValid": 1,
-          "llmCategoryAgrees": 1,
+          "draftedByLlm": 0,
+          "llmSchemaValid": 0,
+          "llmCategoryAgrees": 0,
           "llmAttempted": 1,
-          "llmLatenciesMs": [
-            2355
-          ]
+          "llmLatenciesMs": []
         }
       },
       "expectedBlockers": [
@@ -3699,7 +3679,7 @@
       "employeeId": "E143",
       "completed": true,
       "passed": true,
-      "durationMs": 2152,
+      "durationMs": 18749,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3757,7 +3737,7 @@
       "employeeId": "E007",
       "completed": true,
       "passed": true,
-      "durationMs": 2103,
+      "durationMs": 20810,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3815,7 +3795,7 @@
       "employeeId": "E146",
       "completed": true,
       "passed": true,
-      "durationMs": 2580,
+      "durationMs": 16638,
       "failures": [],
       "failureReason": null,
       "facts": {

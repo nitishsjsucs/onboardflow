@@ -477,3 +477,28 @@ tuned toward any number:
   `attemptTasksBeforeStage`), then follows the happy path. Its expectations
   changed accordingly (no `task.completion_conflict` audit, 10
   `task.completed`), and the paperwork gate check count is no longer pinned.
+
+Runs of this round, all at 08ab031 from a fresh clone (`git clone`, `npm ci`,
+`npm run build`), one after another, each on a clean tree (the results were
+moved out of the clone between runs), on AC power with the lid open while
+three other repositories ran their suites. Load average sampled every 30 s.
+No harness, scenario, fault table or policy changed between them.
+
+- Standard (`npm run eval:ci`, load 37 to 110): 60/60 completed and passed, 0
+  duplicates, CI gate passed, p50 23.9 s (2.8 s at load 2 on 2026-10-09).
+  O07 in its new form passed.
+- Local LLM (`npm run eval:llama`, load 23 to 40; llama-server started by the
+  harness on port 8110 and stopped by it): 60/60, including F-it-validation,
+  which failed in the 0503d3e run because of the lock race fixed in e8136cb.
+  14 of 20 follow-ups were drafted by the model (3.0 to 7.4 s); 6 fell back
+  to the template (F-hr-validation, F-hr-outage, F-hr-stall, R01, R11, R13).
+  The results do not record their error text; the drafter's timeout is 8 s,
+  so the timeout under this load is the likely cause, not verified.
+- Scale (`npm run eval:scale`, load 5 to 22): 150/150, 0 duplicates.
+- Ablations, one command at a time (load 2.4 to 5.1): Idempotency-Key handling
+  off, 60/60 completed, 50/60 passed, 28 duplicates; retries off, 44/60
+  completed, 43/60 passed, 0 duplicates.
+- Chaos (`npm run eval:chaos`, load 1.6 to 6.3): 287/300, per-seed 57, 57, 59,
+  58, 56 (the same as at 0503d3e), 0 duplicates, 0 transport retries, no host
+  stall. 12 deadlines (7 in IT, Facilities or orientation, 5 at closeout) and
+  seed 3's E059 `recovery_rounds_exhausted` at Facilities, as before.
