@@ -290,24 +290,18 @@ Known limitations:
 
 ## Dependency advisories
 
-`npm ci` reports 3 high severity advisories (`npm audit`, 2026-10-15). All three are one advisory, [GHSA-6qxp-vccf-f47h](https://github.com/advisories/GHSA-6qxp-vccf-f47h) (CVSS 7.5): the MCP TypeScript SDK's OAuth client could send stored credentials to an authorization server chosen by the MCP server it connects to.
+`npm audit` reports 0 vulnerabilities (2026-10-15, after `npm ci`). Until then it reported 3 high severity advisories, all one advisory, [GHSA-6qxp-vccf-f47h](https://github.com/advisories/GHSA-6qxp-vccf-f47h) (CVSS 7.5): the MCP TypeScript SDK's OAuth client could send stored credentials to an authorization server chosen by the MCP server it connects to.
 
-| Package | Installed | Flagged because | Fixed in |
+| Package | Was | Flagged range | Now |
 |---|---|---|---|
-| `@modelcontextprotocol/sdk` | 1.30.0 | affected range 1.12.0 to 1.30.1 | 1.31.0 |
-| `@modelcontextprotocol/client` | 2.0.0 | affected range 2.0.0 to 2.1.0 | 2.2.0 |
-| `agents` | 0.27.0 | depends on the two above | 0.28.1 (pins sdk 1.32.1, client and server 2.3.1) |
+| `@modelcontextprotocol/sdk` | 1.30.0 | 1.12.0 to 1.30.1 | 1.32.1 |
+| `@modelcontextprotocol/client` | 2.0.0 | 2.0.0 to 2.1.0 | 2.3.1 |
+| `@modelcontextprotocol/server` | 2.0.0 | (not flagged) | 2.3.1 |
+| `agents` | 0.27.0 | 0.2.34 to 0.28.0 (through the two above) | 0.28.1 |
 
-Not upgraded, because no compatible upgrade exists: `agents` 0.27.0 declares the MCP packages as required peers pinned to exact versions (client 2.0.0, sdk 1.30.0, server 2.0.0), so the fixed MCP releases cannot be installed next to it, and the first `agents` release with fixed pins (0.28.x, published 2026-10-09 and 2026-10-13) is a breaking release under semver for 0.x. Moving to it means re-verifying the SDK internals this design relies on (SPEC Section 15.5: workflow callback steps, schedule rounding, restart behavior) and re-recording every eval mode; that is left for a later version.
+`agents` declares the MCP packages as required peers pinned to exact versions, so the fix could only come with an `agents` release; 0.28.1 (2026-10-13) is the first that pins fixed ones (0.28.0 still pinned the vulnerable releases). It is a 0.x minor upgrade, so before taking it the code this app relies on was compared between the two published packages, with chunk file names normalized: the Agent core, `workflows.js` (AgentWorkflow, callbacks, `step.*` helpers), the scheduler, the WebSocket and lifecycle code and the React client are identical apart from removed `@experimental` doc comments, so the SDK facts in SPEC Section 15.5 (workflow callback steps, schedule rounding, restart behavior) still hold. The changes are in parts this app does not use (MCP client, browser and web tools, harness store, AI Gateway settings). Typecheck, all tests and the build pass on the upgraded tree.
 
-Not reachable in this app:
-
-- The advisory covers the OAuth client only (an `authProvider` on an HTTP transport, `withOAuth()`, or direct `auth()` and `fetchToken()` calls); MCP servers and stdio clients are not affected.
-- OnboardFlow never imports an `@modelcontextprotocol` package; they are in `package.json` only because `agents` 0.27.0 requires them as peers.
-- In `agents` 0.27.0, an agent creates an MCP OAuth client only for an MCP server registered with `addMcpServer()`: on start it restores only servers stored in its own MCP table (none here), and it treats a request as an OAuth callback only if it matches a stored server's callback URL. No OnboardFlow agent registers a server.
-- The Worker refuses every request to `/agents/*` that is not a WebSocket upgrade (403), and live connections are read-only, so no client can reach an agent's request handler or call its methods.
-
-The SDK's MCP client code is still in the Worker bundle, unused. `test/node/dependency-advisories.test.ts` fails if any source file starts importing an MCP package or registering an MCP server, which would make the advisory reachable.
+The advisory was not reachable here before the upgrade either: it covers the OAuth client only (an `authProvider` on an HTTP transport, `withOAuth()`, or direct `auth()` and `fetchToken()` calls); OnboardFlow never imports an `@modelcontextprotocol` package (they are in `package.json` only because `agents` requires them as peers); an agent creates an MCP OAuth client only for a server registered with `addMcpServer()`, which no OnboardFlow agent calls; and the Worker refuses every `/agents/*` request that is not a WebSocket upgrade (403), with read-only live connections. `test/node/dependency-advisories.test.ts` fails if a source file starts importing an MCP package or registering an MCP server, if the MCP packages stop matching the exact peers of the installed `agents`, or if an MCP release older than the fixed ones is installed.
 
 ## Troubleshooting
 
