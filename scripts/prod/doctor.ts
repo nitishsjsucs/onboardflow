@@ -129,7 +129,7 @@ async function main() {
   await attempt("HTTP", async () => {
     const anon = await fetch(`${ORIGIN}/api/health`, { redirect: "manual" });
     const loc = anon.headers.get("location") ?? "";
-    const guarded = anon.status !== 200 && (anon.status === 403 || loc.startsWith(TEAM_DOMAIN));
+    const guarded = anon.status !== 200 && (anon.status === 401 || anon.status === 403 || loc.startsWith(TEAM_DOMAIN));
     report(guarded ? "ok" : "FAIL", "unauthenticated request", `HTTP ${anon.status}${loc ? ` -> ${loc.split("/").slice(0, 3).join("/")}` : ""}${guarded ? " (Access)" : " (not stopped by Access)"}`);
     const t = readServiceToken();
     if (!t) return;

@@ -124,7 +124,7 @@ async function main() {
       if (org.auth_domain && `https://${org.auth_domain}` !== TEAM_DOMAIN) fail(`the Zero Trust team domain is https://${org.auth_domain}, not ${TEAM_DOMAIN}`);
       steps.info(`team domain ${org.auth_domain ?? "(not reported)"}`);
     } catch (err) {
-      steps.info(`warning: could not read the Zero Trust organization (${(err as Error).message}); the token needs no permission for it, continuing`);
+      steps.info(`warning: could not read the Zero Trust organization (${(err as Error).message}); this check needs Access: Organizations, Identity Providers, and Groups Read, continuing without it`);
     }
     try {
       const idp = await steps.read(`identity provider ${OTP_IDP_ID}`, () => cf.request<{ type?: string; name?: string }>("GET", `/access/identity_providers/${OTP_IDP_ID}`));
@@ -132,7 +132,7 @@ async function main() {
       steps.info(`identity provider: ${idp.name ?? OTP_IDP_ID} (${idp.type ?? "type not reported"})`);
     } catch (err) {
       if (err instanceof CloudflareApiError && err.status === 404) fail(`identity provider ${OTP_IDP_ID} does not exist`);
-      steps.info(`warning: could not read identity provider ${OTP_IDP_ID} (${(err as Error).message}); it is only referenced, continuing`);
+      steps.info(`warning: could not read identity provider ${OTP_IDP_ID} (${(err as Error).message}); it is only referenced, so setup continues without this check`);
     }
   } else {
     steps.info("CF_API_TOKEN is not set: the dry run plans the Access steps without reading the current Access state");
@@ -199,7 +199,7 @@ async function main() {
     steps.info("POLICY_AUD is already configured and the Worker exists: no bootstrap deploy needed");
   } else {
     await steps.change(
-      `predeploy-check --bootstrap, CLOUDFLARE_ENV=production vite build, wrangler deploy${hasSimKey ? "" : " --secrets-file <generated SIM_API_KEY, temporary 0600 file>"}`,
+      `predeploy-check${audKnown ? "" : " --bootstrap"}, CLOUDFLARE_ENV=production vite build, wrangler deploy${hasSimKey ? "" : " --secrets-file <generated SIM_API_KEY, temporary 0600 file>"}`,
       async () => deploy(!audKnown, hasSimKey ? null : randomBytes(32).toString("hex")),
       ORIGIN,
     );
