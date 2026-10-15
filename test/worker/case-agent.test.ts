@@ -6,6 +6,7 @@ import type { CaseAgent } from "../../src/worker/agents/case-agent.ts";
 import type { WorkflowControl } from "../../src/worker/agents/workflow-control.ts";
 import { FollowUpDrafter } from "../../src/worker/agents/followups.ts";
 import { StubLlmProvider } from "../../src/worker/llm/stub.ts";
+import { blockerDedupeKey, blockerId } from "../../src/shared/ids.ts";
 import { caseAgent, cmdFor } from "../helpers/workflow.ts";
 
 const DB = env.DB;
@@ -291,5 +292,147 @@ describe("blocker scans", () => {
     expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE employee_id = 'E056' AND kind = 'followup'")).toBe(1);
     const runs = await runInDurableObject(stub, (agent: CaseAgent) => agent.scanRuns());
     expect(runs.filter((r) => r.error !== null)).toEqual([]);
+  });
+
+  it("opens the blocker before it drafts the follow-up, and writes the follow-up once the draft returns (held drafter)", async () => {
+    const stub = await blockStage("E057", "it_provisioning", LICENSE_REJECTED);
+    const held = await holdDrafter(stub);
+    try {
+      const scan = stub.scanBlockers();
+      await held.started;
+      // the scan is suspended inside its LLM call: the blocker is already in D1, its follow-up is not
+      expect(await DB.prepare("SELECT kind, status, json_extract(detail_json, '$.field') AS field FROM blockers WHERE employee_id = 'E057'").all()).toMatchObject({
+        results: [{ kind: "data_issue", status: "open", field: "licenseBundle" }],
+      });
+      expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE employee_id = 'E057' AND kind = 'followup'")).toBe(0);
+      held.release();
+      expect(await scan).toEqual({ opened: 1, autoResolved: 0, nudged: 0 });
+    } finally {
+      held.release();
+    }
+    const blocker = (await DB.prepare("SELECT id FROM blockers WHERE employee_id = 'E057'").first<{ id: string }>())!;
+    expect(await DB.prepare("SELECT assignee, status, drafted_by FROM tasks WHERE blocker_id = ?").bind(blocker.id).first()).toEqual({ assignee: "it", status: "open", drafted_by: "stub" });
+    const audits = await DB.prepare("SELECT action, detail_json FROM audit_events WHERE employee_id = 'E057' AND action IN ('blocker.opened','followup.created') ORDER BY seq").all<{ action: string; detail_json: string }>();
+    expect(audits.results.map((a) => a.action)).toEqual(["blocker.opened", "followup.created"]);
+    expect(JSON.parse(audits.results[1]!.detail_json)).toMatchObject({ blockerId: blocker.id, draftedBy: "stub", llm: { provider: "stub", error: null } });
+  });
+
+  it("writes no follow-up for a blocker resolved while its draft was pending", async () => {
+    const stub = await blockStage("E058", "it_provisioning", LICENSE_REJECTED);
+    const held = await holdDrafter(stub);
+    try {
+      const scan = stub.scanBlockers();
+      await held.started;
+      const blocker = await DB.prepare("SELECT id FROM blockers WHERE employee_id = 'E058' AND status = 'open'").first<{ id: string }>();
+      expect(blocker).not.toBeNull();
+      // a coordinator's resolution commits while the draft is pending (the row resolveBlocker writes)
+      await DB.prepare("UPDATE blockers SET status = 'resolved', resolved_at = ?, resolved_by = 'it.coordinator@onboardflow.test', resolution = 'fixed by hand' WHERE id = ? AND status = 'open'")
+        .bind("2026-10-08T12:00:01.000Z", blocker!.id)
+        .run();
+      held.release();
+      expect((await scan).opened).toBe(1);
+    } finally {
+      held.release();
+    }
+    expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE employee_id = 'E058' AND kind = 'followup'")).toBe(0);
+    expect(await count("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E058' AND action = 'followup.created'")).toBe(0);
+    // a fresh stub: after awaiting promises the agent resolved, this test runs in the agent's I/O context
+    const runs = await runInDurableObject(await caseAgent("E058"), (agent: CaseAgent) => agent.scanRuns());
+    expect(runs.filter((r) => r.error !== null)).toEqual([]);
+  });
+
+  it("gives an open blocker that has no follow-up (a scan cut off between its writes) its follow-up on the next scan", async () => {
+    const stub = await blockStage("E059", "it_provisioning", { class: "retryable", system: "it", operation: "it.order-device", httpStatus: 503 });
+    const dedupeKey = blockerDedupeKey("E059", "integration_outage", "it_provisioning", "it.order-device");
+    const id = blockerId(dedupeKey, Date.parse("2026-10-08T12:00:00.000Z"));
+    await DB.prepare(
+      `INSERT INTO blockers (id, employee_id, stage_id, kind, severity, owner_department, subject, dedupe_key, status, detail_json, detected_at)
+       VALUES (?, 'E059', 'it_provisioning', 'integration_outage', 'high', 'it', 'it.order-device', ?, 'open', ?, '2026-10-08T12:00:00.000Z')`,
+    )
+      .bind(id, dedupeKey, JSON.stringify({ class: "retryable", system: "it", operation: "it.order-device", httpStatus: 503, round: 1 }))
+      .run();
+    expect(await stub.scanBlockers()).toEqual({ opened: 0, autoResolved: 0, nudged: 0 });
+    expect(await DB.prepare("SELECT id, assignee, status, drafted_by, due_at FROM tasks WHERE blocker_id = ?").bind(id).first()).toEqual({
+      id: `fu:${id}`,
+      assignee: "it",
+      status: "open",
+      drafted_by: "stub",
+      due_at: "2026-10-09T12:00:00.000Z",
+    });
+    expect(await count("SELECT COUNT(*) AS n FROM audit_events WHERE employee_id = 'E059' AND action = 'followup.created'")).toBe(1);
+    // and only once
+    await stub.scanBlockers();
+    expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE employee_id = 'E059' AND kind = 'followup'")).toBe(1);
+  });
+});
+
+/** The reason the workflow records when the simulated IT system rejects the license bundle (F6). */
+const LICENSE_REJECTED = { class: "fatal", system: "it", operation: "it.assign-licenses", httpStatus: 422, field: "licenseBundle", message: "validation_failed" };
+
+/** Replaces the agent's drafter with one that signals when a draft starts and returns only once released. */
+async function holdDrafter(stub: Awaited<ReturnType<typeof caseAgent>>) {
+  let release!: () => void;
+  let markStarted!: () => void;
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  const started = new Promise<void>((r) => {
+    markStarted = r;
+  });
+  await runInDurableObject(stub, (agent: CaseAgent) => {
+    const inner = new StubLlmProvider();
+    agent.drafter = new FollowUpDrafter({
+      id: "stub",
+      completeJson: async (req) => {
+        markStarted();
+        await gate;
+        return inner.completeJson(req);
+      },
+    });
+  });
+  return { started, release };
+}
+
+describe("license bundle lock after the manager's approval is requested", () => {
+  async function approved(employeeId: string, manager: string) {
+    await DB.prepare(
+      `INSERT INTO approvals (id, employee_id, stage_id, checkpoint, round, approver_role, approver_staff_id, status, request_json, requested_at, due_at, decided_at, decided_by)
+       VALUES (?, ?, 'manager_approval', 'manager_approval', 1, 'manager', ?, 'approved', '{}', '2026-10-08T12:00:00.000Z', '2026-10-10T12:00:00.000Z', '2026-10-08T12:01:00.000Z', 'manager@onboardflow.test')`,
+    )
+      .bind(`apr:${employeeId}:manager_approval:1`, employeeId, manager)
+      .run();
+  }
+  async function blockOn(employeeId: string, stage: string, reason: Record<string, unknown>) {
+    await DB.prepare("UPDATE case_stages SET status = 'blocked', blocked_reason_json = ? WHERE employee_id = ? AND stage_id = ?")
+      .bind(JSON.stringify({ round: 1, ...reason }), employeeId, stage)
+      .run();
+  }
+
+  it("opens as soon as the IT stage is blocked on the bundle, before any scan has opened the blocker", async () => {
+    const stub = await withControl("E060", fakeControl());
+    await stub.startCase(await cmdFor("C01"));
+    await approved("E060", "M01");
+    const locked: { status: number; body: unknown } = await stub.fixField("licenseBundle", "ft-engineering", await cmdFor("C03"));
+    expect(locked).toMatchObject({ status: 409, body: { error: { code: "field_locked_by_approval" } } });
+    await blockOn("E060", "it_provisioning", LICENSE_REJECTED);
+    expect(await count("SELECT COUNT(*) AS n FROM blockers WHERE employee_id = 'E060'")).toBe(0);
+    const fixed: { status: number; body: unknown } = await stub.fixField("licenseBundle", "ft-engineering", await cmdFor("C03"));
+    expect(fixed).toMatchObject({ status: 200, body: { licenseBundle: "ft-engineering" } });
+  });
+
+  it("stays closed while the case shows no data issue on the bundle", async () => {
+    const stub = await withControl("E061", fakeControl());
+    await stub.startCase(await cmdFor("C01"));
+    await approved("E061", "M01");
+    const attempt = async () => (await stub.fixField("licenseBundle", "ft-engineering", await cmdFor("C03"))).status;
+    // an outage on the same stage, a data issue on another field, and a rejected bundle in an earlier round that was retried
+    await blockOn("E061", "it_provisioning", { class: "retryable", system: "it", operation: "it.assign-licenses", httpStatus: 503 });
+    expect(await attempt()).toBe(409);
+    await blockOn("E061", "it_provisioning", { class: "fatal", system: "it", operation: "it.assign-licenses", httpStatus: 422, field: "privileged" });
+    expect(await attempt()).toBe(409);
+    await DB.prepare("UPDATE case_stages SET status = 'active', round = 2, blocked_reason_json = ? WHERE employee_id = 'E061' AND stage_id = 'it_provisioning'")
+      .bind(JSON.stringify({ round: 1, ...LICENSE_REJECTED }))
+      .run();
+    expect(await attempt()).toBe(409);
   });
 });

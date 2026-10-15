@@ -1,8 +1,13 @@
+import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import type { CaseAgent } from "../../src/worker/agents/case-agent.ts";
+import { FollowUpDrafter } from "../../src/worker/agents/followups.ts";
+import { StubLlmProvider } from "../../src/worker/llm/stub.ts";
 import { api } from "../helpers/api.ts";
 import { clearFaults, setFault } from "../helpers/sims.ts";
 import {
+  caseAgent,
   cmdFor,
   completeEmployeeTasks,
   decide,
@@ -219,6 +224,57 @@ describe("approval checkpoints", () => {
       expect(corrected.results.map((r) => (JSON.parse(r.detail_json) as { after: string }).after)).toEqual(["contractor-basic", "ft-standard"]);
       await (await rpc("E105")).terminateCase("cleanup", await cmdFor("A01"));
     } finally {
+      await intro.dispose();
+    }
+  });
+
+  it("lets IT correct the rejected bundle as soon as the stage shows blocked, while the follow-up is still being drafted (F-it-validation with a slow model)", async () => {
+    const intro = await fastWorkflows();
+    let release = () => {};
+    const fix = (value: string) => api("/api/employees/E107", { as: "C03", method: "PATCH", body: { licenseBundle: value } });
+    try {
+      expect((await fix("contractor-basic")).status).toBe(200);
+      await toManagerApproval("E107");
+      // the CaseAgent's drafter holds every draft until released, like a model that takes its time
+      let started = () => {};
+      const draftStarted = new Promise<void>((r) => {
+        started = r;
+      });
+      const gate = new Promise<void>((r) => {
+        release = r;
+      });
+      await runInDurableObject(await caseAgent("E107"), (agent: CaseAgent) => {
+        const inner = new StubLlmProvider();
+        agent.drafter = new FollowUpDrafter({
+          id: "stub",
+          completeJson: async (req) => {
+            started();
+            await gate;
+            return inner.completeJson(req);
+          },
+        });
+      });
+      expect((await decide("E107", "manager_approval", "approve", await managerOf("E107"))).status).toBe(200);
+      // the scripted coordinator: wait for the stage to show blocked, then correct the bundle right away
+      await waitForStage("E107", "it_provisioning", "blocked");
+      await draftStarted;
+      const correction = fix("ft-standard");
+      // the correction commits now; its response waits for the scan's refresh, so race the commit against the answer
+      const outcome = await Promise.race([
+        correction.then((r) => ({ answered: r.status })),
+        waitFor(() => DB.prepare("SELECT 1 AS ok FROM employees WHERE id = 'E107' AND license_bundle = 'ft-standard'").first(), { what: "E107 bundle corrected", timeoutMs: 10_000 }).then(() => ({ committed: true })),
+      ]);
+      expect(outcome).toEqual({ committed: true });
+      release();
+      expect((await correction).status).toBe(200);
+      expect((await api("/api/cases/E107/stages/it_provisioning/retry", { as: "C03", body: {} })).status).toBe(202);
+      await waitForStage("E107", "it_provisioning", "complete");
+      const blockers = await DB.prepare("SELECT kind, owner_department FROM blockers WHERE employee_id = 'E107'").all();
+      expect(blockers.results).toEqual([{ kind: "data_issue", owner_department: "it" }]);
+      expect(await DB.prepare("SELECT COUNT(*) AS n FROM tasks WHERE employee_id = 'E107' AND kind = 'followup'").first()).toEqual({ n: 1 });
+      await (await rpc("E107")).terminateCase("cleanup", await cmdFor("A01"));
+    } finally {
+      release();
       await intro.dispose();
     }
   });

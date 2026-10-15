@@ -13,7 +13,7 @@ import { auditIds, blockerId, instanceId as buildInstanceId, userStamp } from ".
 import { type StageId } from "../../shared/stages.ts";
 import { parseConfig } from "../config.ts";
 import { auditInsertWhen, type AuditInput, stamped } from "../db/audit.ts";
-import { openBlockerStatements } from "../db/blockers.ts";
+import { followUpStatements, openBlockerStatements } from "../db/blockers.ts";
 import { loadClock, type Clock } from "../db/clock.ts";
 import { replaceStoredResponse, runGuarded } from "../db/guarded.ts";
 import { getApproval, getBlocker, getEmployee, getTask, toApprovalView, toBlockerView, toTaskView } from "../db/repo.ts";
@@ -24,7 +24,7 @@ import { createLlmProvider } from "../llm/provider.ts";
 import { detectBlockers, nudgeTargets, resolvedBlockers } from "./blocker-rules.ts";
 import { FollowUpDrafter } from "./followups.ts";
 import { HUB_NAME } from "./ops-hub-agent.ts";
-import { loadScanSnapshot, projectCase } from "./projection.ts";
+import { type FollowUpGap, loadScanSnapshot, projectCase } from "./projection.ts";
 import { Serial } from "./serial.ts";
 import { rememberSubscriber, revokeStaleSubscriptions } from "./subscriptions.ts";
 import { SdkWorkflowControl, type WorkflowControl } from "./workflow-control.ts";
@@ -337,14 +337,19 @@ export class CaseAgent extends Agent<Env, CaseState> {
     const conflictBody = errorBody("field_changed", "the field changed concurrently; reload and retry", cmd.requestId);
     // The manager approves a request that names the license bundle (approvals.request_json), and the IT step
     // provisions the bundle on the employee row. Once that approval has been requested, the bundle may change
-    // only as the correction of an open data_issue blocker on it (the simulated IT system rejected the value);
-    // any other change would provision something the manager never saw. Checked inside the guarded UPDATE.
+    // only to correct an open data issue on it (the simulated IT system rejected the value); any other change
+    // would provision something the manager never saw. The data issue is open from the moment the workflow
+    // marks a stage blocked by that rejection (the same batch that shows the case blocked) and stays open as
+    // the agent's data_issue blocker until the operation succeeds, so the lock never lags the case while the
+    // agent's scan runs or drafts. Checked inside the guarded UPDATE.
     const approvedGuard =
       field === "licenseBundle"
         ? {
             sql: ` AND (NOT EXISTS (SELECT 1 FROM approvals WHERE employee_id = ? AND checkpoint = 'manager_approval')
+                    OR EXISTS (SELECT 1 FROM case_stages WHERE employee_id = ? AND status = 'blocked'
+                                 AND json_extract(blocked_reason_json, '$.class') = 'fatal' AND json_extract(blocked_reason_json, '$.field') = 'licenseBundle')
                     OR EXISTS (SELECT 1 FROM blockers WHERE employee_id = ? AND kind = 'data_issue' AND status = 'open' AND json_extract(detail_json, '$.field') = 'licenseBundle'))`,
-            binds: [id, id],
+            binds: [id, id, id],
           }
         : { sql: "", binds: [] };
     if (approvedGuard.sql) {
@@ -661,28 +666,45 @@ export class CaseAgent extends Agent<Env, CaseState> {
           const fresh = detectBlockers(snapshot, nowMs).filter((c) => !open.has(c.dedupeKey));
           candidates = fresh.length;
           const actor = { type: "agent" as const, id: `case-agent/${this.employeeId}` };
+          // Blockers first, all of them before any drafting: a draft can be an LLM call of seconds, and
+          // other commands interleave at every await (the license bundle lock in fixField reads open
+          // blockers). Then draft each follow-up and write it if its blocker is still open; that also
+          // completes any blocker an earlier scan opened but stopped before giving it a follow-up.
+          const needFollowUp: FollowUpGap[] = [...snapshot.followUpGaps];
           for (const c of fresh) {
-            // Draft first (LLM or template), then write blocker + follow-up + audits in one batch.
-            const draft = await this.#drafter().draft(c, { employeeName: snapshot.employeeName });
             const detectedAt = clock.nowIso();
             const id = blockerId(c.dedupeKey, Date.parse(detectedAt));
             const results = await db.batch(
               openBlockerStatements(
                 db,
                 { id, employeeId: this.employeeId, stageId: c.stageId, kind: c.kind, severity: c.severity, ownerDepartment: c.ownerDepartment, subject: c.subject, dedupeKey: c.dedupeKey, detail: c.detail, detectedAt },
+                actor,
+              ),
+            );
+            if ((results[0]?.meta.changes ?? 0) > 0) {
+              result.opened++;
+              needFollowUp.push({ ...c, id, detectedAt });
+            }
+          }
+          for (const b of needFollowUp) {
+            const draft = await this.#drafter().draft(b, { employeeName: snapshot.employeeName });
+            await db.batch(
+              followUpStatements(
+                db,
+                { id: b.id, employeeId: this.employeeId, stageId: b.stageId },
                 {
                   title: draft.title,
                   description: draft.description,
-                  assignee: c.ownerDepartment,
-                  dueAt: new Date(Date.parse(detectedAt) + 86_400_000).toISOString(),
+                  assignee: b.ownerDepartment,
+                  dueAt: new Date(Date.parse(b.detectedAt) + 86_400_000).toISOString(),
                   draftedBy: draft.draftedBy,
                   llmSuggestedCategory: draft.suggestedCategory,
                   llm: { provider: this.#drafter().providerId, latencyMs: draft.latencyMs, error: draft.error ?? null },
                 },
                 actor,
+                clock.nowIso(),
               ),
             );
-            if ((results[0]?.meta.changes ?? 0) > 0) result.opened++;
           }
           for (const r of resolvedBlockers(snapshot, nowMs)) {
             const now = clock.nowIso();

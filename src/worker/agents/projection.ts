@@ -2,10 +2,10 @@
 // projection needs plus max(audit_events.seq), so asOfSeq describes exactly
 // the snapshot the state was computed from.
 import type { CaseState, CaseStageState } from "../../shared/agent-state.ts";
-import type { BlockerKind, CaseStatus, FailureReason, ResourceType, StageStatus, SystemId } from "../../shared/domain.ts";
+import type { BlockerKind, CaseStatus, FailureReason, ResourceType, Severity, StageStatus, SystemId } from "../../shared/domain.ts";
 import type { Department } from "../../shared/roles.ts";
 import type { StageId } from "../../shared/stages.ts";
-import type { BlockedReasonJson, ScanSnapshot } from "./blocker-rules.ts";
+import type { BlockedReasonJson, BlockerCandidate, ScanSnapshot } from "./blocker-rules.ts";
 import type { HubState, IntegrationHealth, StageRollup } from "../../shared/agent-state.ts";
 import { BLOCKER_KINDS, CASE_STATUSES, SYSTEM_IDS } from "../../shared/domain.ts";
 import { DEPARTMENTS } from "../../shared/roles.ts";
@@ -83,8 +83,14 @@ export async function projectCase(db: D1Database, employeeId: string, workflowSt
 // D1 -> ScanSnapshot (input of the pure rule engine in blocker-rules.ts)
 // ---------------------------------------------------------------------------
 
-export async function loadScanSnapshot(db: D1Database, employeeId: string): Promise<ScanSnapshot | null> {
-  const [emp, kase, stages, approvals, open, progress, prov, ok, blockers] = await db.batch([
+/** An open blocker that has no follow-up task: a scan stopped between its two writes (db/blockers.ts). */
+export type FollowUpGap = BlockerCandidate & { id: string; detectedAt: string };
+
+/** The rule engine's input plus the open blockers whose follow-up the scan still has to write. */
+export type ScanLoad = ScanSnapshot & { followUpGaps: FollowUpGap[] };
+
+export async function loadScanSnapshot(db: D1Database, employeeId: string): Promise<ScanLoad | null> {
+  const [emp, kase, stages, approvals, open, progress, prov, ok, blockers, gaps] = await db.batch([
     db.prepare("SELECT first_name || ' ' || last_name AS name FROM employees WHERE id = ?").bind(employeeId),
     db.prepare("SELECT status FROM cases WHERE employee_id = ?").bind(employeeId),
     db.prepare("SELECT stage_id, status, round, blocked_reason_json, last_wake_at FROM case_stages WHERE employee_id = ?").bind(employeeId),
@@ -104,6 +110,12 @@ export async function loadScanSnapshot(db: D1Database, employeeId: string): Prom
       .bind(employeeId),
     db
       .prepare("SELECT id, kind, stage_id, subject, dedupe_key, detected_at, detail_json FROM blockers WHERE employee_id = ? AND status = 'open'")
+      .bind(employeeId),
+    db
+      .prepare(
+        `SELECT b.id, b.kind, b.stage_id, b.subject, b.dedupe_key, b.owner_department, b.severity, b.detected_at, b.detail_json
+           FROM blockers b WHERE b.employee_id = ? AND b.status = 'open' AND NOT EXISTS (SELECT 1 FROM tasks t WHERE t.id = 'fu:' || b.id)`,
+      )
       .bind(employeeId),
   ]);
   const e = emp?.results[0] as { name: string } | undefined;
@@ -138,6 +150,19 @@ export async function loadScanSnapshot(db: D1Database, employeeId: string): Prom
     openBlockers: ((blockers?.results ?? []) as Array<{ id: string; kind: BlockerKind; stage_id: StageId; subject: string; dedupe_key: string; detected_at: string; detail_json: string }>).map(
       (b) => ({ id: b.id, kind: b.kind, stageId: b.stage_id, subject: b.subject, dedupeKey: b.dedupe_key, detectedAt: b.detected_at, detail: JSON.parse(b.detail_json) as Record<string, unknown> }),
     ),
+    followUpGaps: (
+      (gaps?.results ?? []) as Array<{ id: string; kind: BlockerKind; stage_id: StageId; subject: string; dedupe_key: string; owner_department: Department; severity: Severity; detected_at: string; detail_json: string }>
+    ).map((b) => ({
+      id: b.id,
+      kind: b.kind,
+      stageId: b.stage_id,
+      subject: b.subject,
+      dedupeKey: b.dedupe_key,
+      ownerDepartment: b.owner_department,
+      severity: b.severity,
+      detectedAt: b.detected_at,
+      detail: JSON.parse(b.detail_json) as Record<string, unknown>,
+    })),
   };
 }
 

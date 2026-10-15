@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { auditIds, blockerDedupeKey, blockerId, userStamp } from "../../src/shared/ids.ts";
 import { auditInsertWhen, stamped } from "../../src/worker/db/audit.ts";
 import { claimIdempotency, completeIdempotency, releaseIdempotency, requestHash } from "../../src/worker/db/api-idempotency.ts";
-import { openBlockerStatements } from "../../src/worker/db/blockers.ts";
+import { followUpStatements, openBlockerStatements } from "../../src/worker/db/blockers.ts";
 import { runGuarded } from "../../src/worker/db/guarded.ts";
 
 const DB = env.DB;
@@ -102,8 +102,10 @@ describe("guarded mutations", () => {
 describe("blocker + follow-up guarded on the blocker row", () => {
   it("an INSERT OR IGNORE blocker that loses to the open-dedupe index writes no follow-up, no audit and no error", async () => {
     const dedupe = blockerDedupeKey("E033", "integration_outage", "it_provisioning", "it.order-device");
-    const mk = (ms: number) =>
-      openBlockerStatements(
+    const actor = { type: "agent", id: "case-agent/E033" } as const;
+    // the two batches of a scan (db/blockers.ts), here in one: blocker, then its follow-up
+    const mk = (ms: number) => [
+      ...openBlockerStatements(
         DB,
         {
           id: blockerId(dedupe, ms),
@@ -117,9 +119,16 @@ describe("blocker + follow-up guarded on the blocker row", () => {
           detail: {},
           detectedAt: new Date(ms).toISOString(),
         },
+        actor,
+      ),
+      ...followUpStatements(
+        DB,
+        { id: blockerId(dedupe, ms), employeeId: "E033", stageId: "it_provisioning" },
         { title: "t", description: "d", assignee: "it", dueAt: null, draftedBy: "template", llmSuggestedCategory: null },
-        { type: "agent", id: "case-agent/E033" },
-      );
+        actor,
+        new Date(ms).toISOString(),
+      ),
+    ];
     await DB.batch(mk(1_000));
     await expect(DB.batch(mk(2_000))).resolves.toBeDefined();
     const blockers = await DB.prepare("SELECT id FROM blockers WHERE dedupe_key = ?").bind(dedupe).all<{ id: string }>();
