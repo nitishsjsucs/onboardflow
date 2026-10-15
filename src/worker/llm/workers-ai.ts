@@ -7,10 +7,22 @@ import { stripThink } from "./openai-compatible.ts";
 
 export type AiBinding = { run(model: string, inputs: Record<string, unknown>, options?: Record<string, unknown>): Promise<unknown> };
 
+/**
+ * Qwen3 models think before answering, and on Workers AI the thinking counts against max_tokens: in
+ * AgentBoard's production run (2026-10-15) @cf/qwen/qwen3-30b-a3b-fp8 spent the whole budget on reasoning and
+ * returned content null with finish_reason "length". Qwen3's soft switch "/no_think" at the end of the user
+ * turn turns thinking off (checked against the Workers AI REST API the same day); chat_template_kwargs did not.
+ */
+export function userTurnFor(model: string, user: string): string {
+  return /qwen3/i.test(model) ? `${user}\n/no_think` : user;
+}
+
 function textOf(out: unknown): string {
   if (typeof out === "string") return out;
-  const o = out as { response?: unknown; choices?: Array<{ message?: { content?: unknown } }> };
+  const o = out as { response?: unknown; choices?: Array<{ message?: { content?: unknown }; finish_reason?: unknown }> };
   const content = o?.choices?.[0]?.message?.content;
+  if (typeof content === "string" && content.trim() !== "") return content;
+  if (o?.choices?.[0]?.finish_reason === "length") throw new Error("workers ai used its whole output budget before answering (finish_reason length)");
   if (typeof content === "string") return content;
   if (typeof o?.response === "string") return o.response;
   if (o?.response && typeof o.response === "object") return JSON.stringify(o.response);
@@ -37,7 +49,7 @@ export class WorkersAiProvider implements LlmProvider {
       {
         messages: [
           { role: "system", content: req.system },
-          { role: "user", content: req.user },
+          { role: "user", content: userTurnFor(this.#model, req.user) },
         ],
         response_format: { type: "json_schema", json_schema: { name: req.schemaName, schema: req.jsonSchema } },
         max_tokens: req.maxTokens,

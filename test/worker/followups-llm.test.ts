@@ -108,6 +108,20 @@ describe("Workers AI provider (fake binding)", () => {
     expect((await new FollowUpDrafter(broken).draft(candidate, { employeeName: "Avery" })).draftedBy).toBe("template");
   });
 
+  it("turns Qwen3 thinking off with /no_think, and falls back to the template when reasoning spends the budget", async () => {
+    const { WorkersAiProvider } = await import("../../src/worker/llm/workers-ai.ts");
+    const run = vi.fn(async () => ({ choices: [{ message: { content: '{"title":"Fix it now","description":"Do the fix.","suggestedCategory":"data_issue"}' } }] }));
+    const req = { system: "s", user: "u", schemaName: "x", jsonSchema: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 };
+    await new WorkersAiProvider({ run }, "@cf/qwen/qwen3-30b-a3b-fp8").completeJson(req);
+    await new WorkersAiProvider({ run }, "@cf/meta/llama-3.3-70b-instruct-fp8-fast").completeJson(req);
+    const userOf = (i: number) => ((run.mock.calls[i] as unknown as [string, { messages: { content: string }[] }])[1].messages[1]?.content);
+    expect(userOf(0)).toBe("u\n/no_think");
+    expect(userOf(1)).toBe("u");
+    const truncated = new WorkersAiProvider({ run: async () => ({ choices: [{ message: { content: null, reasoning_content: "..." }, finish_reason: "length" }] }) }, "@cf/qwen/qwen3-30b-a3b-fp8");
+    await expect(truncated.completeJson(req)).rejects.toThrow(/whole output budget/);
+    expect((await new FollowUpDrafter(truncated).draft(candidate, { employeeName: "Avery" })).draftedBy).toBe("template");
+  });
+
   it("is selected with LLM_PROVIDER=workers-ai only when the AI binding exists", async () => {
     const { WorkersAiProvider } = await import("../../src/worker/llm/workers-ai.ts");
     const cfg = parseConfig({ ...env, LLM_PROVIDER: "workers-ai" } as Env);
