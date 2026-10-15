@@ -10,8 +10,10 @@
 // so about 12 neurons of the 10,000 a day). The Worker's own daily cap
 // (LLM_DAILY_DRAFT_LIMIT) bounds the drafts whatever this script does.
 //
-// CPU time: `wrangler tail --format json` (OAuth login) records every
-// invocation's cpuTime, outcome and exceptions while the cases run; with
+// CPU time: `wrangler tail --format json` (OAuth login) records the cpuTime,
+// outcome and exceptions of the invocations it delivers while the cases run
+// (not necessarily all of them: the first production run's tail had no
+// Workflow invocations and 187 of the driver's 193 API requests); with
 // CF_API_TOKEN (Account Analytics Read) the script also reads the Workers and
 // D1 analytics for the run's window from the GraphQL API after --graphql-wait
 // seconds (the datasets lag by a few minutes; 0 skips it).
