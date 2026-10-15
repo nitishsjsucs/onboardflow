@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs";
 import { parse } from "jsonc-parser";
 import { describe, expect, it } from "vitest";
 import { checkWranglerConfig, findPlaceholders } from "../../scripts/predeploy-check.ts";
+import { PLACEHOLDER_AUD, PLACEHOLDER_DB_ID, productionValues } from "../../scripts/prod/wrangler-config.ts";
+import { committedConfig, preSetupConfig } from "./pre-setup-config.ts";
 
-const text = readFileSync("wrangler.jsonc", "utf8");
-const cfg = parse(text) as {
+const cfg = parse(committedConfig) as {
   compatibility_date: string;
   compatibility_flags: string[];
   secrets: { required: string[] };
@@ -65,10 +66,24 @@ describe("wrangler.jsonc guards", () => {
 });
 
 describe("predeploy-check", () => {
+  // the config as it is before a setup run: the committed file with both placeholders back
+  const text = preSetupConfig;
   const filled = (t: string) => t.replace("REPLACE-with-access-aud-tag", "0123abcd").replace("REPLACE-after-wrangler-d1-create", "6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b");
 
-  it("rejects the REPLACE placeholders still in the committed config (the IDs the setup script creates)", () => {
+  it("starts these checks from the pre-setup config, with both placeholders in place", () => {
+    expect(text).toContain(`"database_id": "${PLACEHOLDER_DB_ID}"`);
+    expect(text).toContain(`"POLICY_AUD": "${PLACEHOLDER_AUD}"`);
+  });
+
+  it("rejects the REPLACE placeholders of a config the setup script has not filled in yet (the IDs it creates)", () => {
     expect(checkWranglerConfig(text).sort()).toEqual(["env.production.d1_databases[0].database_id", "env.production.vars.POLICY_AUD"]);
+  });
+
+  it("accepts the committed config, which carries the database id and AUD the setup wrote", () => {
+    const v = productionValues(committedConfig);
+    expect(v.databaseId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(v.policyAud).toMatch(/^[0-9a-f]{32,128}$/);
+    expect(checkWranglerConfig(committedConfig)).toEqual([]);
   });
 
   it("passes once every placeholder is replaced", () => {

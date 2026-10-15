@@ -12,6 +12,7 @@ import { ACCOUNT_ID, HOSTNAME, OTP_IDP_ID, PEOPLE, peopleSql, serviceIdentity, s
 import { classify, JsonObjectStream, summarize, type TailEvent } from "../../scripts/prod/tail.ts";
 import { neurons, planCases } from "../../scripts/prod/verify.ts";
 import { PLACEHOLDER_AUD, PLACEHOLDER_DB_ID, productionValues, withDatabaseId, withPolicyAud } from "../../scripts/prod/wrangler-config.ts";
+import { committedConfig, preSetupConfig } from "./pre-setup-config.ts";
 
 function seededDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
@@ -63,7 +64,15 @@ describe("setup SQL (against the migrations and the committed seed)", () => {
 });
 
 describe("wrangler.jsonc edits", () => {
-  const text = readFileSync("wrangler.jsonc", "utf8");
+  // the config as it is before a setup run: the committed file with both placeholders back
+  const text = preSetupConfig;
+
+  it("reproduces the committed config byte for byte from the pre-setup one and the values the setup wrote", () => {
+    const { databaseId, policyAud } = productionValues(committedConfig);
+    expect(databaseId).not.toBeNull();
+    expect(policyAud).not.toBeNull();
+    expect(withPolicyAud(withDatabaseId(text, databaseId ?? ""), policyAud ?? "")).toBe(committedConfig);
+  });
 
   it("writes the database id and the AUD in place and keeps every comment", () => {
     expect(productionValues(text)).toMatchObject({ databaseId: null, policyAud: null, teamDomain: "https://old-truth-a7dc.cloudflareaccess.com", llmDailyDraftLimit: 20 });
