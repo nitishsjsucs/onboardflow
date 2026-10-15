@@ -14,6 +14,8 @@ Production puts a self-hosted (hostname) Access application in front of the Work
 
 One verification path for all environments. Placeholder Access settings fail closed. Production Access is unverified until the owner deploys; until then the honest wording is "Access-compatible RS256 JWT verification".
 
+2026-10-15: deployed behind the hostname Access application `onboardflow`. In the first production verification the Worker accepted the Access service token's JWTs, verified against the team's JWKS (`TEAM_DOMAIN` https://old-truth-a7dc.cloudflareaccess.com), as the principal `service-token:<client id>` (every response the driver received was 200 or 202; [results file](../../eval/results/production/verify-2026-10-15T21-32-38-402Z.json), committed in 006af54). An unauthenticated request to `/` or `/api/me` is redirected (302) to the team's Access login. No browser One-time PIN sign-in by email is recorded yet, so the `email` path has been verified only locally.
+
 ## Addendum (2026-10-15): service tokens
 
 The production verification script drives cases through Access with a service token (a Service Auth policy on the same application). Access signs such a request's JWT without an `email` claim: `sub` is the empty string and `common_name` is the token's Client ID. `verifyAccessJwt` therefore requires `exp` and `iat`, and takes the identity from `email` when present, otherwise from a well-formed `common_name` with an empty `sub`, as `service-token:<client id>`. That identity contains no `@`, so no email login can ever map to it, and like any identity it grants nothing until an `app_users` row exists for it (the setup script provisions one admin row for its own token). Any other token without an email is still refused with 401.
