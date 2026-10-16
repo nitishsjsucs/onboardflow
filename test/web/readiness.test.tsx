@@ -1,7 +1,9 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HubState } from "../../src/shared/agent-state.ts";
-import { STAGE_IDS } from "../../src/shared/stages.ts";
+import type { CaseStatus, StageStatus } from "../../src/shared/domain.ts";
+import { bucketReadiness } from "../../src/shared/readiness.ts";
+import { STAGE_IDS, type StageId } from "../../src/shared/stages.ts";
 import { localToday } from "../../src/web/components/dates.ts";
 import { readinessRows } from "../../src/web/components/ReadinessChart.tsx";
 import { DashboardPage } from "../../src/web/pages/DashboardPage.tsx";
@@ -50,7 +52,8 @@ const week = (key: string) => within(card()).getByTestId(`week-${key}`);
 describe("readiness rows (data mapping)", () => {
   it("labels each week with its countdown and size, links the week to its list, and flags near weeks that are not ready", () => {
     const rows = readinessRows(readiness());
-    expect(rows.map((r) => r.label)).toEqual(["Week of Mon Oct 12, this week", "Week of Mon Oct 19, in 3 days", "Week of Mon Nov 2, in 17 days, 15 people", "Week of Mon Nov 9, in 24 days, 10 people"]);
+    // today is Friday Oct 16: the current week counts only from today
+    expect(rows.map((r) => r.label)).toEqual(["This week, from today (Fri Oct 16)", "Week of Mon Oct 19, in 3 days", "Week of Mon Nov 2, in 17 days, 15 people", "Week of Mon Nov 9, in 24 days, 10 people"]);
     expect(rows.map((r) => r.empty)).toEqual([true, true, false, false]);
     expect(rows[2]!.labelHref).toBe("/cases?startFrom=2026-11-02&startTo=2026-11-08");
     // within 21 days and 9 of 15 not ready: flagged; 24 days away: not flagged, even with 8 of 10 not ready
@@ -64,6 +67,49 @@ describe("readiness rows (data mapping)", () => {
       ["7 not started", "/cases?status=not_started&startFrom=2026-11-09&startTo=2026-11-15"],
       ["2 ready", null],
     ]);
+  });
+
+  it("links a partial first or last week to exactly the days it counts, mid-week and with start dates on any weekday", () => {
+    // one entry per person: Friday Oct 16 is today, and a 2-week window ends before Friday Oct 30
+    const persons: Array<[string, CaseStatus, StageId | null, StageStatus | null]> = [
+      ["2026-10-12", "complete", "closeout", "complete"], // started and finished: in no row
+      ["2026-10-13", "in_progress", "paperwork", "waiting_on_employee"], // started Tuesday, not finished
+      ["2026-10-14", "blocked", "it_provisioning", "blocked"], // started Wednesday, blocked
+      ["2026-10-16", "not_started", null, null], // today
+      ["2026-10-17", "blocked", "it_provisioning", "blocked"], // Saturday
+      ["2026-10-17", "complete", "closeout", "complete"],
+      ["2026-10-21", "blocked", "intake", "blocked"], // Wednesday
+      ["2026-10-29", "failed", "intake", "failed"], // Thursday, the window's last day
+      ["2026-10-31", "blocked", "intake", "blocked"], // Saturday after the window
+    ];
+    const data = bucketReadiness(
+      persons.map(([startDate, caseStatus, currentStage, stageStatus]) => ({ startDate, caseStatus, currentStage, stageStatus, n: 1 })),
+      "2026-10-16",
+      2,
+    );
+    expect(data.end).toBe("2026-10-30");
+    const rows = readinessRows(data);
+    expect(rows.map((r) => [r.label, r.labelHref])).toEqual([
+      ["Already started, not finished, 2 people", null],
+      ["This week, from today (Fri Oct 16), 3 people", "/cases?startFrom=2026-10-16&startTo=2026-10-18"],
+      ["Week of Mon Oct 19, in 3 days, 1 person", "/cases?startFrom=2026-10-19&startTo=2026-10-25"],
+      ["Week of Mon Oct 26 to Thu Oct 29, in 10 days, 1 person", "/cases?startFrom=2026-10-26&startTo=2026-10-29"],
+    ]);
+    expect(rows[1]!.parts.map((p) => [p.text, p.href])).toEqual([
+      ["1 blocked", "/cases?status=blocked&startFrom=2026-10-16&startTo=2026-10-18"],
+      ["1 not started", "/cases?status=not_started&startFrom=2026-10-16&startTo=2026-10-18"],
+      ["1 ready", null],
+    ]);
+    expect(rows[3]!.parts.map((p) => p.href)).toEqual(["/cases?status=failed&startFrom=2026-10-26&startTo=2026-10-29"]);
+    // every link opens a list (as /api/employees filters it) whose length is the number it stands for
+    const listed = (href: string) => {
+      const q = new URL(href, "http://localhost").searchParams;
+      return persons.filter(([start, status]) => (!q.get("status") || status === q.get("status")) && (!q.get("startFrom") || start >= q.get("startFrom")!) && start <= q.get("startTo")!).length;
+    };
+    for (const r of rows) {
+      if (r.labelHref) expect(listed(r.labelHref), r.label).toBe(r.counts.total);
+      for (const p of r.parts) if (p.href) expect(listed(p.href), `${r.label}: ${p.text}`).toBe(Number(p.text.split(" ")[0]));
+    }
   });
 
   it("puts people who started and are not finished first, with links up to yesterday", () => {

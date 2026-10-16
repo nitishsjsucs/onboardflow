@@ -180,6 +180,8 @@ export function readiness(over: Partial<StartReadinessDto> = {}): StartReadiness
   const zero = { total: 0, ready: 0, blocked: 0, waiting: 0, inSetup: 0, notStarted: 0, failed: 0 };
   return {
     asOf: "2026-10-16",
+    // a shortened window: the weeks of Oct 26 and Nov 16 and later are left out
+    end: "2026-11-16",
     weeks: [
       { weekStart: "2026-10-12", ...zero },
       { weekStart: "2026-10-19", ...zero },

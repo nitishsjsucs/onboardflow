@@ -270,8 +270,11 @@ describe("readiness by start week", () => {
     const r = valid(StartReadinessSchema, await api("/api/dashboard/start-readiness?weeks=26", { as: "C01" }));
     // the tests pin the simulated clock to 2026-10-08, a Thursday
     expect(r.asOf).toBe("2026-10-08");
+    // 26 x 7 days later, exclusive: the last week (of Apr 5) counts Apr 5 to Apr 7
+    expect(r.end).toBe("2027-04-08");
     expect(r.weeks[0]!.weekStart).toBe("2026-10-05");
     expect(r.weeks).toHaveLength(27);
+    expect(r.weeks.at(-1)!.weekStart).toBe("2027-04-05");
     expect(r.alreadyStarted).toBeNull();
     expect(r.weeks.reduce((a, w) => a + w.total, 0)).toBe(150);
     const nov2 = r.weeks.find((w) => w.weekStart === "2026-11-02")!;

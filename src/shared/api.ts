@@ -413,6 +413,11 @@ const ReadinessCountsSchema = z.object({ total: count, ready: count, blocked: co
 export const StartReadinessSchema = z.object({
   /** The day the window starts (YYYY-MM-DD): the request's `today`, else the server's date (UTC). */
   asOf: z.string(),
+  /**
+   * The window's end, exclusive: asOf + 7 x weeks. A week starting before asOf counts its days from asOf on,
+   * and the last week only its days before end. Added 2026-10-16, so the client can link each week to exactly those days.
+   */
+  end: z.string(),
   weeks: z.array(ReadinessCountsSchema.extend({ weekStart: z.string() })),
   /** Start dates before today whose onboarding is not complete; null when there are none. */
   alreadyStarted: ReadinessCountsSchema.nullable(),

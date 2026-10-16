@@ -78,7 +78,8 @@ export function emptyCounts(): ReadinessCounts {
 }
 
 export type ReadinessRow = { startDate: string; caseStatus: CaseStatus; currentStage: StageId | null; stageStatus: StageStatus | null; n: number };
-export type StartReadiness = { asOf: string; weeks: Array<ReadinessCounts & { weekStart: string }>; alreadyStarted: ReadinessCounts | null };
+/** `end`: the window's end, exclusive, so a week's counts cover its days from `asOf` up to the day before `end`. */
+export type StartReadiness = { asOf: string; end: string; weeks: Array<ReadinessCounts & { weekStart: string }>; alreadyStarted: ReadinessCounts | null };
 
 /**
  * The window a request covers: from `today` up to (not including) `end`, `weeks` x 7 days later. The weeks
@@ -116,5 +117,5 @@ export function bucketReadiness(rows: readonly ReadinessRow[], today: string, we
     target.total += r.n;
     target[READINESS_KEYS[cls]] += r.n;
   }
-  return { asOf: today, weeks: mondays.map((m) => ({ weekStart: m, ...byWeek.get(m)! })), alreadyStarted: already };
+  return { asOf: today, end, weeks: mondays.map((m) => ({ weekStart: m, ...byWeek.get(m)! })), alreadyStarted: already };
 }

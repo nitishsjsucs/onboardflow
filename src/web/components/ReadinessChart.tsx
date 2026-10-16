@@ -10,7 +10,10 @@
 // "4 not ready" flag at the end of its bar. Counts whose class maps to one
 // case status (blocked, not started, failed) link to that list for the week,
 // and the week's label links to everyone starting that week, so every link
-// opens a list that matches its number.
+// opens a list that matches its number. The window runs from today to the
+// day before its end, so the first week counts only its days from today
+// ("This week, from today") and the last only its days before the end
+// ("Week of Mon Jan 4 to Thu Jan 7"): their labels and links say so.
 import { type ReactNode, useId } from "react";
 import { Link } from "react-router";
 import type { StartReadinessDto } from "../../shared/api.ts";
@@ -39,7 +42,10 @@ export const FLAG_WITHIN_DAYS = 21;
 
 export type ReadinessRowModel = {
   key: string;
-  /** "Week of Mon Nov 2, in 17 days, 15 people" or "Already started, not finished, 3 people" */
+  /**
+   * "Week of Mon Nov 2, in 17 days, 15 people", "This week, from today (Fri Oct 16), 2 people",
+   * "Week of Mon Jan 4 to Thu Jan 7, in 80 days, 15 people" or "Already started, not finished, 3 people"
+   */
   label: string;
   /** The week's whole list (null for the already-started row, which no single filter matches). */
   labelHref: string | null;
@@ -76,14 +82,20 @@ export function readinessRows(data: StartReadinessDto): ReadinessRowModel[] {
     const range = { to: addDays(data.asOf, -1) };
     rows.push({ key: "already", label: `Already started, not finished, ${people(a.total)}`, labelHref: null, counts: a, flag: a.total > a.ready ? `${a.total - a.ready} not ready` : null, parts: partsFor(a, range), empty: false });
   }
+  const lastDay = addDays(data.end, -1);
   for (const w of data.weeks) {
     const days = daysUntil(w.weekStart, data.asOf) ?? 0;
-    const when = days <= 0 ? "this week" : countdownWords(days);
-    const range = { from: w.weekStart, to: addDays(w.weekStart, 6) };
+    const sunday = addDays(w.weekStart, 6);
+    // the days of this week the counts cover: from today, and up to the window's last day
+    const range = { from: w.weekStart < data.asOf ? data.asOf : w.weekStart, to: sunday > lastDay ? lastDay : sunday };
+    const week =
+      range.from !== w.weekStart
+        ? `This week, from today (${formatDay(range.from)})`
+        : `Week of ${formatDay(w.weekStart)}${range.to !== sunday ? ` to ${formatDay(range.to)}` : ""}, ${days <= 0 ? "this week" : countdownWords(days)}`;
     const notReady = w.total - w.ready;
     rows.push({
       key: w.weekStart,
-      label: `Week of ${formatDay(w.weekStart)}, ${when}${w.total > 0 ? `, ${people(w.total)}` : ""}`,
+      label: `${week}${w.total > 0 ? `, ${people(w.total)}` : ""}`,
       labelHref: w.total > 0 ? listHref(range) : null,
       counts: w,
       flag: w.total > 0 && notReady > 0 && days <= FLAG_WITHIN_DAYS ? `${notReady} not ready` : null,

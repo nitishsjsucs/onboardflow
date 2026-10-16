@@ -76,6 +76,7 @@ describe("bucketReadiness", () => {
       2,
     );
     expect(r.asOf).toBe("2026-10-16");
+    expect(r.end).toBe("2026-10-30");
     expect(r.alreadyStarted).toEqual({ total: 3, ready: 2, blocked: 1, waiting: 0, inSetup: 0, notStarted: 0, failed: 0 });
     expect(r.weeks).toEqual([
       { weekStart: "2026-10-12", total: 1, ready: 0, blocked: 0, waiting: 0, inSetup: 0, notStarted: 1, failed: 0 },
