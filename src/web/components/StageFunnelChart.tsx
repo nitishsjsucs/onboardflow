@@ -68,8 +68,15 @@ export function stageRow(s: StageRollup): StageRow {
   if (s.waiting > 0) {
     states.push(
       waitingStatusAt(s.stage) === "revision_requested"
-        ? // a revision's case status is blocked
-          { segment: "waiting", n: s.waiting, text: `${s.waiting} revision requested`, actor: { kind: "department", departments: ["people_ops"] }, href: casesAt(s.stage, "blocked"), glyph: "pause" }
+        ? // a revision's case status is blocked; the count names who acts, since the row may also wait on managers
+          {
+            segment: "waiting",
+            n: s.waiting,
+            text: `${s.waiting} ${s.waiting === 1 ? "revision" : "revisions"} requested, People Ops acts`,
+            actor: { kind: "department", departments: ["people_ops"] },
+            href: casesAt(s.stage, "blocked"),
+            glyph: "pause",
+          }
         : { segment: "waiting", n: s.waiting, text: `${s.waiting} waiting on the employee`, actor: { kind: "employee" }, href: casesAt(s.stage, "in_progress"), glyph: "clock" },
     );
   }

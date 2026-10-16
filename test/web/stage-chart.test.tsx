@@ -73,9 +73,10 @@ describe("StageFunnelChart (where open cases are waiting)", () => {
   it("reads the hub's waiting count as a revision at a checkpoint (People Ops acts) and as the employee's checklist elsewhere", () => {
     renderChart(demo({ manager_approval: { awaitingApproval: 23, waiting: 1 }, closeout: { awaitingApproval: 0, waiting: 2 } }));
     const ma = row("manager_approval");
-    expect(within(ma).getByRole("link", { name: /^1 revision requested/ }).getAttribute("href")).toBe("/cases?stage=manager_approval&status=blocked");
+    expect(within(ma).getByRole("link", { name: /^1 revision requested, People Ops acts/ }).getAttribute("href")).toBe("/cases?stage=manager_approval&status=blocked");
     expect(within(ma).getByText(": People Ops and managers act")).toBeTruthy();
-    expect(within(row("closeout")).getByRole("link", { name: /^2 revision requested/ })).toBeTruthy();
+    expect(within(ma).getByRole("link", { name: /^23 waiting on a decision by managers/ })).toBeTruthy();
+    expect(within(row("closeout")).getByRole("link", { name: /^2 revisions requested, People Ops acts/ })).toBeTruthy();
     expect(within(row("closeout")).getByText(": People Ops acts")).toBeTruthy();
     expect(within(row("paperwork")).getByRole("link", { name: /^24 waiting on the employee/ }).getAttribute("href")).toBe("/cases?stage=paperwork&status=in_progress");
   });
