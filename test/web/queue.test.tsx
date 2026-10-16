@@ -259,6 +259,63 @@ describe("QueuePage", () => {
     expect(screen.getByText(": Blocked after round 3")).toBeTruthy();
   });
 
+  it("an outage item whose stage now waits on a data issue sends the user to that fix instead of offering Retry", async () => {
+    const facilities = { ...PERSONAS.it!, email: "c05.x@onboardflow.test", staffId: "C05", department: "facilities" as const };
+    const outage = blocker({
+      id: "blk:E139:integration_outage",
+      employeeId: "E139",
+      employeeName: "Nia Iverson",
+      stageId: "facilities_setup",
+      ownerDepartment: "facilities",
+      subject: "facilities.issue-badge",
+      detail: { system: "facilities", operation: "facilities.issue-badge", class: "retryable", message: "service_unavailable: simulated outage" },
+      detectedAt: "2026-10-08T09:00:00.000Z",
+      stageStatus: "blocked",
+      stageRound: 2,
+    });
+    const photo = blocker({
+      id: "blk:E139:data_issue",
+      employeeId: "E139",
+      employeeName: "Nia Iverson",
+      stageId: "facilities_setup",
+      kind: "data_issue",
+      ownerDepartment: "facilities",
+      subject: "facilities.issue-badge",
+      detail: { field: "photoOnFile", system: "facilities", operation: "facilities.issue-badge", class: "fatal", message: "validation_failed: a badge photo is required" },
+      detectedAt: "2026-10-08T11:00:00.000Z",
+      stageStatus: "blocked",
+      stageRound: 2,
+    });
+    const calls = mockFetch((url) => {
+      if (url.startsWith("/api/blockers")) {
+        const kind = new URL(url, "http://x").searchParams.get("kind");
+        return { body: { items: [outage, photo].filter((b) => !kind || b.kind === kind), nextCursor: null } };
+      }
+      if (url.startsWith("/api/employees/")) return { body: profile({ id: "E139", photoOnFile: false }) };
+      return { body: { items: [], nextCursor: null } };
+    });
+    renderWith(<QueuePage />, { me: facilities, path: "/queue" });
+    const outageItem = await screen.findByRole("listitem", { name: /could not issue the badge/ });
+    // no Retry on the outage item: one more round there would hit the same missing photo
+    expect(within(outageItem).queryByRole("button", { name: /^Retry/ })).toBeNull();
+    expect(within(outageItem).getByText("Blocked on the badge photo now: fix it, then retry from that item.")).toBeTruthy();
+    fireEvent.click(within(outageItem).getByRole("button", { name: "Go to the badge photo fix for Nia Iverson" }));
+    const photoItem = item(/Badge photo rejected by Facilities/);
+    expect(document.activeElement).toBe(photoItem.querySelector(".title"));
+    // the data issue item keeps the guided fix, with Retry secondary until the photo is on file
+    const early = await within(photoItem).findByRole("button", { name: /^Retry Facilities setup/ });
+    expect(early.className).not.toContain("primary");
+    expect(within(photoItem).getByRole("button", { name: "Mark photo on file for Nia Iverson" })).toBeTruthy();
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+    cleanup();
+    // filtered to outages, the data issue is not on screen: send the user to the case page's fix
+    serve([outage, photo]);
+    renderWith(<QueuePage />, { me: facilities, path: "/queue?kind=integration_outage" });
+    const only = await screen.findByRole("listitem", { name: /could not issue the badge/ });
+    await waitFor(() => expect(within(only).getByRole("link", { name: "Fix it on the case page for Nia Iverson" }).getAttribute("href")).toBe("/cases/E139"));
+    expect(within(only).queryByRole("button", { name: /^Retry/ })).toBeNull();
+  });
+
   it("refetches the queue when the ops hub publishes a new version", async () => {
     let items = [blocker()];
     const calls = mockFetch((url) => (url.startsWith("/api/blockers") ? { body: { items, nextCursor: null } } : { body: { items: [], nextCursor: null } }));

@@ -106,7 +106,8 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
           <h2>Blockers</h2>
           <BlockerList blockers={openBlockers} />
           {blockedStages.map((s) => {
-            const blocker = openBlockers.find((b) => b.stageId === s.id);
+            // an outage blocker can stay open beside the data issue a later retry hit: the data issue is what blocks the stage now
+            const blocker = openBlockers.find((b) => b.stageId === s.id && b.kind === "data_issue") ?? openBlockers.find((b) => b.stageId === s.id);
             const owner = blocker?.ownerDepartment ?? (s.owner === "manager" ? "people_ops" : s.owner);
             const name = `${d.employee.firstName} ${d.employee.lastName}`;
             // a rejected field: guide the fix first, so a retry does not burn a recovery round on the same value

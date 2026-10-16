@@ -179,6 +179,27 @@ describe("CaseDetailPage data issues", () => {
     }
   });
 
+  it("guides the fix when an outage blocker stays open beside the data issue, even after the stage was blocked again by the outage", async () => {
+    const d = detailWithDataIssue();
+    const intake = d.stages.find((s) => s.id === "intake")!;
+    // the fix was saved but HR is down again: the stage's reason is an outage, the data issue is still open
+    intake.blockedReason = { class: "retryable", system: "hr", operation: "hr.create-worker", message: "service_unavailable", round: 2 };
+    const outage = { ...d.blockers[0]!, id: "blk:E001:integration_outage:intake", kind: "integration_outage" as const, detail: { class: "retryable", system: "hr", operation: "hr.create-worker", message: "service_unavailable" } };
+    d.blockers = [outage, d.blockers[0]!];
+    mockFetch((url) => {
+      if (url.includes("/audit")) return { body: { items: [], nextCursor: null } };
+      if (url.startsWith("/api/employees/")) return { body: profile({ id: "E001", firstName: "Avery", lastName: "Abara" }) };
+      return { body: d };
+    });
+    renderWith(null, { me: PERSONAS.peopleOps!, path: "/cases/E001", routes });
+    const blockers = await screen.findByRole("region", { name: "blockers" });
+    expect(await within(blockers).findByLabelText("New cost center")).toBeTruthy();
+    // the cost center is still CC 1100: one Retry, secondary, with the recovery-round warning
+    const retries = within(blockers).getAllByRole("button", { name: /^Retry/ });
+    expect(retries).toHaveLength(1);
+    expect(retries[0]!.className).not.toContain("primary");
+  });
+
   it("shows no fix control to anyone else", async () => {
     for (const persona of ["it", "manager"] as const) {
       serveCase();

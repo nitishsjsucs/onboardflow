@@ -14,7 +14,7 @@ import { useItemAction } from "../api/item-action.ts";
 import { keys, useCompleteTask, useOpenBlockers, useOpenFollowups, useResolveBlocker, useRetryStage } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
-import { blockerDetail, blockerTitle, DEPARTMENT_NAMES, KIND_NAMES, queueOrder, relativeTime, stageState } from "../components/blocker-text.ts";
+import { blockerDetail, blockerTitle, DEPARTMENT_NAMES, FIELD_LABELS, isFixableField, KIND_NAMES, queueOrder, relativeTime, stageState } from "../components/blocker-text.ts";
 import { DataIssueFix } from "../components/DataIssueFix.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
@@ -24,6 +24,46 @@ import { useHubLive } from "../live/useHubLive.ts";
 
 export function approvalAnchor(approvalId: string): string {
   return `/approvals#approval-${encodeURIComponent(approvalId)}`;
+}
+
+/** The DOM id of a queue item, so another item can move focus to it. */
+export function queueItemId(blockerId: string): string {
+  return `queue-item-${blockerId}`;
+}
+
+const stageKey = (b: Pick<BlockerView, "employeeId" | "stageId">) => `${b.employeeId}:${b.stageId}`;
+
+/**
+ * An open data issue on the same stage as this outage or stall: the agents leave an outage blocker open
+ * when the retry then hits a rejected value, so the stage is blocked on that value, and a Retry from the
+ * outage item would spend a recovery round on it. `shown`: the data issue is in the list on screen.
+ */
+export type PendingFix = { issue: BlockerView; shown: boolean };
+
+function PendingFixNote({ b, fix }: { b: BlockerView; fix: PendingFix }) {
+  const field = isFixableField(fix.issue.detail.field) ? FIELD_LABELS[fix.issue.detail.field] : "rejected value";
+  return (
+    <>
+      <span className="muted">Blocked on the {field} now: fix it, then retry from that item.</span>
+      {fix.shown ? (
+        <button
+          type="button"
+          aria-label={`Go to the ${field} fix for ${b.employeeName}`}
+          onClick={() => {
+            const item = document.getElementById(queueItemId(fix.issue.id));
+            item?.scrollIntoView?.({ block: "center" });
+            item?.querySelector<HTMLElement>(".title")?.focus();
+          }}
+        >
+          Go to the {field} fix
+        </button>
+      ) : (
+        <Link className="button-link" to={`/cases/${b.employeeId}`} aria-label={`Fix it on the case page for ${b.employeeName}`}>
+          Fix it on the case page
+        </Link>
+      )}
+    </>
+  );
 }
 
 function FollowUpLine({ task, owner, employeeName }: { task: TaskView; owner: string; employeeName: string }) {
@@ -81,7 +121,7 @@ function ResolveForm({ b, title, onCancel }: { b: BlockerView; title: string; on
   );
 }
 
-function KindActions({ b, me, stage }: { b: BlockerView; me: MeDto | null; stage: string }) {
+function KindActions({ b, me, stage, pendingFix }: { b: BlockerView; me: MeDto | null; stage: string; pendingFix: PendingFix | undefined }) {
   const retry = useItemAction(useRetryStage(), (r) => `Retry requested for ${stage}: round ${r.round} running`);
   const d = b.detail;
   const approvalId = typeof d.approvalId === "string" ? d.approvalId : null;
@@ -89,6 +129,7 @@ function KindActions({ b, me, stage }: { b: BlockerView; me: MeDto | null; stage
     case "integration_outage":
     case "provisioning_stalled": {
       if (!can.retry(me, b.ownerDepartment) || (b.stageStatus !== null && b.stageStatus !== "blocked" && b.stageStatus !== "active")) return null;
+      if (pendingFix) return <PendingFixNote b={b} fix={pendingFix} />;
       const running = b.stageStatus === "active";
       return (
         <>
@@ -128,7 +169,7 @@ function KindActions({ b, me, stage }: { b: BlockerView; me: MeDto | null; stage
   }
 }
 
-function QueueItem({ b, followUp, me }: { b: BlockerView; followUp: TaskView | undefined; me: MeDto | null }) {
+function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: TaskView | undefined; me: MeDto | null; pendingFix: PendingFix | undefined }) {
   const [resolving, setResolving] = useState(false);
   const titleId = useId();
   const stage = STAGE_BY_ID[b.stageId].name;
@@ -137,9 +178,9 @@ function QueueItem({ b, followUp, me }: { b: BlockerView; followUp: TaskView | u
   const state = stageState(b);
   const canResolve = b.kind !== "approval_rejected" && can.workDepartment(me, b.ownerDepartment);
   return (
-    <li className="queue-item" data-testid={`blocker-${b.kind}`} aria-labelledby={titleId}>
+    <li className="queue-item" id={queueItemId(b.id)} data-testid={`blocker-${b.kind}`} aria-labelledby={titleId}>
       <div className="item-main">
-        <div className="title" id={titleId}>
+        <div className="title" id={titleId} tabIndex={-1}>
           <span className={`badge ${b.severity === "high" ? "bad" : b.severity === "medium" ? "warn" : ""}`}>{b.severity}</span> {title}
         </div>
         <div>
@@ -155,7 +196,7 @@ function QueueItem({ b, followUp, me }: { b: BlockerView; followUp: TaskView | u
         </div>
       </div>
       <div className="item-actions">
-        <KindActions b={b} me={me} stage={stage} />
+        <KindActions b={b} me={me} stage={stage} pendingFix={pendingFix} />
         {canResolve && !resolving ? (
           <button type="button" aria-label={`Resolve: ${title}, ${b.employeeName}`} onClick={() => setResolving(true)}>
             Resolve...
@@ -208,6 +249,15 @@ export function QueuePage() {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const attached = new Set(allItems.map((b) => b.followUpTaskId).filter((x): x is string => !!x));
   const orphans = tasks.filter((t) => !attached.has(t.id));
+  // open data issues per stage, from everything loaded (a kind filter may hide them from the list)
+  const shownIds = new Set(items.map((b) => b.id));
+  const dataIssues = new Map<string, BlockerView>();
+  for (const b of [...allItems, ...items]) if (b.kind === "data_issue") dataIssues.set(stageKey(b), b);
+  const pendingFixFor = (b: BlockerView): PendingFix | undefined => {
+    if (b.kind !== "integration_outage" && b.kind !== "provisioning_stalled") return undefined;
+    const issue = dataIssues.get(stageKey(b));
+    return issue ? { issue, shown: shownIds.has(issue.id) } : undefined;
+  };
   const scope = me?.role === "coordinator" && me.department ? DEPARTMENT_NAMES[me.department] : department ? DEPARTMENT_NAMES[department] : "all departments";
 
   return (
@@ -265,7 +315,7 @@ export function QueuePage() {
               <>
                 <ul className="tasks queue">
                   {items.map((b) => (
-                    <QueueItem key={b.id} b={b} me={me} followUp={b.followUpTaskId ? byId.get(b.followUpTaskId) : undefined} />
+                    <QueueItem key={b.id} b={b} me={me} followUp={b.followUpTaskId ? byId.get(b.followUpTaskId) : undefined} pendingFix={pendingFixFor(b)} />
                   ))}
                 </ul>
                 {list.hasNextPage || followups.hasNextPage ? (
