@@ -216,7 +216,7 @@ describe("QueuePage", () => {
     expect(within(wait).getByText("Waiting on the hiring manager")).toBeTruthy();
     expect(within(wait).queryByRole("link", { name: /Decide on behalf/ })).toBeNull();
     // closeout overdue: People Ops decides it in Approvals
-    expect(within(item(/sign-off overdue/)).getByRole("link", { name: /Decide the sign-off in Approvals/ }).getAttribute("href")).toBe("/approvals#approval-apr%3AE007%3Acloseout%3A1");
+    expect(within(item(/sign-off overdue/)).getByRole("link", { name: "Decide in Approvals: sign-off for Sam Ito" }).getAttribute("href")).toBe("/approvals#approval-apr%3AE007%3Acloseout%3A1");
     // data issue: the guided fix
     expect(within(item(/Cost center rejected by HR/)).getByLabelText("New cost center")).toBeTruthy();
     // employee tasks overdue: the case link
@@ -226,6 +226,20 @@ describe("QueuePage", () => {
     renderWith(<QueuePage />, { me: PERSONAS.admin!, path: "/queue" });
     await screen.findByText("Manager approval overdue");
     expect(within(item(/Manager approval overdue/)).getByRole("link", { name: "Decide on behalf of the manager for Wren Abara" }).getAttribute("href")).toBe("/approvals#approval-apr%3AE003%3Amanager_approval%3A1");
+  });
+
+  it("starts every action's accessible name with its visible text (WCAG 2.5.3 Label in Name)", async () => {
+    serve([...peopleOpsQueue, blocker({ ownerDepartment: "people_ops" })], [followUp("fu:1", overdue.id, "Chase the manager approval for Wren Abara")]);
+    renderWith(<QueuePage />, { me: PERSONAS.admin!, path: "/queue" });
+    await screen.findByText("Manager approval overdue");
+    await screen.findByLabelText("New cost center");
+    const controls = [...document.querySelectorAll<HTMLElement>(".queue-item button, .queue-item a.button-link")];
+    expect(controls.length).toBeGreaterThan(5);
+    for (const c of controls) {
+      const visible = (c.textContent ?? "").replace(/\.\.\.$/, "").trim();
+      const name = c.getAttribute("aria-label");
+      if (name) expect(name.startsWith(visible), `"${name}" starts with "${visible}"`).toBe(true);
+    }
   });
 
   it("asks for a reason before resolving, warns that the agents may reopen it, and sends the typed reason", async () => {
@@ -248,14 +262,17 @@ describe("QueuePage", () => {
   it("disables Retry while the stage's retry is running, and says which round", async () => {
     serve([blocker({ stageStatus: "active", stageRound: 3 })]);
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
-    const retry = (await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" })) as HTMLButtonElement;
+    // the accessible name says the retry is running, not only the visible text (assistive tech reads the name)
+    const retry = (await screen.findByRole("button", { name: "Retry running: IT provisioning for Avery Abara" })) as HTMLButtonElement;
     expect(retry.disabled).toBe(true);
     expect(retry.textContent).toBe("Retry running");
     expect(screen.getByText(": Retry running, round 3")).toBeTruthy();
     cleanup();
     serve([blocker({ stageStatus: "blocked", stageRound: 3 })]);
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
-    expect(((await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" })) as HTMLButtonElement).disabled).toBe(false);
+    const idle = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
+    expect(idle.disabled).toBe(false);
+    expect(idle.textContent).toBe("Retry stage");
     expect(screen.getByText(": Blocked after round 3")).toBeTruthy();
   });
 

@@ -85,13 +85,13 @@ export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, det
               <p style={{ margin: "8px 0 4px" }}>
                 {saved ? "Saved." : `The ${fieldLabel} now looks valid.`} Retry {stage} now?
               </p>
-              <button type="button" className="primary" aria-label={`Retry ${stage} now for ${employeeName}`} disabled={retry.pending || retryRunning} onClick={() => void retry.run({ employeeId, stageId })}>
+              <button type="button" className="primary" aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} now for ${employeeName}`} disabled={retry.pending || retryRunning} onClick={() => void retry.run({ employeeId, stageId })}>
                 {retryRunning ? "Retry running" : `Retry ${stage} now`}
               </button>
             </>
           ) : (
             <>
-              <button type="button" aria-label={`Retry ${stage} for ${employeeName}`} aria-describedby={hintId} disabled={retry.pending || retryRunning} onClick={() => void retry.run({ employeeId, stageId })}>
+              <button type="button" aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} for ${employeeName}`} aria-describedby={hintId} disabled={retry.pending || retryRunning} onClick={() => void retry.run({ employeeId, stageId })}>
                 {retryRunning ? "Retry running" : `Retry ${stage}`}
               </button>
               <p id={hintId} className="muted hint">

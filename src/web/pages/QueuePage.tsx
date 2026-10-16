@@ -131,10 +131,12 @@ function KindActions({ b, me, stage, pendingFix }: { b: BlockerView; me: MeDto |
       if (!can.retry(me, b.ownerDepartment) || (b.stageStatus !== null && b.stageStatus !== "blocked" && b.stageStatus !== "active")) return null;
       if (pendingFix) return <PendingFixNote b={b} fix={pendingFix} />;
       const running = b.stageStatus === "active";
+      // the accessible name starts with the visible label (WCAG 2.5.3), then names the subject
+      const text = running ? "Retry running" : "Retry stage";
       return (
         <>
-          <button type="button" className="primary" aria-label={`Retry ${stage} for ${b.employeeName}`} disabled={retry.pending || running} onClick={() => void retry.run({ employeeId: b.employeeId, stageId: b.stageId })}>
-            {running ? "Retry running" : "Retry stage"}
+          <button type="button" className="primary" aria-label={`${text}: ${stage} for ${b.employeeName}`} disabled={retry.pending || running} onClick={() => void retry.run({ employeeId: b.employeeId, stageId: b.stageId })}>
+            {text}
           </button>
           <ActionMessage error={retry.error} success={retry.success} context={{ action: `retry ${stage}`, subject: stage }} />
         </>
@@ -149,7 +151,7 @@ function KindActions({ b, me, stage, pendingFix }: { b: BlockerView; me: MeDto |
     case "approval_overdue":
       if (d.checkpoint === "closeout") {
         return approvalId ? (
-          <Link className="button-link" to={approvalAnchor(approvalId)} aria-label={`Decide the sign-off in Approvals for ${b.employeeName}`}>
+          <Link className="button-link" to={approvalAnchor(approvalId)} aria-label={`Decide in Approvals: sign-off for ${b.employeeName}`}>
             Decide in Approvals
           </Link>
         ) : null;

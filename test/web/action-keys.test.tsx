@@ -99,7 +99,7 @@ describe("Idempotency-Key per user action", () => {
       return { body: { items: [], nextCursor: null } };
     });
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
-    const retry = (await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" })) as HTMLButtonElement;
+    const retry = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
     const row = retry.closest("li")!;
     fireEvent.click(retry);
     await waitFor(() => expect(retry.disabled).toBe(true));
@@ -132,7 +132,7 @@ describe("Idempotency-Key per user action", () => {
       return { body: { items: [], nextCursor: null } };
     });
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
-    const retry = (await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" })) as HTMLButtonElement;
+    const retry = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
     fireEvent.click(retry);
     const alert = await within(retry.closest("li") as HTMLElement).findByRole("alert");
     expect(alert.textContent).toContain("The server sent an answer OnboardFlow could not read (HTTP 500).");
@@ -152,7 +152,7 @@ describe("Idempotency-Key per user action", () => {
       return { body: { items: [], nextCursor: null } };
     });
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
-    const retry = (await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" })) as HTMLButtonElement;
+    const retry = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
     fireEvent.click(retry);
     expect((await screen.findByRole("alert")).textContent).toContain("(HTTP 200)");
     await waitFor(() => expect(retry.disabled).toBe(false));
@@ -174,8 +174,8 @@ describe("Idempotency-Key per user action", () => {
       return { body: { items: [], nextCursor: null } };
     });
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
-    const a = (await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" })) as HTMLButtonElement;
-    const b = screen.getByRole("button", { name: "Retry IT provisioning for Blake Brennick" }) as HTMLButtonElement;
+    const a = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
+    const b = screen.getByRole("button", { name: "Retry stage: IT provisioning for Blake Brennick" }) as HTMLButtonElement;
     fireEvent.click(a);
     await waitFor(() => expect(a.disabled).toBe(true));
     expect(b.disabled).toBe(false);

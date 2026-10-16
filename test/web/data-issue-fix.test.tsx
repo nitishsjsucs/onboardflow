@@ -77,6 +77,15 @@ describe("DataIssueFix", () => {
     await screen.findByText("Retry requested for Pre-boarding intake: round 2 running");
   });
 
+  it("names a running retry as running, in the accessible name too", async () => {
+    serve(profile());
+    renderWith(<DataIssueFix me={PERSONAS.peopleOps!} employeeId="E042" employeeName="Logan Northcott" stageId="intake" owner="people_ops" detail={COST_CENTER} retryRunning />, { me: PERSONAS.peopleOps! });
+    await screen.findByText("CC 1100");
+    const running = screen.getByRole("button", { name: "Retry running: Pre-boarding intake for Logan Northcott" }) as HTMLButtonElement;
+    expect(running.textContent).toBe("Retry running");
+    expect(running.disabled).toBe(true);
+  });
+
   it("offers only the bundles IT accepts for the employment type, minus the rejected one, with nothing preselected", async () => {
     serve(profile({ licenseBundle: "ft-standard" }));
     fixFor(BUNDLE, PERSONAS.it!, "it_provisioning", "it");

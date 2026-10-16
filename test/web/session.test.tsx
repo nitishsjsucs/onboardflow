@@ -165,7 +165,7 @@ describe("an ended session", () => {
       },
     });
     renderApp("/queue");
-    fireEvent.click(await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" }));
     const banner = (await screen.findByText("Your session ended.")).closest("[role=alert]") as HTMLElement;
     expect(within(banner).getByRole("button", { name: "Reload to sign in" })).toBeTruthy();
   });
