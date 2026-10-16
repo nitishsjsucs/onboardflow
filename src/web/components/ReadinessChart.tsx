@@ -211,8 +211,10 @@ function ReadinessTable({ rows }: { rows: ReadinessRowModel[] }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.key}>
+              {/* the chart's flag, in the row header, so the table carries it too */}
               <th scope="row">
                 <Label row={r} />
+                <Flag row={r} />
               </th>
               <td>{r.counts.total}</td>
               {COUNT_ORDER.map((k) => (
@@ -284,7 +286,8 @@ export function ReadinessFigure({ children, canToggle, asTable, onToggle, titleI
       </div>
       {children}
       <figcaption className="muted small" style={{ marginTop: 8 }}>
-        Ready for day one: onboarding is complete, or the case has reached orientation and is not blocked, so accounts, devices, workspace and badge are set up and checked. Blocked includes requests sent back for revision. Bar length: people starting that week.
+        Ready for day one: onboarding is complete, or the case has reached orientation and is not blocked, so accounts, devices, workspace and badge are set up and checked. Blocked includes requests sent back for revision. A week that starts within {FLAG_WITHIN_DAYS} days, and the row of people who already started, is flagged with how many are not ready.
+        {asTable ? null : " Bar length: people starting that week."}
       </figcaption>
     </figure>
   );

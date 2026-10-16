@@ -184,6 +184,15 @@ describe("Readiness by start week (dashboard card)", () => {
     const nov2 = within(table).getByRole("row", { name: /Week of Mon Nov 2/ });
     expect([...nov2.querySelectorAll("td")].map((td) => td.textContent)).toEqual(["15", "1", "0", "3", "5", "0", "6"]);
     expect(within(nov2).getByRole("link", { name: /^1 blocked/ }).getAttribute("href")).toBe("/cases?status=blocked&startFrom=2026-11-02&startTo=2026-11-08");
+    // the chart's main signal, the not-ready flag of a week within 21 days, is in the row header
+    expect(nov2.querySelector("th")!.textContent).toBe("Week of Mon Nov 2, in 17 days, 15 people 9 not ready");
+    expect(within(table).getByRole("row", { name: /Week of Mon Nov 9/ }).querySelector("th")!.textContent).toBe("Week of Mon Nov 9, in 24 days, 10 people");
+    // no bars, so the caption says nothing about bar length, but it says what the flag means
+    const caption = within(card()).getByRole("figure").querySelector("figcaption")!.textContent!;
+    expect(caption).toContain("A week that starts within 21 days, and the row of people who already started, is flagged with how many are not ready.");
+    expect(caption).not.toContain("Bar length");
+    fireEvent.click(toggle);
+    expect(within(card()).getByRole("figure").querySelector("figcaption")!.textContent).toContain("Bar length: people starting that week.");
   });
 
   it("says when nobody starts in the window", async () => {

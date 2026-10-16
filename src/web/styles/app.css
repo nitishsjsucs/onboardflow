@@ -177,6 +177,7 @@ ul.notices li { margin: 4px 0; }
 .changes li { display: grid; gap: 1px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 .chart-table caption { text-align: left; font-weight: 600; padding-bottom: 6px; }
 .chart-table th[scope="row"] { font-weight: normal; }
+.chart-table .readiness-flag { margin-left: 6px; }
 @media (forced-colors: active) {
   /* system colors, and a hatch on blocked so it never depends on hue */
   .swatch, .chart-bar .seg { forced-color-adjust: none; border: 1px solid CanvasText; }
