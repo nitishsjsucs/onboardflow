@@ -93,6 +93,8 @@ describe("Readiness by start week (dashboard card)", () => {
     // the row's text carries every count, and the flag is text
     expect(nov2.textContent).toContain("1 blocked, 3 waiting on a person, 5 in setup, 6 ready");
     expect(within(nov2).getByText(/9 not ready/)).toBeTruthy();
+    // the flag is its own grid cell beside the bar, not part of it, so the bar keeps the shared scale and a phone can move the flag up
+    expect([...nov2.children].map((c) => c.className)).toEqual(["stage-row-head", "readiness-bar-line", "readiness-flag", "readiness-counts"]);
     expect(within(week("2026-11-09")).queryByText(/not ready/)).toBeNull();
     // empty weeks are one muted line
     expect(week("2026-10-19").textContent).toBe("Week of Mon Oct 19, in 3 days: no start dates");

@@ -128,13 +128,17 @@ function Bar({ row, max }: { row: ReadinessRowModel; max: number }) {
           title={`${s.n} ${s.label.toLowerCase()}`}
         />
       ))}
-      {row.flag ? (
-        <span className="readiness-flag">
-          <StateIcon glyph="alert" /> {row.flag}
-        </span>
-      ) : null}
     </div>
   );
+}
+
+/** "4 not ready": after the bar on a wide screen, beside the label on a phone (one element, placed by CSS grid). */
+function Flag({ row }: { row: ReadinessRowModel }) {
+  return row.flag ? (
+    <span className="readiness-flag">
+      <StateIcon glyph="alert" /> {row.flag}
+    </span>
+  ) : null;
 }
 
 function Parts({ row }: { row: ReadinessRowModel }) {
@@ -229,11 +233,12 @@ export function ReadinessChart({ data, asTable, stale = false, weeks }: { data: 
                   {r.label}: no start dates
                 </li>
               ) : (
-                <li key={r.key} className="stage-row" data-testid={`week-${r.key}`}>
+                <li key={r.key} className="stage-row readiness-row" data-testid={`week-${r.key}`}>
                   <div className="stage-row-head">
                     <Label row={r} />
                   </div>
                   <Bar row={r} max={max} />
+                  <Flag row={r} />
                   <Parts row={r} />
                 </li>
               ),
