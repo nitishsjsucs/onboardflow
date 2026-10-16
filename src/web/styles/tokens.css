@@ -29,6 +29,8 @@
   --chart-blocked: #b3261e;
   --chart-waiting: #bf8300;
   --chart-running: #2f5bd3;
+  /* ready: a neutral, at least 3:1 against --surface in both schemes */
+  --chart-ready: #8a909a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,6 +56,7 @@
     --chart-blocked: #b8443f;
     --chart-waiting: #b58c25;
     --chart-running: #5a7fe0;
+    --chart-ready: #6e737b;
   }
 }
 
@@ -79,4 +82,5 @@
   --chart-blocked: #b8443f;
   --chart-waiting: #b58c25;
   --chart-running: #5a7fe0;
+  --chart-ready: #6e737b;
 }

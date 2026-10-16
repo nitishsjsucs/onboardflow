@@ -1,22 +1,25 @@
 // Live dashboard: the OpsHubAgent state over a read-only WebSocket, with the
 // /api/dashboard/summary snapshot as the fallback until the first frame.
-import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
 import type { HubState } from "../../shared/agent-state.ts";
 import type { MeDto } from "../../shared/api.ts";
 import { BLOCKER_KINDS, isOneOf } from "../../shared/domain.ts";
 import { FIXED_BLOCKER_OWNER } from "../../shared/roles.ts";
-import { useDashboardSummary } from "../api/queries.ts";
+import { DASHBOARD_CARD_STALE_MS, useDashboardSummary, useStartReadiness } from "../api/queries.ts";
 import { useSession } from "../auth/session.tsx";
 import { DEPARTMENT_NAMES } from "../components/blocker-text.ts";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { KpiTile } from "../components/KpiTile.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { QueryState } from "../components/QueryState.tsx";
+import { hasStartDates, ReadinessChart, ReadinessFigure } from "../components/ReadinessChart.tsx";
 import { StageFunnelChart } from "../components/StageFunnelChart.tsx";
 import { label } from "../components/StatusBadge.tsx";
 import { useHubLive } from "../live/useHubLive.ts";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+import { useThrottledCallback } from "../hooks/useThrottledCallback.ts";
 
 /** A table of counts; with `linkTo`, a row's name links to the list behind it (no link where it returns null). */
 function Breakdown({ title, data, linkTo, children }: { title: string; data: Record<string, number>; linkTo?: (key: string) => string | null; children?: ReactNode }) {
@@ -39,6 +42,29 @@ function Breakdown({ title, data, linkTo, children }: { title: string; data: Rec
       {children}
     </section>
   );
+}
+
+export const READINESS_WEEKS = 12;
+
+/** Readiness by start week, with its own loading and error states inside the card. */
+function ReadinessCard({ stale }: { stale: boolean }) {
+  const q = useStartReadiness(READINESS_WEEKS);
+  const [asTable, setAsTable] = useState(false);
+  return (
+    <section className="card" aria-label="readiness by start week">
+      <ReadinessFigure canToggle={q.data !== undefined && hasStartDates(q.data)} asTable={asTable} onToggle={() => setAsTable((v) => !v)}>
+        <QueryState query={q} what="readiness by start week">
+          {() => <ReadinessChart data={q.data!} asTable={asTable} weeks={READINESS_WEEKS} stale={stale || q.isFetching} />}
+        </QueryState>
+      </ReadinessFigure>
+    </section>
+  );
+}
+
+/** Refetches the dashboard's aggregate cards (not the hub, which arrives live). */
+function useRefreshCards() {
+  const qc = useQueryClient();
+  return () => Promise.all([["readiness"], ["changes"]].map((k) => qc.invalidateQueries({ queryKey: k })));
 }
 
 /**
@@ -72,6 +98,7 @@ export function DashboardView({ hub, me, stale = false }: { hub: HubState; me: M
         {/* a stage's open cases are started cases that have not finished; a completed case keeps its last stage, so its links filter by status */}
         <StageFunnelChart stages={hub.byStage} complete={hub.totals.complete} stale={stale} />
       </section>
+      <ReadinessCard stale={stale} />
       <div className="grid two">
         <Breakdown title="Open blockers by kind" data={hub.blockersOpen.byKind} linkTo={kindLink(me)}>
           {ownDepartment ? (
@@ -160,7 +187,10 @@ function freshest(live: HubState | null, snapshot: HubState | undefined): HubSta
 export function DashboardPage() {
   useDocumentTitle("Dashboard");
   const { me } = useSession();
-  const live = useHubLive();
+  const refreshCards = useRefreshCards();
+  // a new hub version means some case changed: refresh the aggregate cards, at most once a minute (no polling)
+  const onVersion = useThrottledCallback(() => void refreshCards(), DASHBOARD_CARD_STALE_MS);
+  const live = useHubLive({ onVersion });
   // the snapshot (GET /api/dashboard/summary, about 1,400 D1 rows) is read once, or again only on Refresh: no polling
   const fallback = useDashboardSummary(!live.state);
   const hub = freshest(live.state, fallback.data);
@@ -177,7 +207,14 @@ export function DashboardPage() {
       {hub && paused ? (
         <p className="refresh-warning" role="status">
           Live updates paused; showing data from {new Date(hub.reconciledAt).toLocaleTimeString()}.{" "}
-          <button type="button" onClick={() => void fallback.refetch()} disabled={fallback.isFetching}>
+          <button
+            type="button"
+            onClick={() => {
+              void fallback.refetch();
+              void refreshCards();
+            }}
+            disabled={fallback.isFetching}
+          >
             {fallback.isFetching ? "Refreshing..." : "Refresh"}
           </button>
         </p>

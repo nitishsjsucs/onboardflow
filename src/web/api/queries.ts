@@ -3,7 +3,7 @@ import { actionId, actionKeys } from "./action-keys.ts";
 import { apiFetch } from "./client.ts";
 import { shouldRetryQuery } from "./query-client.ts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, TaskView } from "../../shared/api.ts";
+import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, StartReadinessDto, TaskView } from "../../shared/api.ts";
 import type { HubState } from "../../shared/agent-state.ts";
 
 export type RoundResult = { round: number };
@@ -19,7 +19,12 @@ export const keys = {
   blockers: ["blockers"] as const,
   followups: ["followups"] as const,
   dashboard: ["dashboard"] as const,
+  // not under ["dashboard"]: every live hub frame invalidates that key, and these refetch at most once a minute
+  readiness: (weeks: number) => ["readiness", weeks] as const,
 };
+
+/** How long the dashboard's aggregate cards (readiness, what changed) count as fresh; also the least time between their refetches. */
+export const DASHBOARD_CARD_STALE_MS = 60_000;
 
 /** Who is signed in. A 401 is final (signed out); a network failure or 5xx is retried like any query. */
 export function useMe() {
@@ -161,7 +166,7 @@ export function useEmployeeProfile(id: string, enabled = true) {
   return useQuery({ queryKey: keys.employee(id), queryFn: ({ signal }) => apiFetch<EmployeeProfileDto>(`/api/employees/${encodeURIComponent(id)}`, { signal }), enabled });
 }
 
-export type EmployeeFilters = { q?: string; status?: string; stage?: string };
+export type EmployeeFilters = { q?: string; status?: string; stage?: string; startFrom?: string; startTo?: string };
 
 /** Employees matching the filters, 100 per page; Load more follows nextCursor (the API reports no total). */
 export function useEmployees(f: EmployeeFilters) {
@@ -204,6 +209,15 @@ export function useAdminCaseAction(kind: "restart" | "terminate") {
     (v) => apiFetch(`/api/cases/${v.employeeId}/${kind}`, { method: "POST", body: { reason: v.reason }, idempotencyKey: v.key }),
     [["case"], ["employees"]],
   );
+}
+
+/** People starting each week from today, by readiness for day one (coordinators and admins). */
+export function useStartReadiness(weeks = 12) {
+  return useQuery({
+    queryKey: keys.readiness(weeks),
+    queryFn: ({ signal }) => apiFetch<StartReadinessDto>(`/api/dashboard/start-readiness?weeks=${weeks}`, { signal }),
+    staleTime: DASHBOARD_CARD_STALE_MS,
+  });
 }
 
 export function useDashboardSummary(enabled = true) {

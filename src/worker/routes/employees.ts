@@ -49,6 +49,15 @@ export function employeeRoutes() {
       where.push("c.status = ?");
       binds.push(q.value.status);
     }
+    // start dates are YYYY-MM-DD strings (validated by the query schema), so string comparison is date order
+    if (q.value.startFrom) {
+      where.push("e.start_date >= ?");
+      binds.push(q.value.startFrom);
+    }
+    if (q.value.startTo) {
+      where.push("e.start_date <= ?");
+      binds.push(q.value.startTo);
+    }
     if (q.value.orgUnit) {
       where.push("e.org_unit = ?");
       binds.push(q.value.orgUnit);

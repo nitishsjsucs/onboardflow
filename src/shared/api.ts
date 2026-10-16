@@ -22,6 +22,7 @@ import {
   TASK_STATUSES,
   WORK_MODES,
 } from "./domain.ts";
+import { dayIndex } from "./readiness.ts";
 import { DEPARTMENTS, ROLES, type Role } from "./roles.ts";
 import { STAGE_IDS } from "./stages.ts";
 
@@ -66,6 +67,7 @@ export const API_ROUTES = [
   { id: "blockers.resolve", method: "POST", path: "/api/blockers/:id/resolve", roles: OPS },
   { id: "followups.list", method: "GET", path: "/api/followups", roles: OPS },
   { id: "dashboard.summary", method: "GET", path: "/api/dashboard/summary", roles: OPS },
+  { id: "dashboard.startReadiness", method: "GET", path: "/api/dashboard/start-readiness", roles: OPS },
   { id: "integrations.health", method: "GET", path: "/api/integrations/health", roles: OPS },
   { id: "audit.list", method: "GET", path: "/api/audit", roles: ADMIN },
 ] as const satisfies readonly RouteDef[];
@@ -102,12 +104,23 @@ export const PatchEmployeeBody = z
 
 const limit = z.coerce.number().int().min(1).max(MAX_PAGE).optional();
 export const PageQuery = z.object({ cursor: z.string().optional(), limit });
+/** A calendar date, YYYY-MM-DD, that exists. */
+export const DateOnly = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")
+  .refine((v) => dayIndex(v) !== null, "not a calendar date");
 export const EmployeesQuery = PageQuery.extend({
   stage: z.enum(STAGE_IDS).optional(),
   status: z.enum(CASE_STATUS_FILTERS).optional(),
   orgUnit: z.string().optional(),
   q: z.string().max(100).optional(),
+  /** Start dates from this day on (inclusive); added 2026-10-16 for the dashboard's readiness links. */
+  startFrom: DateOnly.optional(),
+  /** Start dates up to this day (inclusive). */
+  startTo: DateOnly.optional(),
 });
+export const MAX_READINESS_WEEKS = 26;
+export const StartReadinessQuery = z.object({ weeks: z.coerce.number().int().min(1).max(MAX_READINESS_WEEKS).optional() });
 export const ApprovalsQuery = PageQuery.extend({ status: z.enum([...APPROVAL_STATUSES, "all"]).optional() });
 export const BlockersQuery = PageQuery.extend({
   status: z.enum(["open", "resolved", "all"]).optional(),
@@ -360,6 +373,17 @@ export const HubStateSchema = z.object({
   reconciledAt: z.string(),
   version: z.number().int(),
 });
+
+const ReadinessCountsSchema = z.object({ total: count, ready: count, blocked: count, waiting: count, inSetup: count, notStarted: count, failed: count });
+/** GET /api/dashboard/start-readiness: people starting each week from today, by readiness for day one (src/shared/readiness.ts). */
+export const StartReadinessSchema = z.object({
+  /** Today on the server's clock (UTC), YYYY-MM-DD: the window starts here. */
+  asOf: z.string(),
+  weeks: z.array(ReadinessCountsSchema.extend({ weekStart: z.string() })),
+  /** Start dates before today whose onboarding is not complete; null when there are none. */
+  alreadyStarted: ReadinessCountsSchema.nullable(),
+});
+export type StartReadinessDto = z.infer<typeof StartReadinessSchema>;
 
 export const StartResponse = z.object({ instanceId: z.string(), created: z.boolean() });
 export const RoundResponse = z.object({ round: z.number().int() });

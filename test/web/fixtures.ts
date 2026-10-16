@@ -1,4 +1,4 @@
-import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, EmployeeProfileDto, EmployeeSummary } from "../../src/shared/api.ts";
+import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, EmployeeProfileDto, EmployeeSummary, StartReadinessDto } from "../../src/shared/api.ts";
 import { STAGES } from "../../src/shared/stages.ts";
 
 export function approval(over: Partial<ApprovalView> = {}): ApprovalView {
@@ -170,6 +170,22 @@ export function profile(over: Partial<EmployeeProfileDto> = {}): EmployeeProfile
     needsPrivilegedAccess: false,
     costCenter: "CC 1100",
     photoOnFile: true,
+    ...over,
+  };
+}
+
+/** A readiness response: asOf 2026-10-16 (a Friday), the week of Oct 12 (this week) and of Oct 19 empty, then two cohorts. */
+export function readiness(over: Partial<StartReadinessDto> = {}): StartReadinessDto {
+  const zero = { total: 0, ready: 0, blocked: 0, waiting: 0, inSetup: 0, notStarted: 0, failed: 0 };
+  return {
+    asOf: "2026-10-16",
+    weeks: [
+      { weekStart: "2026-10-12", ...zero },
+      { weekStart: "2026-10-19", ...zero },
+      { weekStart: "2026-11-02", total: 15, ready: 6, blocked: 1, waiting: 3, inSetup: 5, notStarted: 0, failed: 0 },
+      { weekStart: "2026-11-09", total: 10, ready: 2, blocked: 0, waiting: 0, inSetup: 0, notStarted: 7, failed: 1 },
+    ],
+    alreadyStarted: null,
     ...over,
   };
 }

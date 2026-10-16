@@ -19,10 +19,14 @@ import {
   RestartResponse,
   RoundResponse,
   ScanResponse,
+  StartReadinessSchema,
   StartResponse,
   TaskViewSchema,
   TerminateResponse,
 } from "../../src/shared/api.ts";
+import type { CaseStatus, StageStatus } from "../../src/shared/domain.ts";
+import { READINESS_KEYS, readinessClass, weekStart } from "../../src/shared/readiness.ts";
+import type { StageId } from "../../src/shared/stages.ts";
 import { api } from "../helpers/api.ts";
 import { setFault } from "../helpers/sims.ts";
 import { driveHappyPathViaApi, fastWorkflows, managerOf, waitFor, waitForStage } from "../helpers/workflow.ts";
@@ -222,5 +226,112 @@ describe("request validation", () => {
     const next = await api(`/api/employees?limit=2&cursor=${first.body.nextCursor}`, { as: "A01" });
     expect(next.status).toBe(200);
     expect(next.body.items[0].id).toBe("E003");
+  });
+});
+
+describe("readiness by start week", () => {
+  type Saved = { id: string; start_date: string; status: string; current_stage: string | null };
+  /** Puts cases in the given states for the test, and restores them afterwards. */
+  async function withCases(changes: Array<{ id: string; startDate?: string; status: string; stage: string | null }>, run: () => Promise<void>) {
+    const ids = changes.map((x) => x.id);
+    const saved = await DB.prepare(
+      `SELECT e.id, e.start_date, c.status, c.current_stage FROM employees e JOIN cases c ON c.employee_id = e.id WHERE e.id IN (${ids.map(() => "?").join(", ")})`,
+    )
+      .bind(...ids)
+      .all<Saved>();
+    try {
+      for (const x of changes) {
+        if (x.startDate) await DB.prepare("UPDATE employees SET start_date = ? WHERE id = ?").bind(x.startDate, x.id).run();
+        await DB.prepare("UPDATE cases SET status = ?, current_stage = ? WHERE employee_id = ?").bind(x.status, x.stage, x.id).run();
+      }
+      await run();
+    } finally {
+      for (const r of saved.results) {
+        await DB.prepare("UPDATE employees SET start_date = ? WHERE id = ?").bind(r.start_date, r.id).run();
+        await DB.prepare("UPDATE cases SET status = ?, current_stage = ? WHERE employee_id = ?").bind(r.status, r.current_stage, r.id).run();
+      }
+    }
+  }
+
+  it("counts everyone starting in the window by week, on the server's clock", async () => {
+    const r = valid(StartReadinessSchema, await api("/api/dashboard/start-readiness?weeks=26", { as: "C01" }));
+    // the tests pin the simulated clock to 2026-10-08, a Thursday
+    expect(r.asOf).toBe("2026-10-08");
+    expect(r.weeks[0]!.weekStart).toBe("2026-10-05");
+    expect(r.weeks).toHaveLength(27);
+    expect(r.alreadyStarted).toBeNull();
+    expect(r.weeks.reduce((a, w) => a + w.total, 0)).toBe(150);
+    const nov2 = r.weeks.find((w) => w.weekStart === "2026-11-02")!;
+    expect(nov2.total).toBe(15);
+    // weeks without start dates are listed with zeros
+    expect(r.weeks.find((w) => w.weekStart === "2026-10-12")).toEqual({ weekStart: "2026-10-12", total: 0, ready: 0, blocked: 0, waiting: 0, inSetup: 0, notStarted: 0, failed: 0 });
+    // every count equals a direct count per employee (one row each, classed by the same rule)
+    const people = await DB.prepare(
+      `SELECT e.start_date, c.status, c.current_stage, cs.status AS stage_status FROM employees e JOIN cases c ON c.employee_id = e.id
+         LEFT JOIN case_stages cs ON cs.employee_id = e.id AND cs.stage_id = c.current_stage`,
+    ).all<{ start_date: string; status: CaseStatus; current_stage: StageId | null; stage_status: StageStatus | null }>();
+    const expected = new Map<string, Record<string, number>>();
+    for (const p of people.results) {
+      const w = expected.get(weekStart(p.start_date)) ?? { total: 0, ready: 0, blocked: 0, waiting: 0, inSetup: 0, notStarted: 0, failed: 0 };
+      w.total! += 1;
+      w[READINESS_KEYS[readinessClass(p.status, p.current_stage, p.stage_status)]]! += 1;
+      expected.set(weekStart(p.start_date), w);
+    }
+    for (const w of r.weeks.filter((x) => x.total > 0)) expect({ weekStart: w.weekStart, ...expected.get(w.weekStart) }).toEqual(w);
+    // DONE (E020) is complete, so its week counts it as ready
+    expect(r.weeks.find((w) => w.weekStart === "2026-12-28")!.ready).toBeGreaterThanOrEqual(1);
+    // the default window is 12 weeks: the cohort of 2027-01-04 is past it
+    const twelve = valid(StartReadinessSchema, await api("/api/dashboard/start-readiness", { as: "A01" }));
+    expect(twelve.weeks.map((w) => w.weekStart).at(-1)).toBe("2026-12-28");
+    expect(twelve.weeks.reduce((a, w) => a + w.total, 0)).toBe(135);
+  });
+
+  it("classes started cases with several start dates, and lists the already started apart", async () => {
+    await withCases(
+      [
+        { id: "E031", startDate: "2026-11-03", status: "blocked", stage: "it_provisioning" },
+        { id: "E032", startDate: "2026-11-04", status: "awaiting_approval", stage: "manager_approval" },
+        { id: "E033", startDate: "2026-11-05", status: "in_progress", stage: "facilities_setup" },
+        { id: "E034", startDate: "2026-11-06", status: "in_progress", stage: "orientation" },
+        { id: "E035", startDate: "2026-11-07", status: "failed", stage: "intake" },
+        { id: "E036", startDate: "2026-10-01", status: "blocked", stage: "intake" },
+        { id: "E037", startDate: "2026-10-02", status: "awaiting_approval", stage: "closeout" },
+        { id: "E038", startDate: "2026-10-02", status: "complete", stage: "closeout" },
+      ],
+      async () => {
+        const r = valid(StartReadinessSchema, await api("/api/dashboard/start-readiness?weeks=26", { as: "C03" }));
+        const nov2 = r.weeks.find((w) => w.weekStart === "2026-11-02")!;
+        const before = await DB.prepare("SELECT COUNT(*) AS n FROM employees WHERE start_date BETWEEN '2026-11-02' AND '2026-11-08'").first<{ n: number }>();
+        expect(nov2.total).toBe(before!.n);
+        expect({ blocked: nov2.blocked, waiting: nov2.waiting, inSetup: nov2.inSetup, failed: nov2.failed, ready: nov2.ready }).toEqual({ blocked: 1, waiting: 1, inSetup: 1, failed: 1, ready: 1 });
+        expect(nov2.notStarted).toBe(nov2.total - 5);
+        // started before today and not finished: the complete one (E038) is left out
+        expect(r.alreadyStarted).toEqual({ total: 2, ready: 1, blocked: 1, waiting: 0, inSetup: 0, notStarted: 0, failed: 0 });
+      },
+    );
+  });
+
+  it("validates the number of weeks", async () => {
+    for (const w of ["0", "27", "1.5", "x"]) expect((await api(`/api/dashboard/start-readiness?weeks=${w}`, { as: "A01" })).status, w).toBe(400);
+    expect((await api("/api/dashboard/start-readiness?weeks=1", { as: "A01" })).status).toBe(200);
+    const res = await api("/api/dashboard/start-readiness", { as: "A01" });
+    expect(res.headers.get("Cache-Control")).toBeNull();
+  });
+
+  it("filters the employees list by start date range, both ends inclusive", async () => {
+    const week = valid(page(EmployeeSummarySchema), await api("/api/employees?startFrom=2026-11-02&startTo=2026-11-08&limit=100", { as: "C01" }));
+    expect(week.items).toHaveLength(15);
+    expect(week.items.every((e) => e.startDate === "2026-11-02")).toBe(true);
+    const one = valid(page(EmployeeSummarySchema), await api("/api/employees?startFrom=2026-11-09&startTo=2026-11-09&limit=100", { as: "C01" }));
+    expect(one.items.every((e) => e.startDate === "2026-11-09")).toBe(true);
+    expect(one.items).toHaveLength(15);
+    const blockedEarly = valid(page(EmployeeSummarySchema), await api("/api/employees?status=blocked&startTo=2026-11-01", { as: "C01" }));
+    expect(blockedEarly.items).toEqual([]);
+    // a manager still sees only their reports inside the range
+    const mine = valid(page(EmployeeSummarySchema), await api("/api/employees?startFrom=2026-11-02&startTo=2027-01-10&limit=100", { as: manager }));
+    expect(mine.items.every((e) => e.managerId === manager)).toBe(true);
+    for (const bad of ["2026-11-2", "2026-02-31", "Nov 2", "2026-11-02T00:00:00Z"]) {
+      expect((await api(`/api/employees?startFrom=${encodeURIComponent(bad)}`, { as: "C01" })).status, bad).toBe(400);
+    }
   });
 });

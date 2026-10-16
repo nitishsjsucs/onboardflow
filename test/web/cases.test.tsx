@@ -137,3 +137,33 @@ describe("CasesPage list", () => {
     }
   });
 });
+
+describe("CasesPage start date filter (from the dashboard's readiness links)", () => {
+  it("sends the start dates, names the week on a removable chip, and removing it clears both", async () => {
+    const calls = mockFetch(() => ({ body: { items: [WREN], nextCursor: null } }));
+    const { router } = renderWith(<CasesPage />, { me: PERSONAS.peopleOps!, path: "/cases?status=blocked&startFrom=2026-11-02&startTo=2026-11-08" });
+    await screen.findByText("Wren Abara");
+    expect(employeeGets(calls)[0]!.url).toBe("/api/employees?limit=100&status=blocked&startFrom=2026-11-02&startTo=2026-11-08");
+    const chips = screen.getByRole("group", { name: "Active filters" });
+    const chip = within(chips).getByRole("button", { name: "Start week of Mon Nov 2: remove filter" });
+    expect(chip.textContent).toBe("Start week of Mon Nov 2 ×");
+    fireEvent.click(chip);
+    await waitFor(() => expect(router.state.location.search).toBe("?status=blocked"));
+    expect(screen.queryByRole("group", { name: "Active filters" })).toBeNull();
+    await waitFor(() => expect(employeeGets(calls).at(-1)!.url).toBe("/api/employees?limit=100&status=blocked"));
+  });
+
+  it("describes other ranges, and ignores a value that is not a date", async () => {
+    const calls = mockFetch(() => ({ body: { items: [WREN], nextCursor: null } }));
+    renderWith(<CasesPage />, { me: PERSONAS.admin!, path: "/cases?startTo=2026-10-15" });
+    expect(await screen.findByRole("button", { name: "Start dates up to Thu Oct 15: remove filter" })).toBeTruthy();
+    cleanup();
+    renderWith(<CasesPage />, { me: PERSONAS.admin!, path: "/cases?startFrom=2026-11-03&startTo=2026-11-20" });
+    expect(await screen.findByRole("button", { name: "Start dates Tue Nov 3 to Fri Nov 20: remove filter" })).toBeTruthy();
+    cleanup();
+    renderWith(<CasesPage />, { me: PERSONAS.admin!, path: "/cases?startFrom=2026-02-31" });
+    await screen.findByText("Wren Abara");
+    expect(screen.queryByRole("group", { name: "Active filters" })).toBeNull();
+    expect(employeeGets(calls).at(-1)!.url).toBe("/api/employees?limit=100");
+  });
+});

@@ -1,18 +1,21 @@
 // Cases: filterable table. Managers see only their direct reports. Filters
 // live in the URL (?q=&status=&stage=; status=open is every started case
-// that has not finished), so reload, back and links from the dashboard keep
-// them; the search waits until typing stops. Load more follows the API's
-// cursor, 100 employees at a time.
+// that has not finished; startFrom= and startTo= limit the start dates, as
+// the dashboard's readiness links do, and show as a removable chip), so
+// reload, back and links from the dashboard keep them; the search waits
+// until typing stops. Load more follows the API's cursor, 100 employees at a time.
 import { useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { EmployeeSummary, MeDto } from "../../shared/api.ts";
 import { CASE_STATUS_FILTERS, CASE_STATUSES, isOneOf } from "../../shared/domain.ts";
+import { addDays, dayIndex, weekStart } from "../../shared/readiness.ts";
 import { STAGE_IDS, STAGES } from "../../shared/stages.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useEmployees, useStartCase } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
 import { ActionButton } from "../components/ActionButton.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
+import { formatDay } from "../components/dates.ts";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
@@ -24,6 +27,14 @@ export const SEARCH_DEBOUNCE_MS = 250;
 
 const COLUMNS = ["Employee", "Org unit", "Start", "Status", "Stage", "Blockers", "Action"] as const;
 
+const dateParam = (v: string | null) => (v && dayIndex(v) !== null ? v : "");
+
+/** The start date filter in words: "Start week of Mon Nov 2", "Start dates up to Thu Oct 15". */
+export function startRangeText(from: string, to: string): string {
+  if (from && to) return from === weekStart(from) && to === addDays(from, 6) ? `Start week of ${formatDay(from)}` : `Start dates ${formatDay(from)} to ${formatDay(to)}`;
+  return from ? `Start dates from ${formatDay(from)}` : `Start dates up to ${formatDay(to)}`;
+}
+
 export function CasesPage() {
   const { me } = useSession();
   useDocumentTitle(me?.role === "manager" ? "My team" : "Cases");
@@ -33,8 +44,10 @@ export function CasesPage() {
   const stageParam = params.get("stage");
   const status = isOneOf(CASE_STATUS_FILTERS, statusParam) ? statusParam : "";
   const stage = isOneOf(STAGE_IDS, stageParam) ? stageParam : "";
+  const startFrom = dateParam(params.get("startFrom"));
+  const startTo = dateParam(params.get("startTo"));
   const q = useDebouncedValue(qParam.trim(), SEARCH_DEBOUNCE_MS);
-  const list = useEmployees({ q, status, stage });
+  const list = useEmployees({ q, status, stage, startFrom, startTo });
   const items = (list.data?.pages ?? []).flatMap((p) => p.items);
   const tbody = useRef<HTMLTableSectionElement>(null);
   const more = useFocusRequest<HTMLElement>();
@@ -51,6 +64,12 @@ export function CasesPage() {
     if (value) next.set(key, value);
     else next.delete(key);
     setParams(next, { replace });
+  };
+  const clearStartRange = () => {
+    const next = new URLSearchParams(params);
+    next.delete("startFrom");
+    next.delete("startTo");
+    setParams(next);
   };
 
   return (
@@ -83,6 +102,13 @@ export function CasesPage() {
           </select>
         </div>
       </div>
+      {startFrom || startTo ? (
+        <div className="chips" role="group" aria-label="Active filters">
+          <button type="button" className="chip" aria-label={`${startRangeText(startFrom, startTo)}: remove filter`} onClick={clearStartRange}>
+            {startRangeText(startFrom, startTo)} <span aria-hidden="true">×</span>
+          </button>
+        </div>
+      ) : null}
       <QueryState query={list} what="the cases">
         {() =>
           items.length === 0 ? (

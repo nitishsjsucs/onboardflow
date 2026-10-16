@@ -3,7 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HubState } from "../../src/shared/agent-state.ts";
 import { STAGE_BY_ID, STAGE_IDS } from "../../src/shared/stages.ts";
 import { DashboardPage } from "../../src/web/pages/DashboardPage.tsx";
+import { readiness } from "./fixtures.ts";
 import { mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+
+/** The summary for /api/dashboard/summary, and the aggregate cards' own answers. */
+const serve = (summary: () => HubState) => (url: string) =>
+  url.startsWith("/api/dashboard/start-readiness") ? { body: readiness() } : url.startsWith("/api/dashboard/changes") ? { body: { items: [] } } : { body: summary() };
+const summaries = (calls: Array<{ url: string }>) => calls.filter((c) => c.url === "/api/dashboard/summary");
 
 const hub: HubState = {
   totals: { not_started: 100, in_progress: 21, blocked: 4, awaiting_approval: 7, complete: 17, failed: 1 },
@@ -35,7 +41,7 @@ beforeEach(() => {
 
 describe("DashboardPage with live hub state", () => {
   it("renders KPI tiles, the 8-stage funnel, blockers by kind and department, approvals pending and overdue", () => {
-    const calls = mockFetch(() => ({ body: hub }));
+    const calls = mockFetch(serve(() => hub));
     renderWith(<DashboardPage />, { me: PERSONAS.it!, path: "/dashboard" });
     expect(screen.getByTestId("kpi-In progress").textContent).toContain("21");
     expect(screen.getByTestId("kpi-Blocked").textContent).toContain("4");
@@ -51,12 +57,12 @@ describe("DashboardPage with live hub state", () => {
     expect(screen.getByTestId("approvals-pending").textContent).toBe("9 pending, 2 overdue");
     expect(screen.getByText(/3 cases since/)).toBeTruthy();
     expect(screen.getByRole("status", { name: /Live/ })).toBeTruthy();
-    // live state present: no fallback fetch
-    expect(calls).toHaveLength(0);
+    // live state present: no fallback fetch of the summary
+    expect(summaries(calls)).toHaveLength(0);
   });
 
   it("shows each stage's label, who acts and its counts as text", () => {
-    mockFetch(() => ({ body: hub }));
+    mockFetch(serve(() => hub));
     renderWith(<DashboardPage />, { me: PERSONAS.it!, path: "/dashboard" });
     const it = screen.getByTestId("funnel-it_provisioning");
     expect(within(it).getByText(`4. ${STAGE_BY_ID.it_provisioning.name}`)).toBeTruthy();
@@ -67,7 +73,7 @@ describe("DashboardPage with live hub state", () => {
   });
 
   it("links the numbers to the lists behind them", () => {
-    mockFetch(() => ({ body: hub }));
+    mockFetch(serve(() => hub));
     renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
     expect(screen.getByTestId("kpi-Blocked").getAttribute("href")).toBe("/cases?status=blocked");
     expect(screen.getByTestId("kpi-In progress").getAttribute("href")).toBe("/cases?status=in_progress");
@@ -82,7 +88,7 @@ describe("DashboardPage with live hub state", () => {
 
   it("links a coordinator only to kinds their own queue holds, and says the counts cover every department", () => {
     const kindHref = (k: string) => within(screen.getByTestId(`Open blockers by kind-${k}`)).queryByRole("link")?.getAttribute("href") ?? null;
-    mockFetch(() => ({ body: hub }));
+    mockFetch(serve(() => hub));
     renderWith(<DashboardPage />, { me: PERSONAS.peopleOps!, path: "/dashboard" });
     expect(within(screen.getByTestId("Open blockers by department-it")).queryByRole("link")).toBeNull();
     // approval and checklist blockers are all People Ops': their counts match People Ops' queue
@@ -96,7 +102,7 @@ describe("DashboardPage with live hub state", () => {
     expect(within(byKind).getByRole("link", { name: "Your queue" }).getAttribute("href")).toBe("/queue");
     cleanup();
     // an IT coordinator's queue never holds approval blockers: no link that would open an empty list
-    mockFetch(() => ({ body: hub }));
+    mockFetch(serve(() => hub));
     renderWith(<DashboardPage />, { me: PERSONAS.it!, path: "/dashboard" });
     expect(kindHref("approval_overdue")).toBeNull();
     expect(kindHref("integration_outage")).toBeNull();
@@ -106,15 +112,18 @@ describe("DashboardPage with live hub state", () => {
     live.value = { state: null, status: "offline" };
     const fresher = { ...hub, totals: { ...hub.totals, blocked: 5 }, reconciledAt: "2026-10-08T10:05:00.000Z" };
     let n = 0;
-    const calls = mockFetch(() => ({ body: ++n === 1 ? hub : fresher }));
+    const calls = mockFetch(serve(() => (++n === 1 ? hub : fresher)));
     renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
     const paused = await screen.findByText(/Live updates paused; showing data from/);
     expect(screen.getByTestId("kpi-Blocked").textContent).toContain("4");
     await new Promise((r) => setTimeout(r, 50));
-    expect(calls).toHaveLength(1);
+    expect(summaries(calls)).toHaveLength(1);
+    const readinessCalls = () => calls.filter((c) => c.url.startsWith("/api/dashboard/start-readiness")).length;
+    expect(readinessCalls()).toBe(1);
     fireEvent.click(within(paused).getByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(screen.getByTestId("kpi-Blocked").textContent).toContain("5"));
-    expect(calls).toHaveLength(2);
-    expect(calls.every((c) => c.url === "/api/dashboard/summary")).toBe(true);
+    expect(summaries(calls)).toHaveLength(2);
+    // Refresh also refetches the aggregate cards
+    await waitFor(() => expect(readinessCalls()).toBe(2));
   });
 });

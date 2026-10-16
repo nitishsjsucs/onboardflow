@@ -111,6 +111,7 @@ const ROUTE_CASES: Record<RouteId, RouteCase> = {
   "blockers.resolve": { path: "/api/blockers/blk:fixture/resolve", opts: { body: { resolution: "matrix" } }, expect: only({ coordIt: 409, admin: 409 }) },
   "followups.list": { path: "/api/followups", expect: only(OPS) },
   "dashboard.summary": { path: "/api/dashboard/summary", expect: only(OPS) },
+  "dashboard.startReadiness": { path: "/api/dashboard/start-readiness", expect: only(OPS) },
   "integrations.health": { path: "/api/integrations/health", expect: only(OPS) },
   "audit.list": { path: "/api/audit", expect: only({ admin: 200 }) },
 };

@@ -18,7 +18,7 @@ function block(selector: string): string {
   throw new Error(`unclosed ${selector}`);
 }
 
-const TOKENS = ["--chart-blocked", "--chart-waiting", "--chart-running"];
+const TOKENS = ["--chart-blocked", "--chart-waiting", "--chart-running", "--chart-ready"];
 const SELECTORS = { light: ":root {", systemDark: ':root:not([data-theme="light"])', forcedDark: ':root[data-theme="dark"]' };
 
 describe("chart color tokens", () => {
