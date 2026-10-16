@@ -17,6 +17,7 @@ import { ActionButton } from "../components/ActionButton.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { blockerDetail, blockerTitle, DEPARTMENT_NAMES, FIELD_LABELS, isFixableField, KIND_NAMES, queueOrder, relativeTime, stageState } from "../components/blocker-text.ts";
 import { DataIssueFix } from "../components/DataIssueFix.tsx";
+import { approvalAnchor } from "../components/links.ts";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { roundsReadout, type RoundsReadout } from "../components/rounds.ts";
@@ -26,9 +27,6 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 import { useFocusRequest, useFocusRescue } from "../hooks/useFocus.ts";
 import { useHubLive } from "../live/useHubLive.ts";
 
-export function approvalAnchor(approvalId: string): string {
-  return `/approvals#approval-${encodeURIComponent(approvalId)}`;
-}
 
 /** The DOM id of a queue item, so another item can move focus to it. */
 export function queueItemId(blockerId: string): string {

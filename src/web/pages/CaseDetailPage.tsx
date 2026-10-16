@@ -13,6 +13,8 @@ import { ActionMessage } from "../components/ActionMessage.tsx";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
 import { isFixableField, readableMessage } from "../components/blocker-text.ts";
+import { caseSentence } from "../components/case-sentence.ts";
+import { formatDay } from "../components/dates.ts";
 import { DataIssueFix } from "../components/DataIssueFix.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { QueryState } from "../components/QueryState.tsx";
@@ -100,8 +102,9 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
           <h1 tabIndex={-1} ref={pageHeading}>
             {d.employee.firstName} {d.employee.lastName} <span className="muted mono">{d.employee.id}</span>
           </h1>
+          <CaseNow d={d} me={me} />
           <div className="sub">
-            {d.employee.jobTitle}, {d.employee.orgUnit}. Starts {d.employee.startDate}. Manager {d.employee.managerName}.{" "}
+            {d.employee.jobTitle}, {d.employee.orgUnit}. Start date {formatDay(d.employee.startDate)}. Manager {d.employee.managerName}.{" "}
             <StatusBadge status={d.case.status} />
             {d.case.failureReason ? ` (${label(d.case.failureReason)})` : ""}
           </div>
@@ -186,6 +189,25 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
         </QueryState>
       </section>
     </>
+  );
+}
+
+/** What the case waits on and who acts, since when, the start date in words, and progress: read first, after the name. */
+function CaseNow({ d, me }: { d: CaseDetail; me: MeDto | null }) {
+  const s = caseSentence(d, me);
+  const name = `${d.employee.firstName} ${d.employee.lastName}`;
+  return (
+    <p className="case-now" data-testid="case-now">
+      {s.parts.join(" ")}
+      {s.action ? (
+        <>
+          {" "}
+          <Link className="button-link" to={s.action.href} aria-label={`${s.action.text} for ${name}`}>
+            {s.action.text}
+          </Link>
+        </>
+      ) : null}
+    </p>
   );
 }
 
