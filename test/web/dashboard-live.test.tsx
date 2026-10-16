@@ -41,6 +41,7 @@ describe("DashboardPage with live hub state", () => {
     expect(screen.getByTestId("kpi-Blocked").textContent).toContain("4");
     expect(screen.getByTestId("kpi-Awaiting approval").textContent).toContain("7");
     expect(screen.getByTestId("kpi-Complete").textContent).toContain("17");
+    expect(screen.getByRole("figure", { name: "Where open cases are waiting" })).toBeTruthy();
     const funnel = screen.getByRole("list", { name: "cases per stage" });
     expect(STAGE_IDS.map((s) => funnel.querySelector(`[data-testid="funnel-${s}"]`) !== null)).toEqual(Array(8).fill(true));
     const byKind = screen.getByRole("region", { name: "Open blockers by kind" });
@@ -54,15 +55,15 @@ describe("DashboardPage with live hub state", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("shows each stage's label and counts as text", () => {
+  it("shows each stage's label, who acts and its counts as text", () => {
     mockFetch(() => ({ body: hub }));
     renderWith(<DashboardPage />, { me: PERSONAS.it!, path: "/dashboard" });
     const it = screen.getByTestId("funnel-it_provisioning");
     expect(within(it).getByText(`4. ${STAGE_BY_ID.it_provisioning.name}`)).toBeTruthy();
-    expect(within(it).getByText("8 in stage")).toBeTruthy();
-    expect(within(it).getByText("5 active")).toBeTruthy();
-    expect(within(it).getByText("3 blocked")).toBeTruthy();
-    expect(within(it).getByText("31 complete")).toBeTruthy();
+    expect(within(it).getByText(": IT acts")).toBeTruthy();
+    expect(within(it).getByText("31 done")).toBeTruthy();
+    expect(within(it).getByRole("link", { name: /^3 blocked/ })).toBeTruthy();
+    expect(within(it).getByRole("link", { name: /^5 running/ })).toBeTruthy();
   });
 
   it("links the numbers to the lists behind them", () => {
@@ -72,9 +73,9 @@ describe("DashboardPage with live hub state", () => {
     expect(screen.getByTestId("kpi-In progress").getAttribute("href")).toBe("/cases?status=in_progress");
     expect(screen.getByTestId("kpi-Awaiting approval").getAttribute("href")).toBe("/cases?status=awaiting_approval");
     expect(screen.getByTestId("kpi-Complete").getAttribute("href")).toBe("/cases?status=complete");
-    // a stage's "in stage" count is its open cases: a completed case keeps its last stage, so the link filters them out
-    expect(within(screen.getByTestId("funnel-paperwork")).getByRole("link").getAttribute("href")).toBe("/cases?stage=paperwork&status=open");
-    expect(within(screen.getByTestId("funnel-closeout")).getByRole("link").getAttribute("href")).toBe("/cases?stage=closeout&status=open");
+    // a stage name opens its open cases: a completed case keeps its last stage, so the link filters them out
+    expect(within(screen.getByTestId("funnel-paperwork")).getByRole("link", { name: /^2\. / }).getAttribute("href")).toBe("/cases?stage=paperwork&status=open");
+    expect(within(screen.getByTestId("funnel-closeout")).getByRole("link", { name: /^8\. / }).getAttribute("href")).toBe("/cases?stage=closeout&status=open");
     expect(within(screen.getByTestId("Open blockers by kind-approval_overdue")).getByRole("link").getAttribute("href")).toBe("/queue?kind=approval_overdue");
     expect(within(screen.getByTestId("Open blockers by department-it")).getByRole("link").getAttribute("href")).toBe("/queue?department=it");
   });

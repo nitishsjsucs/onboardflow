@@ -53,7 +53,7 @@ function kindLink(me: MeDto | null): ((kind: string) => string | null) | undefin
   return (k) => (isOneOf(BLOCKER_KINDS, k) && FIXED_BLOCKER_OWNER[k] === own ? `/queue?kind=${k}` : null);
 }
 
-export function DashboardView({ hub, me }: { hub: HubState; me: MeDto | null }) {
+export function DashboardView({ hub, me, stale = false }: { hub: HubState; me: MeDto | null; stale?: boolean }) {
   const total = Object.values(hub.totals).reduce((a, b) => a + b, 0);
   const isAdmin = me?.role === "admin";
   const ownDepartment = me?.role === "coordinator" && me.department ? DEPARTMENT_NAMES[me.department] : null;
@@ -69,9 +69,8 @@ export function DashboardView({ hub, me }: { hub: HubState; me: MeDto | null }) 
         {total} cases: {hub.totals.not_started} not started, {hub.totals.failed} failed.
       </p>
       <section className="card" aria-label="stage funnel">
-        <h2>Cases by stage</h2>
-        {/* "in stage" counts started cases that have not finished; a completed case keeps its last stage, so the link filters to open cases */}
-        <StageFunnelChart stages={hub.byStage} total={Math.max(1, total - hub.totals.not_started)} linkTo={(stage) => `/cases?stage=${stage}&status=open`} />
+        {/* a stage's open cases are started cases that have not finished; a completed case keeps its last stage, so its links filter by status */}
+        <StageFunnelChart stages={hub.byStage} complete={hub.totals.complete} stale={stale} />
       </section>
       <div className="grid two">
         <Breakdown title="Open blockers by kind" data={hub.blockersOpen.byKind} linkTo={kindLink(me)}>
@@ -184,7 +183,7 @@ export function DashboardPage() {
         </p>
       ) : null}
       {hub ? (
-        <DashboardView hub={hub} me={me} />
+        <DashboardView hub={hub} me={me} stale={paused} />
       ) : (
         <QueryState query={fallback} what="the dashboard">
           {() => null}

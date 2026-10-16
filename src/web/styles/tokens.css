@@ -24,6 +24,11 @@
   --info-bg: #e5ecfb;
   --idle-bg: #eceef1;
   --violet: #7b4fd0;
+  /* Chart states (validated with the dataviz skill's validate_palette.js against --surface, see PROGRESS.md):
+     blocked, waiting on a person, running. Text never wears them; every state also has an icon and a word. */
+  --chart-blocked: #b3261e;
+  --chart-waiting: #bf8300;
+  --chart-running: #2f5bd3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,6 +51,9 @@
     --info-bg: #1b2440;
     --idle-bg: #26292e;
     --violet: #b9a2f2;
+    --chart-blocked: #b8443f;
+    --chart-waiting: #b58c25;
+    --chart-running: #5a7fe0;
   }
 }
 
@@ -68,4 +76,7 @@
   --info-bg: #1b2440;
   --idle-bg: #26292e;
   --violet: #b9a2f2;
+  --chart-blocked: #b8443f;
+  --chart-waiting: #b58c25;
+  --chart-running: #5a7fe0;
 }
