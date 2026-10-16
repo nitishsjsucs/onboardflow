@@ -68,7 +68,7 @@ function PendingFixNote({ b, fix }: { b: BlockerView; fix: PendingFix }) {
   );
 }
 
-function FollowUpLine({ task, owner, employeeName }: { task: TaskView; owner: string; employeeName: string }) {
+function FollowUpLine({ task, owner, employeeName, onDone }: { task: TaskView; owner: string; employeeName: string; onDone: () => void }) {
   const { me } = useSession();
   const hintId = useId();
   const done = useItemAction(useCompleteTask(), () => `Follow-up done: ${task.title}`);
@@ -85,7 +85,7 @@ function FollowUpLine({ task, owner, employeeName }: { task: TaskView; owner: st
             aria-describedby={hintId}
             busy={done.pending}
             onClick={async () => {
-              await done.run({ taskId: task.id });
+              if (await done.run({ taskId: task.id })) onDone();
               outcome.request({ onlyIfLost: true });
             }}
           >
@@ -186,6 +186,10 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
   const [resolving, setResolving] = useState(false);
   // Cancel closes the form: focus goes back to the Resolve... button that opened it
   const resolveButton = useFocusRequest<HTMLButtonElement>();
+  // a follow-up marked done here leaves the open list on the next refetch: keep its line, with the
+  // confirmation that took focus, for as long as the blocker's item stays
+  const [doneFollowUp, setDoneFollowUp] = useState<TaskView | null>(null);
+  const shownFollowUp = followUp ?? doneFollowUp ?? undefined;
   const titleId = useId();
   const stage = STAGE_BY_ID[b.stageId].name;
   const title = blockerTitle(b);
@@ -231,7 +235,7 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
           }}
         />
       ) : null}
-      {followUp ? <FollowUpLine task={followUp} owner={b.ownerDepartment} employeeName={b.employeeName} /> : null}
+      {shownFollowUp ? <FollowUpLine task={shownFollowUp} owner={b.ownerDepartment} employeeName={b.employeeName} onDone={() => setDoneFollowUp(shownFollowUp)} /> : null}
     </li>
   );
 }

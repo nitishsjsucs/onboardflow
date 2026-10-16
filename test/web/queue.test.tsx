@@ -301,6 +301,30 @@ describe("QueuePage", () => {
     await waitFor(() => expect(document.activeElement).toBe(next.querySelector(".title")));
   });
 
+  it("keeps a follow-up marked done in its item, with the confirmation focused, after the open list drops it", async () => {
+    let tasks = [followUp("fu:1", overdue.id, "Chase the manager approval for Wren Abara")];
+    const calls = mockFetch((url, method) => {
+      if (method === "POST") {
+        tasks = [];
+        return { body: { ...followUp("fu:1", overdue.id, "Chase the manager approval for Wren Abara"), status: "done" } };
+      }
+      if (url.startsWith("/api/blockers")) return { body: { items: [overdue], nextCursor: null } };
+      if (url.startsWith("/api/followups")) return { body: { items: tasks, nextCursor: null } };
+      return { body: { items: [], nextCursor: null } };
+    });
+    renderWith(<QueuePage />, { me: PERSONAS.peopleOps!, path: "/queue" });
+    const done = await screen.findByRole("button", { name: /^Mark follow-up done for Wren Abara/ });
+    done.focus();
+    fireEvent.click(done);
+    const confirmation = await screen.findByText("Follow-up done: Chase the manager approval for Wren Abara");
+    // the follow-ups were fetched again without it; the line and its confirmation stay in the blocker's item
+    await waitFor(() => expect(calls.filter((c) => c.url.startsWith("/api/followups")).length).toBeGreaterThanOrEqual(2));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByText("Follow-up done: Chase the manager approval for Wren Abara")).toBe(confirmation);
+    expect(within(item(/Manager approval overdue/)).getByText(/Chase the manager approval for Wren Abara/, { selector: "span" })).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(confirmation));
+  });
+
   it("disables Retry while the stage's retry is running, and says which round", async () => {
     serve([blocker({ stageStatus: "active", stageRound: 3 })]);
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
