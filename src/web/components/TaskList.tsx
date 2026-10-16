@@ -21,6 +21,11 @@ export type TaskListProps = {
   overdueIds?: ReadonlySet<string>;
 };
 
+/** The DOM id of a task's row, so another part of the page (the employee's dates) can move focus to it. */
+export function taskRowId(taskId: string): string {
+  return `task-${taskId}`;
+}
+
 /** Ids of the tasks the open employee_task_overdue blockers list. */
 export function overdueTaskIds(blockers: BlockerView[]): Set<string> {
   const ids = new Set<string>();
@@ -84,7 +89,7 @@ function TaskBadge({ task: t, notStarted, overdue }: { task: TaskView; notStarte
 
 function TaskRow({ task: t, notStarted, overdue }: { task: TaskView; notStarted: boolean; overdue: boolean }) {
   return (
-    <li className={t.status} data-focus-item={t.id}>
+    <li className={t.status} id={taskRowId(t.id)} data-focus-item={t.id}>
       <TaskText task={t} notStarted={notStarted} />
       <div className="item-actions">
         <TaskBadge task={t} notStarted={notStarted} overdue={overdue} />
@@ -102,7 +107,7 @@ function CompletableTask({ task, doneLabel, notStarted, overdue }: { task: TaskV
   const outcome = useFocusRequest<HTMLDivElement>();
   const t = complete.success && task.status === "open" ? { ...task, status: "done" as const } : task;
   return (
-    <li className={t.status} data-focus-item={t.id}>
+    <li className={t.status} id={taskRowId(t.id)} data-focus-item={t.id}>
       <TaskText task={t} notStarted={notStarted} />
       <div className="item-actions">
         <TaskBadge task={t} notStarted={notStarted} overdue={overdue && t.status === "open"} />

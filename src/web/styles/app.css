@@ -216,6 +216,18 @@ section.card > label[for] { display: block; font-weight: 600; font-size: 0.88rem
   .strip-pip.current { background: CanvasText; color: Canvas; }
 }
 
+/* The employee's dates: key lines under the welcome, then every date in order. */
+.key-dates { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.your-dates { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.date-head { font-weight: 600; font-size: 0.92rem; }
+.date-group.first-day { border-left: 4px solid var(--accent); padding-left: 10px; }
+.date-tasks { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
+.date-tasks li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; font-size: 0.9rem; }
+.date-tasks li.done a { text-decoration: line-through; color: var(--muted); }
+.date-tasks li.overdue .date-state { color: var(--bad); font-weight: 600; }
+.date-state { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.today-marker { border-top: 2px solid var(--text); padding-top: 4px; font-size: 0.85rem; font-weight: 600; }
+
 /* Phone width: lists stack, filters take the full width, the cases table becomes cards. */
 @media (max-width: 760px) {
   ul.tasks li { flex-direction: column; align-items: stretch; }

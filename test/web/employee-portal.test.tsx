@@ -55,7 +55,7 @@ describe("EmployeePortalPage", () => {
   it("shows the 8 stages, what is next, and the checklist grouped by stage", async () => {
     mockFetch(() => ({ body: checklist }));
     renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
-    await screen.findByText("Submit Form W-4");
+    await screen.findByRole("region", { name: "Paperwork and verification checklist" });
     const steps = within(screen.getByRole("list", { name: "onboarding stages" })).getAllByRole("listitem");
     expect(steps).toHaveLength(8);
     expect(steps[1]?.getAttribute("data-status")).toBe("waiting_on_employee");
@@ -80,7 +80,7 @@ describe("EmployeePortalPage", () => {
       return { body: checklist };
     });
     renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
-    await screen.findByText("Submit Form W-4");
+    await screen.findByRole("region", { name: "Paperwork and verification checklist" });
     const paperwork = screen.getByRole("region", { name: "Paperwork and verification checklist" });
     const button = within(paperwork).getByRole("button", { name: "Mark done: Submit Form W-4" });
     button.focus();
@@ -134,7 +134,7 @@ describe("EmployeePortalPage", () => {
   it("offers no Mark done for tasks of a stage that has not started, and says when they open", async () => {
     mockFetch(() => ({ body: checklist }));
     renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
-    await screen.findByText("Enroll in MFA");
+    await screen.findByRole("region", { name: "Orientation and day one checklist" });
     const orientation = screen.getByRole("region", { name: "Orientation and day one checklist" });
     expect(within(orientation).queryByRole("button", { name: /^Mark done/ })).toBeNull();
     expect(within(orientation).getByText(/Opens when Orientation and day one starts\./)).toBeTruthy();
@@ -203,10 +203,11 @@ describe("EmployeePortalPage", () => {
     };
     mockFetch(() => ({ body: data }));
     renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
-    const w4 = (await screen.findByText("Submit Form W-4")).closest("li") as HTMLElement;
+    const paperwork = await screen.findByRole("region", { name: "Paperwork and verification checklist" });
+    const w4 = within(paperwork).getByText("Submit Form W-4").closest("li") as HTMLElement;
     expect(within(w4).getByText("Overdue")).toBeTruthy();
-    expect(within(screen.getByText("Complete Form I-9 Section 1").closest("li") as HTMLElement).getByText("Overdue")).toBeTruthy();
-    expect(within(screen.getByText("Sign offer documents").closest("li") as HTMLElement).queryByText("Overdue")).toBeNull();
+    expect(within(within(paperwork).getByText("Complete Form I-9 Section 1").closest("li") as HTMLElement).getByText("Overdue")).toBeTruthy();
+    expect(within(within(paperwork).getByText("Sign offer documents").closest("li") as HTMLElement).queryByText("Overdue")).toBeNull();
     expect(screen.getByTestId("what-next").textContent).toBe("What is next: Finish your paperwork and verification tasks: 2 left, 2 overdue.");
   });
 

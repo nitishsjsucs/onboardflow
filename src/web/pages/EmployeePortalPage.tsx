@@ -1,9 +1,11 @@
-// The employee's own onboarding: stage stepper, progress, what is next,
-// checklist grouped by stage, and blockers that affect them.
+// The employee's own onboarding: the first day and what is due next, stage
+// stepper, progress, what is next, every date in order, checklist grouped by
+// stage, and blockers that affect them.
 import type { ChecklistDto } from "../../shared/api.ts";
 import { STAGES } from "../../shared/stages.ts";
-import { useChecklist } from "../api/queries.ts";
+import { useChecklist, useEmployeeProfile } from "../api/queries.ts";
 import { useSession } from "../auth/session.tsx";
+import { localToday } from "../components/dates.ts";
 import { EmployeeNotices } from "../components/EmployeeNotices.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
@@ -13,6 +15,7 @@ import { label, StatusBadge } from "../components/StatusBadge.tsx";
 import { isOverdue, overdueTaskIds, TaskList } from "../components/TaskList.tsx";
 import { useCaseLive } from "../live/useCaseLive.ts";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+import { datesTimeline, keyDates, YourDates } from "../components/YourDates.tsx";
 
 function notStartedStages(data: ChecklistDto): Set<string> {
   return new Set(data.stages.filter((s) => s.status === "pending").map((s) => s.id));
@@ -41,6 +44,8 @@ export function EmployeePortalPage() {
   useDocumentTitle("My onboarding");
   const { me } = useSession();
   const q = useChecklist(!!me?.employeeId);
+  // the start date (an employee may read only their own profile); if it fails, the page leaves the first day out
+  const profile = useEmployeeProfile(me?.employeeId ?? "", !!me?.employeeId);
 
   if (!me?.employeeId) return <EmptyState>This page is for employees.</EmptyState>;
   if (q.data === undefined) {
@@ -56,6 +61,11 @@ export function EmployeePortalPage() {
   const notStarted = notStartedStages(data);
   const overdueIds = overdueTaskIds(data.blockers);
   const stale = q.isError;
+  const startDate = profile.data?.startDate ?? null;
+  const today = localToday();
+  const now = Date.now();
+  const lines = keyDates(data.tasks, startDate, notStarted, overdueIds, today, now);
+  const timeline = data.tasks.length > 0 ? datesTimeline(data.tasks, startDate, notStarted, overdueIds, today, now) : [];
 
   return (
     <>
@@ -65,6 +75,14 @@ export function EmployeePortalPage() {
           <div className="sub">
             Onboarding <StatusBadge status={data.caseStatus} />
           </div>
+          {lines.length > 0 || data.caseStatus === "not_started" ? (
+            <ul className="key-dates" aria-label="your key dates">
+              {lines.map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+              {data.caseStatus === "not_started" && data.tasks.length === 0 ? <li>Your tasks appear once People Ops starts your onboarding.</li> : null}
+            </ul>
+          ) : null}
         </div>
         <Live employeeId={me.employeeId} />
       </div>
@@ -86,6 +104,12 @@ export function EmployeePortalPage() {
         </p>
       </div>
       <EmployeeNotices blockers={data.blockers} />
+      {timeline.length > 0 ? (
+        <section className="card" aria-labelledby="your-dates-title">
+          <h2 id="your-dates-title">Your dates</h2>
+          <YourDates entries={timeline} today={today} />
+        </section>
+      ) : null}
       {STAGES.filter((s) => data.tasks.some((t) => t.stageId === s.id)).map((s) => (
         <section className="card" key={s.id} aria-label={`${s.name} checklist`}>
           <h3>
