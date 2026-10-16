@@ -5,6 +5,8 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, TaskView } from "../../shared/api.ts";
 import type { HubState } from "../../shared/agent-state.ts";
 
+export type RoundResult = { round: number };
+
 export const keys = {
   me: ["me"] as const,
   checklist: ["me", "checklist"] as const,
@@ -25,7 +27,10 @@ export function useChecklist(enabled = true) {
   return useQuery({ queryKey: keys.checklist, queryFn: () => apiFetch<ChecklistDto>("/api/me/checklist"), enabled });
 }
 
-/** Completes a task with one Idempotency-Key per action (reused on a retry, see action-keys.ts), and updates the checklist optimistically. */
+/**
+ * Completes a checklist task or a follow-up (same endpoint) with one Idempotency-Key per action
+ * (reused on a retry, see action-keys.ts), and marks a checklist task done optimistically.
+ */
 export function useCompleteTask() {
   const qc = useQueryClient();
   return useMutation({
@@ -33,9 +38,9 @@ export function useCompleteTask() {
       apiFetch<TaskView>(`/api/tasks/${encodeURIComponent(v.taskId)}/complete`, { method: "POST", body: {}, idempotencyKey: actionKeys.keyFor(actionId("completeTask", v)) }),
     onSuccess: (_d, v) => actionKeys.settle(actionId("completeTask", v), null),
     onMutate: async (v) => {
-      await qc.cancelQueries({ queryKey: keys.checklist });
       const previous = qc.getQueryData<ChecklistDto>(keys.checklist);
       if (previous) {
+        await qc.cancelQueries({ queryKey: keys.checklist });
         qc.setQueryData<ChecklistDto>(keys.checklist, {
           ...previous,
           tasks: previous.tasks.map((t) => (t.id === v.taskId ? { ...t, status: "done" } : t)),
@@ -47,7 +52,7 @@ export function useCompleteTask() {
       actionKeys.settle(actionId("completeTask", v), e);
       if (ctx?.previous) qc.setQueryData(keys.checklist, ctx.previous);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.checklist }),
+    onSettled: () => Promise.all([keys.checklist, keys.followups, ["case"]].map((k) => qc.invalidateQueries({ queryKey: k }))),
   });
 }
 
@@ -63,7 +68,7 @@ export function useApprovals(status: "pending" | "rejected" | "all" = "pending",
  * A mutation whose Idempotency-Key belongs to the user action (name + input), not to the click:
  * a retry after an unknown outcome reuses it, a final answer forgets it (action-keys.ts).
  */
-function useAction<V extends object>(name: string, fn: (v: V & { key: string }) => Promise<unknown>, invalidate: ReadonlyArray<readonly unknown[]>) {
+function useAction<V extends object, R = unknown>(name: string, fn: (v: V & { key: string }) => Promise<R>, invalidate: ReadonlyArray<readonly unknown[]>) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: V) => fn({ ...v, key: actionKeys.keyFor(actionId(name, v)) }),
@@ -74,7 +79,7 @@ function useAction<V extends object>(name: string, fn: (v: V & { key: string }) 
 }
 
 export function useDecide() {
-  return useAction<{ approvalId: string; decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }>(
+  return useAction<{ approvalId: string; decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }, ApprovalView>(
     "decide",
     (v) =>
       apiFetch<ApprovalView>(`/api/approvals/${encodeURIComponent(v.approvalId)}/decision`, {
@@ -87,9 +92,9 @@ export function useDecide() {
 }
 
 export function useResubmit() {
-  return useAction<{ approvalId: string; note: string }>(
+  return useAction<{ approvalId: string; note: string }, RoundResult>(
     "resubmit",
-    (v) => apiFetch(`/api/approvals/${encodeURIComponent(v.approvalId)}/resubmit`, { method: "POST", body: { note: v.note }, idempotencyKey: v.key }),
+    (v) => apiFetch<RoundResult>(`/api/approvals/${encodeURIComponent(v.approvalId)}/resubmit`, { method: "POST", body: { note: v.note }, idempotencyKey: v.key }),
     [["approvals"], ["case"]],
   );
 }
@@ -103,31 +108,23 @@ export function useFollowups() {
 }
 
 export function useRetryStage() {
-  return useAction<{ employeeId: string; stageId: string; note?: string }>(
+  return useAction<{ employeeId: string; stageId: string; note?: string }, RoundResult>(
     "retryStage",
-    (v) => apiFetch(`/api/cases/${v.employeeId}/stages/${v.stageId}/retry`, { method: "POST", body: v.note ? { note: v.note } : {}, idempotencyKey: v.key }),
+    (v) => apiFetch<RoundResult>(`/api/cases/${v.employeeId}/stages/${v.stageId}/retry`, { method: "POST", body: v.note ? { note: v.note } : {}, idempotencyKey: v.key }),
     [keys.blockers, keys.followups, ["case"]],
   );
 }
 
 export function useResolveBlocker() {
-  return useAction<{ blockerId: string; resolution: string }>(
+  return useAction<{ blockerId: string; resolution: string }, BlockerView>(
     "resolveBlocker",
-    (v) => apiFetch(`/api/blockers/${encodeURIComponent(v.blockerId)}/resolve`, { method: "POST", body: { resolution: v.resolution }, idempotencyKey: v.key }),
+    (v) => apiFetch<BlockerView>(`/api/blockers/${encodeURIComponent(v.blockerId)}/resolve`, { method: "POST", body: { resolution: v.resolution }, idempotencyKey: v.key }),
     [keys.blockers, keys.followups, ["case"]],
   );
 }
 
-export function useCompleteFollowup() {
-  return useAction<{ taskId: string }>(
-    "completeFollowup",
-    (v) => apiFetch(`/api/tasks/${encodeURIComponent(v.taskId)}/complete`, { method: "POST", body: {}, idempotencyKey: v.key }),
-    [keys.followups, ["case"]],
-  );
-}
-
 export function useFixField() {
-  return useAction<{ employeeId: string; field: "costCenter" | "licenseBundle" | "photoOnFile"; value: string | boolean }>(
+  return useAction<{ employeeId: string; field: "costCenter" | "licenseBundle" | "photoOnFile"; value: string | boolean }, EmployeeProfileDto>(
     "fixField",
     (v) => apiFetch<EmployeeProfileDto>(`/api/employees/${v.employeeId}`, { method: "PATCH", body: { [v.field]: v.value }, idempotencyKey: v.key }),
     [["case"], keys.blockers],
@@ -144,9 +141,9 @@ export function useEmployees(f: EmployeeFilters) {
 }
 
 export function useStartCase() {
-  return useAction<{ employeeId: string }>(
+  return useAction<{ employeeId: string }, { instanceId: string; created: boolean }>(
     "startCase",
-    (v) => apiFetch(`/api/cases/${v.employeeId}/start`, { method: "POST", body: {}, idempotencyKey: v.key }),
+    (v) => apiFetch<{ instanceId: string; created: boolean }>(`/api/cases/${v.employeeId}/start`, { method: "POST", body: {}, idempotencyKey: v.key }),
     [["employees"], ["case"]],
   );
 }
@@ -164,8 +161,9 @@ export function useCaseAudit(id: string, pageSize = 25) {
   });
 }
 
+/** Restart answers 202 { runNo, instanceId }; terminate answers 202 { status: "failed", failureReason: "terminated" }. */
 export function useAdminCaseAction(kind: "restart" | "terminate") {
-  return useAction<{ employeeId: string; reason: string }>(
+  return useAction<{ employeeId: string; reason: string }, { runNo?: number; instanceId?: string; status?: string }>(
     kind,
     (v) => apiFetch(`/api/cases/${v.employeeId}/${kind}`, { method: "POST", body: { reason: v.reason }, idempotencyKey: v.key }),
     [["case"], ["employees"]],

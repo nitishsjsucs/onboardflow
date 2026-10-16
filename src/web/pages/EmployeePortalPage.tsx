@@ -1,8 +1,8 @@
 // The employee's own onboarding: stage stepper, progress, what is next,
 // checklist grouped by stage, and blockers that affect them.
-import type { ChecklistDto, TaskView } from "../../shared/api.ts";
+import type { ChecklistDto } from "../../shared/api.ts";
 import { STAGES } from "../../shared/stages.ts";
-import { useChecklist, useCompleteTask } from "../api/queries.ts";
+import { useChecklist } from "../api/queries.ts";
 import { useSession } from "../auth/session.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
@@ -30,16 +30,12 @@ function Live({ employeeId }: { employeeId: string }) {
 export function EmployeePortalPage() {
   const { me } = useSession();
   const q = useChecklist(!!me?.employeeId);
-  const complete = useCompleteTask();
 
   if (!me?.employeeId) return <EmptyState>This page is for employees.</EmptyState>;
   if (q.isLoading) return <p className="muted">Loading your onboarding...</p>;
   if (q.error || !q.data) return <p className="error">Could not load your checklist.</p>;
   const data = q.data;
   const done = data.stages.filter((s) => s.status === "complete").length;
-
-  // one Idempotency-Key per task, reused if the same completion is retried (api/action-keys.ts)
-  const onComplete = (t: TaskView) => complete.mutate({ taskId: t.id });
 
   return (
     <>
@@ -72,15 +68,10 @@ export function EmployeePortalPage() {
           <h3>
             Stage {s.ordinal}: {s.name}
           </h3>
-          <TaskList
-            tasks={data.tasks.filter((t) => t.stageId === s.id)}
-            onComplete={onComplete}
-            busyId={complete.isPending ? (complete.variables?.taskId ?? null) : null}
-            notStarted={(data.stages.find((x) => x.id === s.id)?.status ?? "pending") === "pending"}
-          />
+          {/* each row sends its own completion, with one Idempotency-Key per task (api/action-keys.ts) */}
+          <TaskList tasks={data.tasks.filter((t) => t.stageId === s.id)} completable notStarted={(data.stages.find((x) => x.id === s.id)?.status ?? "pending") === "pending"} />
         </section>
       ))}
-      {complete.error ? <p className="error">{(complete.error as Error).message}</p> : null}
     </>
   );
 }

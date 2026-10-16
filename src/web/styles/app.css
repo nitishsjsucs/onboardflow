@@ -61,7 +61,9 @@ table.list th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
 .table-wrap { overflow-x: auto; }
 
 ul.tasks { list-style: none; margin: 0; padding: 0; }
-ul.tasks li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+ul.tasks li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+ul.tasks li > .item-main { flex: 1 1 260px; min-width: 0; }
+.item-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 ul.tasks li.done .title { text-decoration: line-through; color: var(--muted); }
 
 .live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--muted); }
@@ -78,3 +80,9 @@ ul.tasks li.done .title { text-decoration: line-through; color: var(--muted); }
 @media (max-width: 760px) { .timeline li { grid-template-columns: 1fr; gap: 2px; } }
 .personas { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .personas button { text-align: left; padding: 10px 12px; }
+
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.action-msg { flex-basis: 100%; font-size: 0.88rem; margin-top: 4px; }
+.action-msg.error { color: var(--bad); }
+.action-msg.ok { color: var(--ok); }
+.request-id { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 2px; }

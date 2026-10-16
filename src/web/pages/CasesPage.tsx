@@ -1,10 +1,13 @@
 // Cases: filterable table. Managers see only their direct reports.
 import { useState } from "react";
 import { Link } from "react-router";
+import type { EmployeeSummary, MeDto } from "../../shared/api.ts";
 import { CASE_STATUSES } from "../../shared/domain.ts";
 import { STAGES } from "../../shared/stages.ts";
+import { useItemAction } from "../api/item-action.ts";
 import { useEmployees, useStartCase } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
+import { ActionMessage } from "../components/ActionMessage.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
 
@@ -14,7 +17,6 @@ export function CasesPage() {
   const [status, setStatus] = useState("");
   const [stage, setStage] = useState("");
   const list = useEmployees({ q, status, stage });
-  const start = useStartCase();
   return (
     <>
       <div className="page-head">
@@ -58,34 +60,43 @@ export function CasesPage() {
           </thead>
           <tbody>
             {(list.data?.items ?? []).map((e) => (
-              <tr key={e.id}>
-                <td>
-                  <Link to={`/cases/${e.id}`}>{e.name}</Link>
-                  <div className="muted mono">{e.id}</div>
-                </td>
-                <td>
-                  {e.orgUnit}
-                  <div className="muted">{label(e.employmentType)}, {e.workMode}</div>
-                </td>
-                <td>{e.startDate}</td>
-                <td>
-                  <StatusBadge status={e.caseStatus} />
-                </td>
-                <td>{e.currentStage ? label(e.currentStage) : "none"}</td>
-                <td>{e.openBlockers > 0 ? <span className="badge bad">{e.openBlockers}</span> : "0"}</td>
-                <td>
-                  {e.caseStatus === "not_started" && can.startCase(me) ? (
-                    <button type="button" disabled={start.isPending} onClick={() => start.mutate({ employeeId: e.id })}>
-                      Start
-                    </button>
-                  ) : null}
-                </td>
-              </tr>
+              <CaseRow key={e.id} e={e} me={me} />
             ))}
           </tbody>
         </table>
       </div>
-      {start.error ? <p className="error">{(start.error as Error).message}</p> : null}
     </>
+  );
+}
+
+function CaseRow({ e, me }: { e: EmployeeSummary; me: MeDto | null }) {
+  const start = useItemAction(useStartCase(), () => `Onboarding started for ${e.name}`);
+  return (
+    <tr>
+      <td>
+        <Link to={`/cases/${e.id}`}>{e.name}</Link>
+        <div className="muted mono">{e.id}</div>
+      </td>
+      <td>
+        {e.orgUnit}
+        <div className="muted">
+          {label(e.employmentType)}, {e.workMode}
+        </div>
+      </td>
+      <td>{e.startDate}</td>
+      <td>
+        <StatusBadge status={e.caseStatus} />
+      </td>
+      <td>{e.currentStage ? label(e.currentStage) : "none"}</td>
+      <td>{e.openBlockers > 0 ? <span className="badge bad">{e.openBlockers}</span> : "0"}</td>
+      <td>
+        {e.caseStatus === "not_started" && can.startCase(me) ? (
+          <button type="button" aria-label={`Start onboarding for ${e.name}`} disabled={start.pending} onClick={() => void start.run({ employeeId: e.id })}>
+            Start
+          </button>
+        ) : null}
+        <ActionMessage error={start.error} success={start.success} context={{ action: `start onboarding for ${e.name}`, subject: `employee ${e.id}` }} />
+      </td>
+    </tr>
   );
 }

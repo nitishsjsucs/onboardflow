@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { createMemoryRouter, RouterProvider, type RouteObject } from "react-router";
 import type { MeDto } from "../../src/shared/api.ts";
 import { StaticSession } from "../../src/web/auth/session.tsx";
+import { AnnouncerProvider } from "../../src/web/components/Announcer.tsx";
 
 export const PERSONAS: Record<string, MeDto> = {
   employee: { email: "avery.abara.e001@onboardflow.test", role: "employee", displayName: "Avery Abara", employeeId: "E001" },
@@ -21,7 +22,9 @@ export function renderWith(ui: ReactNode, opts: { me: MeDto | null; path?: strin
   const utils = render(
     <QueryClientProvider client={client}>
       <StaticSession me={opts.me}>
-        <RouterProvider router={router} />
+        <AnnouncerProvider>
+          <RouterProvider router={router} />
+        </AnnouncerProvider>
       </StaticSession>
     </QueryClientProvider>,
   );
@@ -30,8 +33,15 @@ export function renderWith(ui: ReactNode, opts: { me: MeDto | null; path?: strin
 
 export type FetchCall = { url: string; method: string; headers: Record<string, string>; body: unknown };
 
+export type MockResponse = { status?: number; body?: unknown; /** sent as is, not JSON-encoded (a proxy's HTML page, a garbled body) */ raw?: string };
+
+/** The visually hidden live region's current text. */
+export function announced(): string {
+  return document.querySelector('[data-testid="announcer"]')?.textContent ?? "";
+}
+
 /** Replaces fetch with a router of canned JSON responses; records every call. */
-export function mockFetch(handler: (url: string, method: string, body: unknown) => { status?: number; body: unknown } | Promise<{ status?: number; body: unknown }>) {
+export function mockFetch(handler: (url: string, method: string, body: unknown) => MockResponse | Promise<MockResponse>) {
   const calls: FetchCall[] = [];
   const fn = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
@@ -40,6 +50,7 @@ export function mockFetch(handler: (url: string, method: string, body: unknown) 
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ url, method, headers, body });
     const r = await handler(url, method, body);
+    if (r.raw !== undefined) return new Response(r.raw, { status: r.status ?? 200, headers: { "Content-Type": "text/plain" } });
     return new Response(JSON.stringify(r.body), { status: r.status ?? 200, headers: { "Content-Type": "application/json" } });
   };
   globalThis.fetch = fn as typeof fetch;

@@ -3,8 +3,11 @@
 // controls. Live CaseAgent state refreshes the view.
 import { useState } from "react";
 import { useParams } from "react-router";
+import type { StageView } from "../../shared/api.ts";
+import { useItemAction } from "../api/item-action.ts";
 import { useAdminCaseAction, useCase, useCaseAudit, useRetryStage } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
+import { ActionMessage } from "../components/ActionMessage.tsx";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
@@ -24,10 +27,6 @@ export function CaseDetailPage() {
   const { me } = useSession();
   const q = useCase(id);
   const audit = useCaseAudit(id);
-  const retry = useRetryStage();
-  const restart = useAdminCaseAction("restart");
-  const terminate = useAdminCaseAction("terminate");
-  const [reason, setReason] = useState("");
 
   if (q.isLoading) return <p className="muted">Loading case...</p>;
   if (q.error || !q.data) return <p className="error">Could not load this case.</p>;
@@ -64,18 +63,7 @@ export function CaseDetailPage() {
           <BlockerList blockers={openBlockers} />
           {blockedStages.map((s) => {
             const owner = openBlockers.find((b) => b.stageId === s.id)?.ownerDepartment ?? (s.owner === "manager" ? "people_ops" : s.owner);
-            return (
-              <div key={s.id} className="row" style={{ marginTop: 8 }}>
-                <span>
-                  {s.name} is blocked{s.blockedReason?.message ? `: ${String(s.blockedReason.message)}` : ""}.
-                </span>
-                {can.retry(me, owner) ? (
-                  <button type="button" className="primary" disabled={retry.isPending} onClick={() => retry.mutate({ employeeId: id, stageId: s.id })}>
-                    Retry {s.name}
-                  </button>
-                ) : null}
-              </div>
-            );
+            return <BlockedStageRow key={s.id} employeeId={id} employeeName={`${d.employee.firstName} ${d.employee.lastName}`} stage={s} canRetry={can.retry(me, owner)} />;
           })}
         </section>
       ) : null}
@@ -106,20 +94,7 @@ export function CaseDetailPage() {
         <TaskList tasks={d.tasks} />
       </section>
 
-      {can.restartOrTerminate(me) ? (
-        <section className="card" aria-label="admin controls">
-          <h2>Admin controls</h2>
-          <div className="row">
-            <input aria-label="admin reason" placeholder="Reason (audited)" value={reason} onChange={(e) => setReason(e.target.value)} />
-            <button type="button" disabled={!reason || restart.isPending} onClick={() => restart.mutate({ employeeId: id, reason })}>
-              Restart workflow
-            </button>
-            <button type="button" className="danger" disabled={!reason || terminate.isPending} onClick={() => terminate.mutate({ employeeId: id, reason })}>
-              Terminate
-            </button>
-          </div>
-        </section>
-      ) : null}
+      {can.restartOrTerminate(me) ? <AdminControls employeeId={id} /> : null}
 
       <section className="card" aria-label="audit trail section">
         <h2>Audit trail</h2>
@@ -130,11 +105,48 @@ export function CaseDetailPage() {
           loadingMore={audit.isFetchingNextPage}
         />
       </section>
-      {[retry.error, restart.error, terminate.error].filter(Boolean).map((e, i) => (
-        <p key={i} className="error">
-          {(e as Error).message}
-        </p>
-      ))}
     </>
+  );
+}
+
+function BlockedStageRow({ employeeId, employeeName, stage: s, canRetry }: { employeeId: string; employeeName: string; stage: StageView; canRetry: boolean }) {
+  const retry = useItemAction(useRetryStage(), (r) => `Retry requested for ${s.name}: round ${r.round} running`);
+  return (
+    <div className="blocked-stage">
+      <div className="row" style={{ marginTop: 8 }}>
+        <span>
+          {s.name} is blocked{s.blockedReason?.message ? `: ${String(s.blockedReason.message)}` : ""}.
+        </span>
+        {canRetry ? (
+          <button type="button" className="primary" aria-label={`Retry ${s.name} for ${employeeName}`} disabled={retry.pending} onClick={() => void retry.run({ employeeId, stageId: s.id })}>
+            Retry {s.name}
+          </button>
+        ) : null}
+      </div>
+      <ActionMessage error={retry.error} success={retry.success} context={{ action: `retry ${s.name}`, subject: s.name }} />
+    </div>
+  );
+}
+
+function AdminControls({ employeeId }: { employeeId: string }) {
+  const [reason, setReason] = useState("");
+  const restart = useItemAction(useAdminCaseAction("restart"), (r) => `Restarted: run ${r.runNo ?? ""}`.trim());
+  const terminate = useItemAction(useAdminCaseAction("terminate"), () => "Terminated");
+  const busy = restart.pending || terminate.pending;
+  return (
+    <section className="card" aria-label="admin controls">
+      <h2>Admin controls</h2>
+      <div className="row">
+        <input aria-label="admin reason" placeholder="Reason (audited)" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <button type="button" disabled={!reason || busy} onClick={() => void restart.run({ employeeId, reason })}>
+          Restart workflow
+        </button>
+        <button type="button" className="danger" disabled={!reason || busy} onClick={() => void terminate.run({ employeeId, reason })}>
+          Terminate
+        </button>
+      </div>
+      <ActionMessage error={restart.error} success={restart.success} context={{ action: "restart the workflow" }} />
+      <ActionMessage error={terminate.error} success={terminate.success} context={{ action: "terminate the case" }} />
+    </section>
   );
 }

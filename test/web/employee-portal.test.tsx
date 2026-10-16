@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChecklistDto, TaskView } from "../../src/shared/api.ts";
 import { STAGES } from "../../src/shared/stages.ts";
 import { EmployeePortalPage } from "../../src/web/pages/EmployeePortalPage.tsx";
-import { mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 vi.mock("../../src/web/live/useCaseLive.ts", () => ({ useCaseLive: () => ({ state: null, status: "connected" }) }));
 
@@ -80,9 +80,9 @@ describe("EmployeePortalPage", () => {
     renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
     await screen.findByText("Submit Form W-4");
     const paperwork = screen.getByRole("region", { name: "Paperwork and verification checklist" });
-    fireEvent.click(within(paperwork).getByRole("button", { name: "Mark done" }));
+    fireEvent.click(within(paperwork).getByRole("button", { name: "Mark done: Submit Form W-4" }));
     // optimistic: the button disappears before the server answers
-    await waitFor(() => expect(within(paperwork).queryByRole("button", { name: "Mark done" })).toBeNull());
+    await waitFor(() => expect(within(paperwork).queryByRole("button", { name: /^Mark done/ })).toBeNull());
     const post = calls.find((c) => c.method === "POST");
     expect(post?.url).toBe("/api/tasks/chk%3AE001%3Aw4/complete");
     expect(post?.headers["X-OnboardFlow"]).toBe("1");
@@ -96,10 +96,35 @@ describe("EmployeePortalPage", () => {
     renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
     await screen.findByText("Enroll in MFA");
     const orientation = screen.getByRole("region", { name: "Orientation and day one checklist" });
-    expect(within(orientation).queryByRole("button", { name: "Mark done" })).toBeNull();
+    expect(within(orientation).queryByRole("button", { name: /^Mark done/ })).toBeNull();
     expect(within(orientation).getByText("Opens when this stage starts.")).toBeTruthy();
     // the started stage keeps its button
     const paperwork = screen.getByRole("region", { name: "Paperwork and verification checklist" });
-    expect(within(paperwork).getByRole("button", { name: "Mark done" })).toBeTruthy();
+    expect(within(paperwork).getByRole("button", { name: "Mark done: Submit Form W-4" })).toBeTruthy();
+  });
+
+  it("shows a failed completion inside that task's row and confirms a success in the live region", async () => {
+    let fail = true;
+    mockFetch((_url, method) => {
+      if (method === "POST") {
+        if (fail) {
+          fail = false;
+          return { status: 409, body: { error: { code: "stage_not_started", message: "the paperwork stage has not started yet; its tasks open when it does", requestId: "r-409" } } };
+        }
+        return { body: task("chk:E001:w4", "paperwork", "Submit Form W-4", "done") };
+      }
+      return { body: checklist };
+    });
+    renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
+    const button = await screen.findByRole("button", { name: "Mark done: Submit Form W-4" });
+    const row = button.closest("li") as HTMLElement;
+    fireEvent.click(button);
+    const alert = await within(row).findByRole("alert");
+    expect(alert.textContent).toContain("Paperwork and verification has not started yet. Its tasks open when it starts.");
+    // the optimistic update was rolled back, so the task can be tried again
+    fireEvent.click(await within(row).findByRole("button", { name: "Mark done: Submit Form W-4" }));
+    await within(row).findByText("Marked done: Submit Form W-4");
+    expect(within(row).queryByRole("alert")).toBeNull();
+    await waitFor(() => expect(announced()).toBe("Marked done: Submit Form W-4"));
   });
 });

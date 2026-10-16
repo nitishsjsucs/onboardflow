@@ -44,7 +44,7 @@ export default defineConfig(async () => {
         },
         {
           plugins: [react()],
-          test: { name: "web", include: ["test/web/**/*.test.tsx"], environment: "happy-dom" },
+          test: { name: "web", include: ["test/web/**/*.test.{ts,tsx}"], environment: "happy-dom" },
         },
       ],
     },

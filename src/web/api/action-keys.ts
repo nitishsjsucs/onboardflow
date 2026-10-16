@@ -3,16 +3,18 @@
 // name plus its input, so retrying the same click (same task, same reason)
 // sends the same key and gets the stored answer instead of a second
 // execution, while an edited request gets a new key. The key is kept only
-// while the outcome is unknown: a network error, an unparsable answer, a 5xx
-// (the server released the key, so a retry executes once) or 409
-// idempotency_in_progress (the first request is still running). Any other
-// answer is final, and the next click is a new action with a new key, so a
-// 409 for a stage that was not blocked yet is not replayed forever.
+// while the outcome is unknown: a network error, an unparsable answer at any
+// status (a garbled 200 may mean the action ran), a 5xx (the server released
+// the key, so a retry executes once) or 409 idempotency_in_progress (the
+// first request is still running). Any other answer is final, and the next
+// click is a new action with a new key, so a 409 for a stage that was not
+// blocked yet is not replayed forever.
 import { ApiError, newIdempotencyKey } from "./client.ts";
 
 /** True when a retry must reuse the key because the server's answer is not known to be final. */
 export function outcomeUnknown(err: unknown): boolean {
   if (!(err instanceof ApiError)) return true;
+  if (err.code === "network" || err.code === "non_json_response") return true;
   return err.status >= 500 || (err.status === 409 && err.code === "idempotency_in_progress");
 }
 
@@ -54,6 +56,11 @@ export class ActionKeys {
 
   get pending(): number {
     return this.#keys.size;
+  }
+
+  /** Forgets every key (on sign-out or a persona switch: the next person's actions are their own). */
+  clear(): void {
+    this.#keys.clear();
   }
 }
 

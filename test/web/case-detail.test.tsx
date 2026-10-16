@@ -33,7 +33,7 @@ describe("CaseDetailPage", () => {
   it("shows Retry only to the owning department and admins, and sends the retry", async () => {
     const calls = serve();
     renderWith(null, { me: PERSONAS.it!, path: "/cases/E001", routes });
-    fireEvent.click(await screen.findByRole("button", { name: "Retry IT provisioning" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
     const post = calls.find((c) => c.method === "POST")!;
     expect(post.url).toBe("/api/cases/E001/stages/it_provisioning/retry");
@@ -48,7 +48,7 @@ describe("CaseDetailPage", () => {
     }
     serve();
     renderWith(null, { me: PERSONAS.admin!, path: "/cases/E001", routes });
-    expect(await screen.findByRole("button", { name: "Retry IT provisioning" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" })).toBeTruthy();
   });
 
   it("shows restart and terminate to admins only", async () => {

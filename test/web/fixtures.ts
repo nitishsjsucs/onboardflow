@@ -1,4 +1,4 @@
-import type { ApprovalView, AuditEventView, CaseDetail } from "../../src/shared/api.ts";
+import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, EmployeeSummary } from "../../src/shared/api.ts";
 import { STAGES } from "../../src/shared/stages.ts";
 
 export function approval(over: Partial<ApprovalView> = {}): ApprovalView {
@@ -106,5 +106,44 @@ export function caseDetail(blockedStage: string | null = "it_provisioning"): Cas
       { system: "it", resource: "it_account", externalId: "acct_1", status: "active", polls: 0, updatedAt: "2026-10-01T00:00:00.000Z" },
     ],
     integrationSummary: { hr: { calls: 3, ok: 3, retried: 0, replayed: 0, fatal: 0 }, it: { calls: 7, ok: 2, retried: 5, replayed: 0, fatal: 0 }, facilities: { calls: 0, ok: 0, retried: 0, replayed: 0, fatal: 0 } },
+  };
+}
+
+export function blocker(over: Partial<BlockerView> = {}): BlockerView {
+  return {
+    id: "blk:E001:it",
+    employeeId: "E001",
+    employeeName: "Avery Abara",
+    stageId: "it_provisioning",
+    kind: "integration_outage",
+    severity: "high",
+    ownerDepartment: "it",
+    subject: "it.order-device",
+    status: "open",
+    detail: { system: "it", operation: "it.order-device", message: "service unavailable" },
+    detectedAt: "2026-10-08T10:00:00.000Z",
+    resolvedAt: null,
+    resolvedBy: null,
+    resolution: null,
+    followUpTaskId: null,
+    ...over,
+  };
+}
+
+export function employee(id: string, name: string, over: Partial<EmployeeSummary> = {}): EmployeeSummary {
+  return {
+    id,
+    name,
+    email: `${name.toLowerCase().replace(/ /g, ".")}.${id.toLowerCase()}@onboardflow.test`,
+    jobTitle: "Analyst",
+    orgUnit: "Finance",
+    employmentType: "full_time",
+    workMode: "hybrid",
+    startDate: "2026-11-02",
+    managerId: "M01",
+    caseStatus: "not_started",
+    currentStage: null,
+    openBlockers: 0,
+    ...over,
   };
 }
