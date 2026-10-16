@@ -4,7 +4,9 @@
 //                     live OpsHubAgent state (and the hub consistency check).
 //   /start-readiness  people starting each week from today, by readiness for day one: one grouped
 //                     statement over employees (150 rows in the seed) with primary-key lookups of their
-//                     case and current stage, bucketed in src/shared/readiness.ts.
+//                     case and current stage, bucketed in src/shared/readiness.ts. "Today" is the viewer's
+//                     calendar date when the request sends one (within a day of the server's), so the
+//                     countdowns match the case page, My team and Approvals, which count in local time.
 //   /changes          the latest case events of a fixed list of audit actions, newest first, with
 //                     whitelisted detail fields only. One indexed statement per action in one batch
 //                     (audit_action is (action, seq), read newest first), so the rows read stay bounded
@@ -14,11 +16,11 @@ import { Hono } from "hono";
 import type { HubState } from "../../shared/agent-state.ts";
 import { CHANGE_ACTIONS, type ChangeItem, ChangesQuery, type ChangesDto, StartReadinessQuery, type StartReadinessDto } from "../../shared/api.ts";
 import { type ActorType, BLOCKER_KINDS, type CaseStatus, CHECKPOINTS, FAILURE_REASONS, isOneOf, type StageStatus, SYSTEM_IDS } from "../../shared/domain.ts";
-import { bucketReadiness, readinessWindow } from "../../shared/readiness.ts";
+import { bucketReadiness, dayIndex, readinessWindow } from "../../shared/readiness.ts";
 import { isStageId, type StageId } from "../../shared/stages.ts";
 import { computeHubDomain } from "../agents/projection.ts";
 import { requireRole } from "../auth/middleware.ts";
-import type { AppEnv } from "../http.ts";
+import { apiError, type AppEnv } from "../http.ts";
 import { query } from "./util.ts";
 
 export const DEFAULT_READINESS_WEEKS = 12;
@@ -93,7 +95,10 @@ export function dashboardRoutes() {
     const q = query(c, StartReadinessQuery);
     if (!q.ok) return q.response;
     const weeks = q.value.weeks ?? DEFAULT_READINESS_WEEKS;
-    const today = c.get("clock").nowIso().slice(0, 10);
+    const serverToday = c.get("clock").nowIso().slice(0, 10);
+    const today = q.value.today ?? serverToday;
+    // every time zone's date is within a day of UTC's; anything further is not a viewer's today
+    if (Math.abs(dayIndex(today)! - dayIndex(serverToday)!) > 1) return apiError(c, 400, "invalid_request", `today: must be within one day of the server's date (${serverToday})`);
     const { end } = readinessWindow(today, weeks);
     // Start dates before `end`; of those before today, only cases that are not complete (already started, not finished).
     const rows = await c.env.DB.prepare(

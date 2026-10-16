@@ -2,6 +2,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HubState } from "../../src/shared/agent-state.ts";
 import { STAGE_IDS } from "../../src/shared/stages.ts";
+import { localToday } from "../../src/web/components/dates.ts";
 import { readinessRows } from "../../src/web/components/ReadinessChart.tsx";
 import { DashboardPage } from "../../src/web/pages/DashboardPage.tsx";
 import { readiness } from "./fixtures.ts";
@@ -79,7 +80,8 @@ describe("Readiness by start week (dashboard card)", () => {
     const calls = serve(() => ({ body: readiness() }));
     renderWith(<DashboardPage />, { me: PERSONAS.peopleOps!, path: "/dashboard" });
     await within(card()).findByText("Week of Mon Nov 2, in 17 days, 15 people");
-    expect(calls.find((c) => c.url.startsWith("/api/dashboard/start-readiness"))!.url).toBe("/api/dashboard/start-readiness?weeks=12");
+    // the viewer's calendar date, so the countdowns match the case page, My team and Approvals
+    expect(calls.find((c) => c.url.startsWith("/api/dashboard/start-readiness"))!.url).toBe(`/api/dashboard/start-readiness?weeks=12&today=${localToday()}`);
     expect(within(card()).getByRole("figure", { name: "Readiness by start week" })).toBeTruthy();
     const nov2 = week("2026-11-02");
     // 15 is the busiest week: 1 blocked of 15 is 6.667% of the line, less its share of the 2 px gaps

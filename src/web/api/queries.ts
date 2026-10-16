@@ -1,6 +1,7 @@
 // TanStack Query hooks over the API. Live agent state invalidates these keys.
 import { actionId, actionKeys } from "./action-keys.ts";
 import { apiFetch } from "./client.ts";
+import { localToday } from "../components/dates.ts";
 import { shouldRetryQuery } from "./query-client.ts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChangesDto, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, StartReadinessDto, TaskView } from "../../shared/api.ts";
@@ -20,7 +21,7 @@ export const keys = {
   followups: ["followups"] as const,
   dashboard: ["dashboard"] as const,
   // not under ["dashboard"]: every live hub frame invalidates that key, and these refetch at most once a minute
-  readiness: (weeks: number) => ["readiness", weeks] as const,
+  readiness: (weeks: number, today: string) => ["readiness", weeks, today] as const,
   changes: (limit: number) => ["changes", limit] as const,
 };
 
@@ -212,11 +213,14 @@ export function useAdminCaseAction(kind: "restart" | "terminate") {
   );
 }
 
-/** People starting each week from today, by readiness for day one (coordinators and admins). */
-export function useStartReadiness(weeks = 12) {
+/**
+ * People starting each week from today, by readiness for day one (coordinators and admins). Today is the viewer's
+ * calendar date, as on every other screen that counts days to a start date; a new day is a new query.
+ */
+export function useStartReadiness(weeks = 12, today: string = localToday()) {
   return useQuery({
-    queryKey: keys.readiness(weeks),
-    queryFn: ({ signal }) => apiFetch<StartReadinessDto>(`/api/dashboard/start-readiness?weeks=${weeks}`, { signal }),
+    queryKey: keys.readiness(weeks, today),
+    queryFn: ({ signal }) => apiFetch<StartReadinessDto>(`/api/dashboard/start-readiness?weeks=${weeks}&today=${today}`, { signal }),
     staleTime: DASHBOARD_CARD_STALE_MS,
   });
 }

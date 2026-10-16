@@ -123,7 +123,15 @@ export const EmployeesQuery = PageQuery.extend({
   startTo: DateOnly.optional(),
 });
 export const MAX_READINESS_WEEKS = 26;
-export const StartReadinessQuery = z.object({ weeks: z.coerce.number().int().min(1).max(MAX_READINESS_WEEKS).optional() });
+export const StartReadinessQuery = z.object({
+  weeks: z.coerce.number().int().min(1).max(MAX_READINESS_WEEKS).optional(),
+  /**
+   * The viewer's calendar date, so the window and its countdowns start on the day every other screen counts
+   * from. Accepted within one day of the server's UTC date (every time zone's date is); without it, the server's.
+   * Added 2026-10-16.
+   */
+  today: DateOnly.optional(),
+});
 export const MAX_CHANGES = 30;
 export const ChangesQuery = z.object({ limit: z.coerce.number().int().min(1).max(MAX_CHANGES).optional() });
 export const ApprovalsQuery = PageQuery.extend({ status: z.enum([...APPROVAL_STATUSES, "all"]).optional() });
@@ -403,7 +411,7 @@ export const HubStateSchema = z.object({
 const ReadinessCountsSchema = z.object({ total: count, ready: count, blocked: count, waiting: count, inSetup: count, notStarted: count, failed: count });
 /** GET /api/dashboard/start-readiness: people starting each week from today, by readiness for day one (src/shared/readiness.ts). */
 export const StartReadinessSchema = z.object({
-  /** Today on the server's clock (UTC), YYYY-MM-DD: the window starts here. */
+  /** The day the window starts (YYYY-MM-DD): the request's `today`, else the server's date (UTC). */
   asOf: z.string(),
   weeks: z.array(ReadinessCountsSchema.extend({ weekStart: z.string() })),
   /** Start dates before today whose onboarding is not complete; null when there are none. */

@@ -324,6 +324,31 @@ describe("readiness by start week", () => {
     );
   });
 
+  it("counts from the viewer's calendar date when the request sends one within a day of the server's", async () => {
+    await withCases([{ id: "E031", startDate: "2026-10-08", status: "in_progress", stage: "paperwork" }], async () => {
+      // the server's date (2026-10-08): E031 starts today, this week
+      const utc = valid(StartReadinessSchema, await api("/api/dashboard/start-readiness?weeks=2", { as: "A01" }));
+      expect(utc.asOf).toBe("2026-10-08");
+      expect(utc.weeks[0]).toMatchObject({ weekStart: "2026-10-05", total: 1 });
+      expect(utc.alreadyStarted).toBeNull();
+      // a viewer east of UTC whose day is already the 9th: E031 started yesterday
+      const east = valid(StartReadinessSchema, await api("/api/dashboard/start-readiness?weeks=2&today=2026-10-09", { as: "A01" }));
+      expect(east.asOf).toBe("2026-10-09");
+      expect(east.weeks[0]).toMatchObject({ weekStart: "2026-10-05", total: 0 });
+      expect(east.alreadyStarted).toMatchObject({ total: 1 });
+      // a viewer west of UTC, still on the 7th: E031 starts tomorrow
+      const west = valid(StartReadinessSchema, await api("/api/dashboard/start-readiness?weeks=2&today=2026-10-07", { as: "A01" }));
+      expect(west.asOf).toBe("2026-10-07");
+      expect(west.weeks[0]).toMatchObject({ weekStart: "2026-10-05", total: 1 });
+    });
+    // further than a day from the server's date, or not a date: 400
+    for (const t of ["2026-10-10", "2026-10-06", "2026-02-31", "10/09/2026"]) {
+      const r = await api(`/api/dashboard/start-readiness?today=${t}`, { as: "A01" });
+      expect(r.status, t).toBe(400);
+      expect(valid(ErrorEnvelopeSchema, r, 400).error.code, t).toBe("invalid_request");
+    }
+  });
+
   it("validates the number of weeks", async () => {
     for (const w of ["0", "27", "1.5", "x"]) expect((await api(`/api/dashboard/start-readiness?weeks=${w}`, { as: "A01" })).status, w).toBe(400);
     expect((await api("/api/dashboard/start-readiness?weeks=1", { as: "A01" })).status).toBe(200);
