@@ -145,7 +145,9 @@ describe("StageFunnelChart (where open cases are waiting)", () => {
 
   it("swaps the bars for a captioned table with the same links", () => {
     renderChart(demo());
-    const toggle = screen.getByRole("button", { name: "Show as table" });
+    // the visible words first, then which chart it swaps (the readiness card has the same button)
+    const toggle = screen.getByRole("button", { name: "Show as table: Where open cases are waiting" });
+    expect(toggle.textContent).toBe("Show as table");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
@@ -162,7 +164,7 @@ describe("StageFunnelChart (where open cases are waiting)", () => {
   it("says so when no case is open, and keeps the last frame at reduced opacity while paused", () => {
     renderChart(STAGE_IDS.map((s) => ({ ...zero(s), complete: 150 })), { complete: 150 });
     expect(screen.getByText("No open cases. 150 complete.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Show as table" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Show as table/ })).toBeNull();
     cleanup();
     renderChart(demo(), { stale: true });
     expect(screen.getByRole("figure", { name: "Where open cases are waiting" }).classList.contains("stale")).toBe(true);

@@ -201,23 +201,28 @@ function ChartTable({ rows, captionId }: { rows: StageRow[]; captionId: string }
   );
 }
 
+export const STAGE_CHART_TITLE = "Where open cases are waiting";
+
 /**
  * The stage chart. `complete`: cases that finished onboarding (for the empty state). `stale`: live updates
- * are paused, so the last frame stays on screen at reduced opacity.
+ * are paused, so the last frame stays on screen at reduced opacity. `titleId`: the id for its heading, so the
+ * card around it can take the heading as its name.
  */
-export function StageFunnelChart({ stages, complete, stale = false }: { stages: StageRollup[]; complete: number; stale?: boolean }) {
+export function StageFunnelChart({ stages, complete, stale = false, titleId: givenTitleId }: { stages: StageRollup[]; complete: number; stale?: boolean; titleId?: string }) {
   const [asTable, setAsTable] = useState(false);
   const captionId = useId();
-  const titleId = useId();
+  const ownTitleId = useId();
+  const titleId = givenTitleId ?? ownTitleId;
   const rows = stages.map(stageRow);
   const maxOpen = Math.max(1, ...rows.map((r) => r.open));
   const anyOpen = rows.some((r) => r.open > 0);
   return (
     <figure className={`chart${stale ? " stale" : ""}`} aria-labelledby={titleId} style={{ margin: 0 }}>
       <div className="chart-head">
-        <h2 id={titleId}>Where open cases are waiting</h2>
+        <h2 id={titleId}>{STAGE_CHART_TITLE}</h2>
         {anyOpen ? (
-          <button type="button" aria-pressed={asTable} onClick={() => setAsTable((v) => !v)}>
+          // the name starts with the visible words and names the chart, since the readiness card has the same button
+          <button type="button" aria-pressed={asTable} aria-label={`Show as table: ${STAGE_CHART_TITLE}`} onClick={() => setAsTable((v) => !v)}>
             Show as table
           </button>
         ) : null}

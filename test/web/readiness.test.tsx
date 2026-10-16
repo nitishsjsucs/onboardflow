@@ -46,7 +46,7 @@ function serve(readinessAnswer: () => MockResponse | Promise<MockResponse>) {
   });
 }
 
-const card = () => screen.getByRole("region", { name: "readiness by start week" });
+const card = () => screen.getByRole("region", { name: "Readiness by start week" });
 const week = (key: string) => within(card()).getByTestId(`week-${key}`);
 
 describe("readiness rows (data mapping)", () => {
@@ -151,6 +151,19 @@ describe("Readiness by start week (dashboard card)", () => {
     expect(within(card()).getByText(/^Ready for day one:/)).toBeTruthy();
   });
 
+  it("names each card by its heading and each table toggle by its chart, so the two toggles can be told apart", async () => {
+    const stages = hub.byStage.map((r) => (r.stage === "intake" ? { ...r, blocked: 1 } : r));
+    live.value = { state: { ...hub, byStage: stages }, status: "connected" };
+    serve(() => ({ body: readiness() }));
+    renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
+    await within(card()).findByRole("button", { name: /^Show as table/ });
+    expect(screen.getByRole("region", { name: "Where open cases are waiting" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "stage funnel" })).toBeNull();
+    const toggles = screen.getAllByRole("button", { name: /^Show as table/ });
+    expect(toggles.map((b) => b.getAttribute("aria-label"))).toEqual(["Show as table: Where open cases are waiting", "Show as table: Readiness by start week"]);
+    expect(new Set(toggles.map((b) => b.getAttribute("aria-label"))).size).toBe(2);
+  });
+
   it("has a legend with a swatch, an icon and a word for each class", async () => {
     serve(() => ({ body: readiness() }));
     renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
@@ -163,7 +176,8 @@ describe("Readiness by start week (dashboard card)", () => {
   it("shows a captioned table instead of the bars on request", async () => {
     serve(() => ({ body: readiness() }));
     renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
-    const toggle = await within(card()).findByRole("button", { name: "Show as table" });
+    const toggle = await within(card()).findByRole("button", { name: "Show as table: Readiness by start week" });
+    expect(toggle.textContent).toBe("Show as table");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
     const table = within(card()).getByRole("table", { name: "People starting each week, by readiness for day one" });
@@ -176,7 +190,7 @@ describe("Readiness by start week (dashboard card)", () => {
     serve(() => ({ body: readiness({ weeks: readiness().weeks.slice(0, 2) }) }));
     renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
     expect(await within(card()).findByText("No start dates in the next 12 weeks.")).toBeTruthy();
-    expect(within(card()).queryByRole("button", { name: "Show as table" })).toBeNull();
+    expect(within(card()).queryByRole("button", { name: /^Show as table/ })).toBeNull();
   });
 
   it("shows loading, then a failure with Try again that fetches again", async () => {

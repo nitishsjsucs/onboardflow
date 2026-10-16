@@ -262,15 +262,22 @@ export function ReadinessChart({ data, asTable, stale = false, weeks }: { data: 
   );
 }
 
-/** Title, table toggle and caption around the chart; `children` renders the body (or its loading and error states). */
-export function ReadinessFigure({ children, canToggle, asTable, onToggle }: { children: ReactNode; canToggle: boolean; asTable: boolean; onToggle: () => void }) {
-  const titleId = useId();
+export const READINESS_TITLE = "Readiness by start week";
+
+/**
+ * Title, table toggle and caption around the chart; `children` renders the body (or its loading and error states).
+ * `titleId`: the id for its heading, so the card around it can take the heading as its name.
+ */
+export function ReadinessFigure({ children, canToggle, asTable, onToggle, titleId: givenTitleId }: { children: ReactNode; canToggle: boolean; asTable: boolean; onToggle: () => void; titleId?: string }) {
+  const ownTitleId = useId();
+  const titleId = givenTitleId ?? ownTitleId;
   return (
     <figure className="chart" aria-labelledby={titleId} style={{ margin: 0 }}>
       <div className="chart-head">
-        <h2 id={titleId}>Readiness by start week</h2>
+        <h2 id={titleId}>{READINESS_TITLE}</h2>
         {canToggle ? (
-          <button type="button" aria-pressed={asTable} onClick={onToggle}>
+          // the name starts with the visible words and names the chart, since the stage chart has the same button
+          <button type="button" aria-pressed={asTable} aria-label={`Show as table: ${READINESS_TITLE}`} onClick={onToggle}>
             Show as table
           </button>
         ) : null}

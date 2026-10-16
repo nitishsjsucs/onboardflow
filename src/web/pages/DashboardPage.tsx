@@ -51,9 +51,10 @@ export const READINESS_WEEKS = 12;
 function ReadinessCard({ stale }: { stale: boolean }) {
   const q = useStartReadiness(READINESS_WEEKS);
   const [asTable, setAsTable] = useState(false);
+  const titleId = useId();
   return (
-    <section className="card" aria-label="readiness by start week">
-      <ReadinessFigure canToggle={q.data !== undefined && hasStartDates(q.data)} asTable={asTable} onToggle={() => setAsTable((v) => !v)}>
+    <section className="card" aria-labelledby={titleId}>
+      <ReadinessFigure titleId={titleId} canToggle={q.data !== undefined && hasStartDates(q.data)} asTable={asTable} onToggle={() => setAsTable((v) => !v)}>
         <QueryState query={q} what="readiness by start week">
           {() => <ReadinessChart data={q.data!} asTable={asTable} weeks={READINESS_WEEKS} stale={stale || q.isFetching} />}
         </QueryState>
@@ -97,6 +98,7 @@ function kindLink(me: MeDto | null): ((kind: string) => string | null) | undefin
 }
 
 export function DashboardView({ hub, me, stale = false }: { hub: HubState; me: MeDto | null; stale?: boolean }) {
+  const stageTitleId = useId();
   const total = Object.values(hub.totals).reduce((a, b) => a + b, 0);
   const isAdmin = me?.role === "admin";
   const ownDepartment = me?.role === "coordinator" && me.department ? DEPARTMENT_NAMES[me.department] : null;
@@ -111,9 +113,9 @@ export function DashboardView({ hub, me, stale = false }: { hub: HubState; me: M
       <p className="muted">
         {total} cases: {hub.totals.not_started} not started, {hub.totals.failed} failed.
       </p>
-      <section className="card" aria-label="stage funnel">
+      <section className="card" aria-labelledby={stageTitleId}>
         {/* a stage's open cases are started cases that have not finished; a completed case keeps its last stage, so its links filter by status */}
-        <StageFunnelChart stages={hub.byStage} complete={hub.totals.complete} stale={stale} />
+        <StageFunnelChart titleId={stageTitleId} stages={hub.byStage} complete={hub.totals.complete} stale={stale} />
       </section>
       <ReadinessCard stale={stale} />
       <div className="grid two">
