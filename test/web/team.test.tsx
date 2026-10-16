@@ -45,7 +45,10 @@ describe("caseNow", () => {
     expect(caseNow(at("awaiting_approval", "closeout"), undefined).text).toBe("People Ops sign-off");
     expect(caseNow(at("blocked", "manager_approval"), undefined).text).toBe("Revision requested: People Ops revises and resubmits");
     expect(caseNow(at("blocked", "it_provisioning"), undefined).text).toBe("Blocked: IT on it");
-    expect(caseNow(at("blocked", "provisioning_verification"), undefined).text).toBe("Blocked: People Ops, IT or Facilities on it");
+    // the owner of the blocker the stage is blocked by, as the case page names it; without one, the stage's owners
+    expect(caseNow({ ...at("blocked", "provisioning_verification"), blockerOwner: "people_ops" }, undefined).text).toBe("Blocked: People Ops on it");
+    expect(caseNow({ ...at("blocked", "it_provisioning"), blockerOwner: "people_ops" }, undefined).text).toBe("Blocked: People Ops on it");
+    expect(caseNow({ ...at("blocked", "provisioning_verification"), blockerOwner: null }, undefined).text).toBe("Blocked: People Ops, IT or Facilities on it");
     expect(caseNow(at("in_progress", "paperwork"), undefined).text).toBe("The employee's checklist");
     expect(caseNow(at("in_progress", "orientation"), undefined).text).toBe("The employee's checklist");
     for (const s of ["intake", "it_provisioning", "facilities_setup", "provisioning_verification"] as const) expect(caseNow(at("in_progress", s), undefined).text).toBe("Running (automated)");

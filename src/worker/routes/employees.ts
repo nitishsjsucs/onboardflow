@@ -2,6 +2,7 @@
 import { Hono } from "hono";
 import { EmployeesQuery, type EmployeeSummary, PatchEmployeeBody } from "../../shared/api.ts";
 import { type FixableField, OPEN_CASE_STATUSES } from "../../shared/domain.ts";
+import { BLOCKING_BLOCKER_ORDER } from "../../shared/who-acts.ts";
 import { requireRole } from "../auth/middleware.ts";
 import { canFixField, canViewCase } from "../auth/policy.ts";
 import { getEmployee } from "../db/repo.ts";
@@ -21,6 +22,7 @@ type SummaryRow = {
   case_status: EmployeeSummary["caseStatus"];
   current_stage: EmployeeSummary["currentStage"];
   open_blockers: number;
+  blocker_owner: EmployeeSummary["blockerOwner"];
 };
 
 export function employeeRoutes() {
@@ -75,7 +77,12 @@ export function employeeRoutes() {
     const rows = await c.env.DB.prepare(
       `SELECT e.id, e.first_name || ' ' || e.last_name AS name, e.email, e.job_title, e.org_unit, e.employment_type, e.work_mode,
               e.start_date, e.manager_id, c.status AS case_status, c.current_stage,
-              (SELECT COUNT(*) FROM blockers b WHERE b.employee_id = e.id AND b.status = 'open') AS open_blockers
+              (SELECT COUNT(*) FROM blockers b WHERE b.employee_id = e.id AND b.status = 'open') AS open_blockers,
+              -- who acts on a blocked case: the owner of the blocker its current stage is blocked by (blockingBlocker's pick)
+              CASE WHEN c.status = 'blocked' THEN
+                (SELECT b.owner_department FROM blockers b WHERE b.employee_id = e.id AND b.stage_id = c.current_stage AND b.status = 'open'
+                  ORDER BY ${BLOCKING_BLOCKER_ORDER} LIMIT 1)
+              END AS blocker_owner
          FROM employees e JOIN cases c ON c.employee_id = e.id
         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
         ORDER BY e.id LIMIT ?`,
@@ -99,6 +106,7 @@ export function employeeRoutes() {
           caseStatus: x.case_status,
           currentStage: x.current_stage,
           openBlockers: x.open_blockers,
+          blockerOwner: x.blocker_owner ?? null,
         }),
         (x) => x.id,
       ),

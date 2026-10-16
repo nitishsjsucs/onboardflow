@@ -16,7 +16,7 @@ import { useId, useState } from "react";
 import { Link } from "react-router";
 import type { StageRollup } from "../../shared/agent-state.ts";
 import { STAGE_BY_ID, type StageId } from "../../shared/stages.ts";
-import { type Actor, stageBlockedOwners, waitingStatusAt } from "../../shared/who-acts.ts";
+import { type Actor, blockedOwnersAt, waitingStatusAt } from "../../shared/who-acts.ts";
 import { departmentsText } from "./actor-text.ts";
 import { EmptyState } from "./EmptyState.tsx";
 import { type StateGlyph, StateIcon } from "./StateIcon.tsx";
@@ -29,8 +29,8 @@ export const SEGMENT_LEGEND: ReadonlyArray<{ key: ChartSegment; label: string; g
   { key: "running", label: "Running", glyph: "play" },
 ];
 
-/** One non-zero state of a stage: its count, words, who acts, where its link goes. */
-export type StageState = { segment: ChartSegment; n: number; text: string; actor: Actor; href: string; glyph: StateGlyph };
+/** One non-zero state of a stage: its count, words, who acts (each actor on cases of its own), where its link goes. */
+export type StageState = { segment: ChartSegment; n: number; text: string; actors: Actor[]; href: string; glyph: StateGlyph };
 
 export type StageRow = {
   stage: StageId;
@@ -38,7 +38,7 @@ export type StageRow = {
   open: number;
   done: number;
   states: StageState[];
-  /** "IT acts", "managers act", "the employee and People Ops act", "running" or "" (no open case). */
+  /** "IT acts", "managers act", "People Ops and IT act", "People Ops, IT or Facilities acts", "running" or "" (no open case). */
   who: string;
 };
 
@@ -58,12 +58,21 @@ function whoName(a: Actor): string | null {
   }
 }
 
+/** "A", "A and B", "A, B and C". */
+function andList(names: readonly string[]): string {
+  return names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 /** Maps one hub rollup row to the chart's states (the hub folds revision_requested into `waiting`). */
 export function stageRow(s: StageRollup): StageRow {
   const def = STAGE_BY_ID[s.stage];
   const states: StageState[] = [];
   if (s.blocked > 0) {
-    states.push({ segment: "blocked", n: s.blocked, text: `${s.blocked} blocked`, actor: { kind: "department", departments: stageBlockedOwners(s.stage) }, href: casesAt(s.stage, "blocked"), glyph: "cross" });
+    // the owners of the blockers these cases are blocked by, each acting on its own cases, as the case page names
+    // them; while a blocker is not open yet, one of the stage's structural owners ("People Ops, IT or Facilities")
+    const owners = blockedOwnersAt(s.stage, s.blocked, s.blockedBy);
+    const actors: Actor[] = owners.exact ? owners.departments.map((d) => ({ kind: "department", departments: [d] })) : [{ kind: "department", departments: owners.departments }];
+    states.push({ segment: "blocked", n: s.blocked, text: `${s.blocked} blocked`, actors, href: casesAt(s.stage, "blocked"), glyph: "cross" });
   }
   if (s.waiting > 0) {
     states.push(
@@ -73,11 +82,11 @@ export function stageRow(s: StageRollup): StageRow {
             segment: "waiting",
             n: s.waiting,
             text: `${s.waiting} ${s.waiting === 1 ? "revision" : "revisions"} requested, People Ops acts`,
-            actor: { kind: "department", departments: ["people_ops"] },
+            actors: [{ kind: "department", departments: ["people_ops"] }],
             href: casesAt(s.stage, "blocked"),
             glyph: "pause",
           }
-        : { segment: "waiting", n: s.waiting, text: `${s.waiting} waiting on the employee`, actor: { kind: "employee" }, href: casesAt(s.stage, "in_progress"), glyph: "clock" },
+        : { segment: "waiting", n: s.waiting, text: `${s.waiting} waiting on the employee`, actors: [{ kind: "employee" }], href: casesAt(s.stage, "in_progress"), glyph: "clock" },
     );
   }
   if (s.awaitingApproval > 0) {
@@ -86,16 +95,16 @@ export function stageRow(s: StageRollup): StageRow {
       segment: "waiting",
       n: s.awaitingApproval,
       text: `${s.awaitingApproval} waiting on a decision by ${byManager ? "managers" : "People Ops"}`,
-      actor: byManager ? { kind: "manager" } : { kind: "department", departments: ["people_ops"] },
+      actors: [byManager ? { kind: "manager" } : { kind: "department", departments: ["people_ops"] }],
       href: casesAt(s.stage, "awaiting_approval"),
       glyph: "pause",
     });
   }
-  if (s.active > 0) states.push({ segment: "running", n: s.active, text: `${s.active} running`, actor: { kind: "workflow" }, href: casesAt(s.stage, "in_progress"), glyph: "play" });
+  if (s.active > 0) states.push({ segment: "running", n: s.active, text: `${s.active} running`, actors: [{ kind: "workflow" }], href: casesAt(s.stage, "in_progress"), glyph: "play" });
 
-  const names = [...new Set(states.map((x) => whoName(x.actor)).filter((x): x is string => x !== null))];
+  const names = [...new Set(states.flatMap((x) => x.actors.map(whoName)).filter((x): x is string => x !== null))];
   const plural = names.length > 1 || names[0] === "managers";
-  const who = names.length > 0 ? `${names.join(" and ")} ${plural ? "act" : "acts"}` : states.length > 0 ? "running" : "";
+  const who = names.length > 0 ? `${andList(names)} ${plural ? "act" : "acts"}` : states.length > 0 ? "running" : "";
   const open = s.blocked + s.waiting + s.awaitingApproval + s.active;
   return { stage: s.stage, name: `${def.ordinal}. ${def.name}`, open, done: s.complete, states, who };
 }

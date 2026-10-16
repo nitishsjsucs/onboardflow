@@ -39,6 +39,12 @@ export type StageRollup = {
   blocked: number;
   awaitingApproval: number;
   complete: number;
+  /**
+   * The stage's blocked cases by the department that owns the open blocker each is blocked by (blockingBlocker in
+   * who-acts.ts). A blocked case with no open blocker yet is in `blocked` only. Added 2026-10-16: a hub state
+   * saved by an earlier build lacks it until its next reconcile (a subscriber's connect asks for one).
+   */
+  blockedBy?: Record<Department, number>;
 };
 
 export type IntegrationHealth = { calls: number; ok: number; retried: number; replayed: number; lastErrorAt: string | null };

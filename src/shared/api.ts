@@ -262,6 +262,12 @@ export const EmployeeSummarySchema = z.object({
   caseStatus: z.enum(CASE_STATUSES),
   currentStage: z.enum(STAGE_IDS).nullable(),
   openBlockers: z.number().int(),
+  /**
+   * When the case is blocked: the department that owns the open blocker its current stage is blocked by
+   * (blockingBlocker in who-acts.ts), null while none is open, and null for a case that is not blocked.
+   * Added 2026-10-16, so My team names who acts as the case page does.
+   */
+  blockerOwner: z.enum(DEPARTMENTS).nullable(),
 });
 export type EmployeeSummary = z.infer<typeof EmployeeSummarySchema>;
 
@@ -369,7 +375,17 @@ const count = z.number().int().min(0);
 export const HubStateSchema = z.object({
   totals: z.object(Object.fromEntries(CASE_STATUSES.map((s) => [s, count])) as Record<(typeof CASE_STATUSES)[number], typeof count>),
   byStage: z
-    .array(z.object({ stage: z.enum(STAGE_IDS), active: count, waiting: count, blocked: count, awaitingApproval: count, complete: count }))
+    .array(
+      z.object({
+        stage: z.enum(STAGE_IDS),
+        active: count,
+        waiting: count,
+        blocked: count,
+        awaitingApproval: count,
+        complete: count,
+        blockedBy: z.object({ people_ops: count, it: count, facilities: count }),
+      }),
+    )
     .length(8),
   blockersOpen: z.object({
     byKind: z.object(Object.fromEntries(BLOCKER_KINDS.map((k) => [k, count])) as Record<(typeof BLOCKER_KINDS)[number], typeof count>),

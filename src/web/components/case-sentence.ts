@@ -6,7 +6,7 @@
 import type { CaseDetail, MeDto } from "../../shared/api.ts";
 import type { FailureReason } from "../../shared/domain.ts";
 import { STAGE_BY_ID } from "../../shared/stages.ts";
-import { stageActor } from "../../shared/who-acts.ts";
+import { blockingBlocker, stageActor } from "../../shared/who-acts.ts";
 import { actorName } from "./actor-text.ts";
 import { blockerTitle, readableMessage } from "./blocker-text.ts";
 import { countdownWords, daysSince, daysUntil, formatDay, formatInstantDay, localToday } from "./dates.ts";
@@ -58,9 +58,8 @@ export function caseSentence(d: CaseDetail, me: MeDto | null, now: Date = new Da
   if (c.status === "failed") return { parts: [`Onboarding failed: ${failureWords(c.failureReason, cur?.name ?? null)}. An admin can restart it.`, start, progress], action: null };
   if (!cur) return { parts: [start, progress], action: null };
 
-  const openBlockers = d.blockers.filter((b) => b.status === "open" && b.stageId === cur.id);
-  // an outage blocker can stay open beside the data issue a later retry hit: the data issue is what blocks now
-  const blocker = openBlockers.find((b) => b.kind === "data_issue") ?? openBlockers[0] ?? null;
+  // the blocker the stage is blocked by, picked as the dashboard and My team pick it (a data issue first)
+  const blocker = blockingBlocker(d.blockers.filter((b) => b.status === "open" && b.stageId === cur.id));
   const isMe = (staffId: string | null | undefined) => !!me?.staffId && me.staffId === staffId;
   const peopleOps = me?.role === "coordinator" && me.department === "people_ops";
   let what: string;

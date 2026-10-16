@@ -10,6 +10,7 @@ import type { HubState, IntegrationHealth, StageRollup } from "../../shared/agen
 import { BLOCKER_KINDS, CASE_STATUSES, SYSTEM_IDS } from "../../shared/domain.ts";
 import { DEPARTMENTS } from "../../shared/roles.ts";
 import { STAGE_IDS } from "../../shared/stages.ts";
+import { BLOCKING_BLOCKER_ORDER } from "../../shared/who-acts.ts";
 
 export async function projectCase(db: D1Database, employeeId: string, workflowStatus: string | null, nowIso: string): Promise<CaseState | null> {
   const [emp, kase, stages, empTasks, deptTasks, approval, prov, blockers, seq] = await db.batch([
@@ -175,11 +176,23 @@ export const INCIDENT_MIN_CASES = 3;
 
 export type HubDomain = Omit<HubState, "asOfSeq" | "reconciledAt" | "version">;
 
+const noDepartments = (): Record<Department, number> => ({ people_ops: 0, it: 0, facilities: 0 });
+
 export async function computeHubDomain(db: D1Database, nowIso: string): Promise<{ domain: HubDomain; asOfSeq: number }> {
   const since = new Date(Date.parse(nowIso) - INCIDENT_WINDOW_MS).toISOString();
-  const [totals, stages, byKind, byDept, approvals, health, incidents, activity, seq] = await db.batch([
+  const [totals, stages, blockedBy, byKind, byDept, approvals, health, incidents, activity, seq] = await db.batch([
     db.prepare("SELECT status, COUNT(*) AS n FROM cases GROUP BY status"),
     db.prepare("SELECT stage_id, status, COUNT(*) AS n FROM case_stages GROUP BY stage_id, status"),
+    // Blocked cases per stage by the owner of the blocker each is blocked by (blockingBlocker's pick), so the
+    // dashboard names who acts as the case page does. Reads the open blockers (blockers_status_dept index) and
+    // one stage row each by primary key: bounded by the open blockers, not by the size of the tables.
+    db.prepare(
+      `SELECT stage_id, owner_department AS d, COUNT(*) AS n FROM (
+         SELECT b.stage_id, b.owner_department, ROW_NUMBER() OVER (PARTITION BY b.employee_id, b.stage_id ORDER BY ${BLOCKING_BLOCKER_ORDER}) AS pick
+           FROM blockers b JOIN case_stages cs ON cs.employee_id = b.employee_id AND cs.stage_id = b.stage_id
+          WHERE b.status = 'open' AND cs.status = 'blocked')
+        WHERE pick = 1 GROUP BY stage_id, owner_department`,
+    ),
     db.prepare("SELECT kind, COUNT(*) AS n FROM blockers WHERE status = 'open' GROUP BY kind"),
     db.prepare("SELECT owner_department AS d, COUNT(*) AS n FROM blockers WHERE status = 'open' GROUP BY owner_department"),
     db.prepare("SELECT COUNT(*) AS pending, SUM(CASE WHEN due_at < ? THEN 1 ELSE 0 END) AS overdue FROM approvals WHERE status = 'pending'").bind(nowIso),
@@ -205,7 +218,7 @@ export async function computeHubDomain(db: D1Database, nowIso: string): Promise<
   const totalsRec = Object.fromEntries(CASE_STATUSES.map((s) => [s, 0])) as HubState["totals"];
   for (const r of rows<{ status: keyof HubState["totals"]; n: number }>(totals)) totalsRec[r.status] = r.n;
 
-  const byStage: StageRollup[] = STAGE_IDS.map((stage) => ({ stage, active: 0, waiting: 0, blocked: 0, awaitingApproval: 0, complete: 0 }));
+  const byStage: StageRollup[] = STAGE_IDS.map((stage) => ({ stage, active: 0, waiting: 0, blocked: 0, awaitingApproval: 0, complete: 0, blockedBy: noDepartments() }));
   for (const r of rows<{ stage_id: StageId; status: string; n: number }>(stages)) {
     const roll = byStage.find((b) => b.stage === r.stage_id);
     if (!roll) continue;
@@ -214,6 +227,10 @@ export async function computeHubDomain(db: D1Database, nowIso: string): Promise<
     else if (r.status === "blocked") roll.blocked += r.n;
     else if (r.status === "awaiting_approval") roll.awaitingApproval += r.n;
     else if (r.status === "complete") roll.complete += r.n;
+  }
+  for (const r of rows<{ stage_id: StageId; d: Department; n: number }>(blockedBy)) {
+    const roll = byStage.find((b) => b.stage === r.stage_id);
+    if (roll?.blockedBy && r.d in roll.blockedBy) roll.blockedBy[r.d] = r.n;
   }
 
   const kinds = Object.fromEntries(BLOCKER_KINDS.map((k) => [k, 0])) as HubState["blockersOpen"]["byKind"];
@@ -260,7 +277,7 @@ export async function computeHubDomain(db: D1Database, nowIso: string): Promise<
 export function emptyHubState(): HubState {
   return {
     totals: Object.fromEntries(CASE_STATUSES.map((s) => [s, 0])) as HubState["totals"],
-    byStage: STAGE_IDS.map((stage) => ({ stage, active: 0, waiting: 0, blocked: 0, awaitingApproval: 0, complete: 0 })),
+    byStage: STAGE_IDS.map((stage) => ({ stage, active: 0, waiting: 0, blocked: 0, awaitingApproval: 0, complete: 0, blockedBy: noDepartments() })),
     blockersOpen: {
       byKind: Object.fromEntries(BLOCKER_KINDS.map((k) => [k, 0])) as HubState["blockersOpen"]["byKind"],
       byDepartment: Object.fromEntries(DEPARTMENTS.map((d) => [d, 0])) as HubState["blockersOpen"]["byDepartment"],

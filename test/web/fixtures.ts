@@ -148,6 +148,7 @@ export function employee(id: string, name: string, over: Partial<EmployeeSummary
     caseStatus: "not_started",
     currentStage: null,
     openBlockers: 0,
+    blockerOwner: null,
     ...over,
   };
 }

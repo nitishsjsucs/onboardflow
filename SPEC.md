@@ -914,7 +914,8 @@ The prototype observed zero `onWorkflowError` calls across two restarts and one 
 ```ts
 type HubState = {
   totals: Record<CaseStatus, number>;                 // sums to 150 after seed
-  byStage: Array<{ stage: StageId; active: number; waiting: number; blocked: number; awaitingApproval: number; complete: number }>; // 8 rows
+  byStage: Array<{ stage: StageId; active: number; waiting: number; blocked: number; awaitingApproval: number; complete: number;
+    blockedBy: Record<Department, number> }>; // 8 rows. blockedBy (added 2026-10-16): the stage's blocked cases by the owner of the open blocker each is blocked by (blockingBlocker in src/shared/who-acts.ts: a data issue first, else the earliest), so the dashboard names who acts as the case page does
   blockersOpen: { byKind: Record<BlockerKind, number>; byDepartment: Record<Department, number> };
   approvalsPending: { count: number; overdue: number };
   integrationHealth: Record<SystemId, { calls: number; ok: number; retried: number; replayed: number; lastErrorAt: string | null }>;
@@ -1069,7 +1070,7 @@ Mutating routes (every non-GET under `/api`):
 | GET | `/api/health` | public | none | `{ ok: true, authMode, version }` |
 | GET | `/api/me` | any | none | `Me = { email, role, displayName, employeeId?, staffId?, department?, limits? }` (`limits = { maxStageRounds, maxRecoveryRounds }`, the configured recovery limits, for coordinators and admins only; added 2026-10-16 so a Retry can say how many rounds are left) |
 | GET | `/api/me/checklist` | employee | none | `{ caseStatus, stages: StageView[8], tasks: TaskView[] }` |
-| GET | `/api/employees` | manager (reports), coordinator, admin | query `stage?, status?, orgUnit?, q?, startFrom?, startTo?, cursor?, limit?` (`status` is a case status, or `open`: in progress, blocked or awaiting approval; added 2026-10-16 for the dashboard's stage links. `startFrom` and `startTo` are inclusive `YYYY-MM-DD` start dates, a malformed or impossible date is a 400; added 2026-10-16 for the readiness links) | `Page<EmployeeSummary>` |
+| GET | `/api/employees` | manager (reports), coordinator, admin | query `stage?, status?, orgUnit?, q?, startFrom?, startTo?, cursor?, limit?` (`status` is a case status, or `open`: in progress, blocked or awaiting approval; added 2026-10-16 for the dashboard's stage links. `startFrom` and `startTo` are inclusive `YYYY-MM-DD` start dates, a malformed or impossible date is a 400; added 2026-10-16 for the readiness links) | `Page<EmployeeSummary>`; each row's `blockerOwner` (added 2026-10-16) is, for a blocked case, the owner of the open blocker its current stage is blocked by (blockingBlocker's pick), else null |
 | GET | `/api/employees/:id` | policy `canViewCase` | none | `EmployeeProfile` |
 | PATCH | `/api/employees/:id` | coordinator (field owner), admin | `{ costCenter?, licenseBundle?, photoOnFile? }` | `EmployeeProfile` (audit `employee.field_corrected` with before/after) |
 | POST | `/api/cases/:id/start` | coordinator(people_ops), admin | `{}` | 202 `{ instanceId, created }` |

@@ -7,11 +7,13 @@
 // own pending approvals (the same query, and cache entry, as Approvals). The
 // list carries no stage status, so at paperwork or orientation the row names
 // the stage's gate ("the employee's checklist") rather than claiming a wait.
+// For a blocked case it carries the owner of the blocker the stage is blocked
+// by, so the row names the department the case page names.
 import { Link } from "react-router";
 import type { ApprovalView, EmployeeSummary, MeDto } from "../../shared/api.ts";
 import { STAGE_BY_ID, STAGES } from "../../shared/stages.ts";
-import { stageBlockedOwners } from "../../shared/who-acts.ts";
-import { departmentsText } from "./actor-text.ts";
+import { stageActor } from "../../shared/who-acts.ts";
+import { actorName } from "./actor-text.ts";
 import { countdownTo, daysUntil, formatDay, localToday } from "./dates.ts";
 import { approvalAnchor } from "./links.ts";
 import { type StateGlyph, StateIcon } from "./StateIcon.tsx";
@@ -35,7 +37,7 @@ const EMPLOYEE_GATE = new Set(["paperwork", "orientation"]);
  * What a report's case waits on now, from the list row and the manager's own pending approvals (by employee).
  * `approvalsKnown`: false when the approvals request failed, so "waiting on you" cannot be told apart.
  */
-export function caseNow(e: Pick<EmployeeSummary, "caseStatus" | "currentStage">, myPending: ApprovalView | undefined, approvalsKnown = true): CaseNow {
+export function caseNow(e: Pick<EmployeeSummary, "caseStatus" | "currentStage"> & Partial<Pick<EmployeeSummary, "blockerOwner">>, myPending: ApprovalView | undefined, approvalsKnown = true): CaseNow {
   const stage = e.currentStage;
   switch (e.caseStatus) {
     case "not_started":
@@ -50,7 +52,7 @@ export function caseNow(e: Pick<EmployeeSummary, "caseStatus" | "currentStage">,
       return { state: "decision", text: "Waiting on a decision", glyph: "pause", tone: "waiting", decideHref: null };
     case "blocked":
       if (stage === "manager_approval") return { state: "revision", text: "Revision requested: People Ops revises and resubmits", glyph: "pause", tone: "waiting", decideHref: null };
-      return { state: "blocked", text: `Blocked: ${stage ? departmentsText(stageBlockedOwners(stage)) : "People Ops"} on it`, glyph: "cross", tone: "blocked", decideHref: null };
+      return { state: "blocked", text: `Blocked: ${stage ? actorName(stageActor(stage, "blocked", e.blockerOwner)) : "People Ops"} on it`, glyph: "cross", tone: "blocked", decideHref: null };
     case "in_progress":
       if (stage && EMPLOYEE_GATE.has(stage)) return { state: "checklist", text: "The employee's checklist", glyph: "clock", tone: "waiting", decideHref: null };
       return { state: "running", text: "Running (automated)", glyph: "play", tone: "running", decideHref: null };

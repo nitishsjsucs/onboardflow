@@ -7,17 +7,21 @@ import { PERSONAS, renderWith } from "./harness.tsx";
 
 afterEach(cleanup);
 
-const zero = (stage: StageId): StageRollup => ({ stage, active: 0, waiting: 0, blocked: 0, awaitingApproval: 0, complete: 0 });
+const none = { people_ops: 0, it: 0, facilities: 0 };
+const zero = (stage: StageId): StageRollup => ({ stage, active: 0, waiting: 0, blocked: 0, awaitingApproval: 0, complete: 0, blockedBy: none });
 
-/** The demo-drive mix: 24 at each human checkpoint, 3 blocked at each automated stage. */
+/**
+ * The demo-drive mix: 24 at each human checkpoint, 3 blocked at each automated stage by a simulated outage of the
+ * system the stage calls (at the cross-system check, HR's get-worker: People Ops' blockers).
+ */
 function demo(over: Partial<Record<StageId, Partial<StageRollup>>> = {}): StageRollup[] {
   const base: Record<StageId, Partial<StageRollup>> = {
-    intake: { blocked: 3, complete: 147 },
+    intake: { blocked: 3, complete: 147, blockedBy: { ...none, people_ops: 3 } },
     paperwork: { waiting: 24, complete: 120 },
     manager_approval: { awaitingApproval: 24, complete: 96 },
-    it_provisioning: { blocked: 3, complete: 93 },
-    facilities_setup: { blocked: 3, complete: 90 },
-    provisioning_verification: { blocked: 3, complete: 90 },
+    it_provisioning: { blocked: 3, complete: 93, blockedBy: { ...none, it: 3 } },
+    facilities_setup: { blocked: 3, complete: 90, blockedBy: { ...none, facilities: 3 } },
+    provisioning_verification: { blocked: 3, complete: 90, blockedBy: { ...none, people_ops: 3 } },
     orientation: { waiting: 24, complete: 66 },
     closeout: { awaitingApproval: 24, complete: 42 },
   };
@@ -56,18 +60,38 @@ describe("StageFunnelChart (where open cases are waiting)", () => {
     expect(within(row("it_provisioning")).getByRole("link", { name: /^1 blocked/ })).toBeTruthy();
   });
 
-  it("names who acts: the department of a blocked stage, the employee, managers, People Ops", () => {
+  it("names who acts: the owner of each blocked case's blocker, the employee, managers, People Ops", () => {
     renderChart(demo());
     expect(within(row("it_provisioning")).getByText(": IT acts")).toBeTruthy();
     expect(within(row("facilities_setup")).getByText(": Facilities acts")).toBeTruthy();
     expect(within(row("intake")).getByText(": People Ops acts")).toBeTruthy();
-    expect(within(row("provisioning_verification")).getByText(": People Ops, IT or Facilities acts")).toBeTruthy();
+    // the cross-system check calls all three systems; these 3 cases wait on People Ops' blockers, as their case pages say
+    expect(within(row("provisioning_verification")).getByText(": People Ops acts")).toBeTruthy();
     expect(within(row("paperwork")).getByText(": the employee acts")).toBeTruthy();
     expect(within(row("orientation")).getByText(": the employee acts")).toBeTruthy();
     expect(within(row("manager_approval")).getByText(": managers act")).toBeTruthy();
     expect(within(row("manager_approval")).getByRole("link", { name: /^24 waiting on a decision by managers/ })).toBeTruthy();
     expect(within(row("closeout")).getByText(": People Ops acts")).toBeTruthy();
     expect(within(row("closeout")).getByRole("link", { name: /^24 waiting on a decision by People Ops/ })).toBeTruthy();
+  });
+
+  it("names every department with blocked cases of its own, and falls back to the stage's owners while a blocker is not open yet", () => {
+    renderChart(
+      demo({
+        provisioning_verification: { blocked: 3, blockedBy: { people_ops: 1, it: 1, facilities: 1 } },
+        it_provisioning: { blocked: 3, blockedBy: { ...none, people_ops: 1, it: 2 } },
+        facilities_setup: { blocked: 3, blockedBy: { ...none, facilities: 2 } },
+      }),
+    );
+    expect(within(row("provisioning_verification")).getByText(": People Ops, IT and Facilities act")).toBeTruthy();
+    expect(within(row("it_provisioning")).getByText(": People Ops and IT act")).toBeTruthy();
+    // 2 of 3 known: the third is one of the stage's owners, and Facilities owns the only system it calls
+    expect(within(row("facilities_setup")).getByText(": Facilities acts")).toBeTruthy();
+    cleanup();
+    // a hub state saved by an earlier build has no counts: "one of them", as a case page without a blocker says
+    renderChart(demo().map(({ blockedBy: _b, ...r }) => r));
+    expect(within(row("provisioning_verification")).getByText(": People Ops, IT or Facilities acts")).toBeTruthy();
+    expect(within(row("it_provisioning")).getByText(": IT acts")).toBeTruthy();
   });
 
   it("reads the hub's waiting count as a revision at a checkpoint (People Ops acts) and as the employee's checklist elsewhere", () => {
