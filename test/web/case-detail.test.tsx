@@ -95,10 +95,10 @@ describe("CaseDetailPage", () => {
     expect(terminate.disabled).toBe(true);
     fireEvent.change(within(controls).getByLabelText("Reason (audited)"), { target: { value: "duplicate hire record" } });
     fireEvent.click(terminate);
-    expect(within(controls).getByText("Terminate Avery Abara's onboarding? The case ends as failed (terminated). This cannot be undone.")).toBeTruthy();
+    expect(within(controls).getByText("Terminate Avery Abara's onboarding? The case ends as failed (terminated). This cannot be undone. Reason: duplicate hire record")).toBeTruthy();
     fireEvent.click(within(controls).getByRole("button", { name: "Cancel" }));
     fireEvent.click(within(controls).getByRole("button", { name: "Restart workflow" }));
-    expect(within(controls).getByText("Restart the workflow as run 2?")).toBeTruthy();
+    expect(within(controls).getByText("Restart Avery Abara's workflow as run 2? Reason: duplicate hire record")).toBeTruthy();
     fireEvent.click(within(controls).getByRole("button", { name: "Cancel" }));
     await new Promise((r) => setTimeout(r, 20));
     expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
@@ -147,6 +147,24 @@ describe("CaseDetailPage", () => {
     // the blocked stage and its blocker are gone after the refetch, and so is the section
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Retry/ })).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1 })));
+  });
+
+  it("locks the reason while the confirm step is open, so Confirm sends the reason it showed", async () => {
+    const calls = serve(caseDetail(null));
+    renderWith(null, { me: PERSONAS.admin!, path: "/cases/E001", routes });
+    const controls = await screen.findByRole("region", { name: "admin controls" });
+    const reason = within(controls).getByLabelText("Reason (audited)") as HTMLInputElement;
+    fireEvent.change(reason, { target: { value: "stuck after the IT outage" } });
+    fireEvent.click(within(controls).getByRole("button", { name: "Restart workflow" }));
+    expect(reason.readOnly).toBe(true);
+    expect(within(controls).getByText(/Cancel to change it\./)).toBeTruthy();
+    // a change that slips through (readOnly is not enforced by fireEvent) is still refused at Confirm
+    fireEvent.change(reason, { target: { value: "x" } });
+    fireEvent.click(within(controls).getByRole("button", { name: "Confirm restart" }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
+    fireEvent.click(within(controls).getByRole("button", { name: "Cancel" }));
+    expect(reason.readOnly).toBe(false);
   });
 
   it("confirms a terminate, announces it and clears the reason", async () => {

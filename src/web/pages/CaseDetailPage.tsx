@@ -241,7 +241,8 @@ function AdminControls({ employeeId, employeeName, c }: { employeeId: string; em
 
   async function confirm() {
     const kind = confirming;
-    if (!kind) return;
+    // the reason is locked while the step is open; check it again anyway, so Confirm never sends a short one
+    if (!kind || !reasonOk) return;
     const action = kind === "restart" ? restart : terminate;
     (kind === "restart" ? terminate : restart).reset();
     // the step stays open, with Confirm focused and busy, until the server answers
@@ -255,9 +256,9 @@ function AdminControls({ employeeId, employeeName, c }: { employeeId: string; em
     <section className="card" aria-label="admin controls">
       <h2>Admin controls</h2>
       <label htmlFor={ids.reason}>Reason (audited)</label>
-      <input id={ids.reason} aria-describedby={ids.hint} value={reason} onChange={(e) => setReason(e.target.value)} disabled={busy} style={{ width: "100%", maxWidth: 520 }} />
+      <input id={ids.reason} aria-describedby={ids.hint} value={reason} onChange={(e) => setReason(e.target.value)} readOnly={confirming !== null} disabled={busy} style={{ width: "100%", maxWidth: 520 }} />
       <p id={ids.hint} className="muted hint">
-        At least {MIN_ADMIN_REASON} characters; it is stored with the action in the audit trail.
+        At least {MIN_ADMIN_REASON} characters; it is stored with the action in the audit trail.{confirming ? " Cancel to change it." : ""}
       </p>
       <div className="row" style={{ marginTop: 8 }}>
         <button type="button" ref={opener.restart.ref} disabled={!started || !reasonOk || busy || confirming !== null} onClick={() => open("restart")}>
@@ -272,8 +273,8 @@ function AdminControls({ employeeId, employeeName, c }: { employeeId: string; em
         <div className="confirm" role="group" aria-label={confirming === "restart" ? "Confirm restart" : "Confirm terminate"}>
           <p ref={prompt.ref} tabIndex={-1}>
             {confirming === "restart"
-              ? `Restart the workflow as run ${c.runNo + 1}?`
-              : `Terminate ${employeeName}'s onboarding? The case ends as failed (terminated). This cannot be undone.`}
+              ? `Restart ${employeeName}'s workflow as run ${c.runNo + 1}? Reason: ${trimmed}`
+              : `Terminate ${employeeName}'s onboarding? The case ends as failed (terminated). This cannot be undone. Reason: ${trimmed}`}
           </p>
           <div className="row">
             <ActionButton className={confirming === "terminate" ? "danger" : "primary"} busy={busy} onClick={() => void confirm()}>
