@@ -1,8 +1,8 @@
 // Small glyphs that carry a state next to its word, so a chart or a strip never
 // relies on color alone: a cross for blocked or failed, pause for waiting on a
 // person, play for running, a clock for the employee's checklist, a check for
-// done or ready, an empty circle for not started, and an exclamation mark for
-// overdue or the last round. Drawn in currentColor (text ink), decorative: the
+// done or ready, an empty circle for not started, and a warning triangle for
+// overdue or not ready. Drawn in currentColor (text ink), decorative: the
 // word beside them is what assistive technology reads.
 export type StateGlyph = "cross" | "pause" | "play" | "clock" | "check" | "circle" | "alert";
 
@@ -22,8 +22,9 @@ export function StateIcon({ glyph, size = 12 }: { glyph: StateGlyph; size?: numb
       {glyph === "circle" ? <circle cx="6" cy="6" r="4" strokeDasharray="2 1.6" /> : null}
       {glyph === "alert" ? (
         <>
-          <path d="M6 2.25v4.5" />
-          <circle cx="6" cy="9.25" r="0.6" fill="currentColor" />
+          <path d="M6 1.25L11 10.25H1z" />
+          <path d="M6 4.5v2.5" />
+          <circle cx="6" cy="8.6" r="0.45" fill="currentColor" />
         </>
       ) : null}
     </svg>

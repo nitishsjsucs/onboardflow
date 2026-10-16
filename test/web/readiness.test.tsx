@@ -91,7 +91,7 @@ describe("Readiness by start week (dashboard card)", () => {
     expect(nov9.map((s) => s.className.replace(/ last$/, ""))).toEqual(["seg rd-bad", "seg rd-notStarted", "seg rd-ready"]);
     expect(nov9[1]!.style.width).toBe(`calc(${((7 / 15) * 100).toFixed(3)}% - 1.33px)`);
     // the row's text carries every count, and the flag is text
-    expect(nov2.textContent).toContain("1 blocked,3 waiting on a person,5 in setup,6 ready");
+    expect(nov2.textContent).toContain("1 blocked, 3 waiting on a person, 5 in setup, 6 ready");
     expect(within(nov2).getByText(/9 not ready/)).toBeTruthy();
     expect(within(week("2026-11-09")).queryByText(/not ready/)).toBeNull();
     // empty weeks are one muted line

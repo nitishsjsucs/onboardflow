@@ -92,7 +92,8 @@ describe("What changed (dashboard card)", () => {
     renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
     const list = await within(card()).findByRole("list", { name: "latest changes, newest first" });
     const rows = within(list).getAllByRole("listitem");
-    expect(rows[0]!.textContent).toMatch(/^5 min ago, .*Retry requested for IT provisioning for Logan Ravel: round 2$/);
+    // the sentence first, then when
+    expect(rows[0]!.textContent).toMatch(/^Retry requested for IT provisioning for Logan Ravel: round 25 min ago, \w+ \d+, \d\d:\d\d$/);
     expect(within(rows[0]!).getByRole("link", { name: "Logan Ravel" }).getAttribute("href")).toBe("/cases/E057");
     expect(rows[0]!.querySelector("time")!.getAttribute("dateTime")).toBe(items[0]!.occurredAt);
     expect(within(rows[1]!).getByRole("link", { name: "Wren Abara" }).getAttribute("href")).toBe("/cases/E003");

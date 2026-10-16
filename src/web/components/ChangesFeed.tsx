@@ -73,13 +73,13 @@ function Change({ item, now }: { item: ChangeItem; now: number }) {
   const s = changeSentence(item);
   return (
     <li>
-      <time dateTime={item.occurredAt} className="muted" title={new Date(item.occurredAt).toLocaleString()}>
-        {relativeTime(item.occurredAt, now)}, {formatInstant(item.occurredAt)}
-      </time>
       <span>
         {capitalize(s.lead)} <Link to={`/cases/${item.employeeId}`}>{item.employeeName}</Link>
         {s.tail}
       </span>
+      <time dateTime={item.occurredAt} className="muted small" title={new Date(item.occurredAt).toLocaleString()}>
+        {relativeTime(item.occurredAt, now)}, {formatInstant(item.occurredAt)}
+      </time>
     </li>
   );
 }
@@ -92,7 +92,7 @@ export function ChangesFeed({ items, stale = false, now = Date.now() }: { items:
   const shown = all ? items : items.slice(0, SHOWN_AT_FIRST);
   return (
     <div className={stale ? "stale" : undefined}>
-      <ol className="timeline changes" id={listId} aria-label="latest changes, newest first">
+      <ol className="changes" id={listId} aria-label="latest changes, newest first">
         {shown.map((i) => (
           <Change key={i.seq} item={i} now={now} />
         ))}

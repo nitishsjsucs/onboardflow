@@ -139,9 +139,10 @@ function Bar({ row, max }: { row: ReadinessRowModel; max: number }) {
 
 function Parts({ row }: { row: ReadinessRowModel }) {
   return (
-    <div className="stage-counts">
+    <div className="readiness-counts">
       {row.parts.map((p, i) => (
-        <span key={p.key} className="count">
+        <span key={p.key}>
+          {i > 0 ? ", " : null}
           {p.href ? (
             <Link to={p.href} aria-label={`${p.text}: ${row.label}. Show them`}>
               {p.text}
@@ -149,7 +150,6 @@ function Parts({ row }: { row: ReadinessRowModel }) {
           ) : (
             p.text
           )}
-          {i < row.parts.length - 1 ? "," : ""}
         </span>
       ))}
     </div>
