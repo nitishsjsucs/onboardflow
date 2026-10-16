@@ -56,40 +56,56 @@ export type ApprovalCardProps = {
   onSettled?: (a: ApprovalView) => void;
 };
 
+/**
+ * One approval's decision, shared by the full card and the compact sign-off row so both behave the same:
+ * pending state per item, the outcome message with focus, after a decision the view of the approval the
+ * server returned (so no SLA), "Already decided" when another tab or person decided first, and onSettled
+ * so the page keeps the item on screen after the list refetches without it.
+ */
+export function useApprovalDecision(approval: ApprovalView, onSettled?: (a: ApprovalView) => void) {
+  const nextStep = approval.checkpoint === "manager_approval" ? "IT provisioning starts next." : "Onboarding finishes once HR (simulated) activates the worker.";
+  const decide = useItemAction(useDecide(), (_r, v) => (v.decision === "approve" ? `Approved. ${nextStep}` : "Rejected. People Ops can revise and resubmit it."));
+  // after a decision the item shows the decided approval (status, reason), not the pending one it was drawn from;
+  // fields only the list carries (the round history) stay
+  const a: ApprovalView = decide.result ? { ...approval, ...decide.result } : approval;
+  // a decision removes the buttons that had focus: the item's outcome takes it instead
+  const outcome = useFocusRequest<HTMLDivElement>();
+  // decided elsewhere (another tab or person): the outcome is not known here, so no status or SLA is shown
+  const decidedElsewhere = isCode(decide.error, "approval_not_pending");
+  const decided = decide.success !== null || decidedElsewhere;
+  // an item that was already decided leaves the refetched list: keep it, with its message
+  useEffect(() => {
+    if (decidedElsewhere) onSettled?.(approval);
+    // only when that error arrives
+  }, [decidedElsewhere]);
+  async function onDecide(d: { decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }) {
+    const r = await decide.run({ approvalId: a.id, ...d });
+    if (r) onSettled?.({ ...approval, ...r });
+    outcome.request({ onlyIfLost: true });
+  }
+  return { a, decide, outcome, decided, decidedElsewhere, onDecide };
+}
+
 export function ApprovalCard({ approval, me, canDecide, canResubmit, onSettled }: ApprovalCardProps) {
   const [reason, setReason] = useState("");
   const [privileged, setPrivileged] = useState<boolean | null>(null);
   const [note, setNote] = useState("");
   const ids = { reason: useId(), note: useId(), privHint: useId() };
-  const nextStep = approval.checkpoint === "manager_approval" ? "IT provisioning starts next." : "Onboarding finishes once HR (simulated) activates the worker.";
-  const decide = useItemAction(useDecide(), (_r, v) => (v.decision === "approve" ? `Approved. ${nextStep}` : "Rejected. People Ops can revise and resubmit it."));
-  // after a decision the card shows the decided approval (status, reason), not the pending one it was drawn from;
-  // fields only the list carries (the round history) stay
-  const a: ApprovalView = decide.result ? { ...approval, ...decide.result } : approval;
+  const { a, decide, outcome: decideOutcome, decided, decidedElsewhere, onDecide } = useApprovalDecision(approval, onSettled);
   const resubmit = useItemAction(useResubmit(), (r) => `Resubmitted: round ${r.round} sent for approval`);
-  // a decision removes the buttons that had focus: the card's outcome takes it instead
-  const decideOutcome = useFocusRequest<HTMLDivElement>();
   const resubmitOutcome = useFocusRequest<HTMLDivElement>();
   const busy = decide.pending || resubmit.pending;
   const who = `${label(a.checkpoint)} for ${a.employeeName}`;
   const needsPriv = a.request.needsPrivilegedAccess === true && a.checkpoint === "manager_approval";
-  // decided elsewhere (another tab or person): the outcome is not known here, so no status or SLA is shown
-  const decidedElsewhere = isCode(decide.error, "approval_not_pending");
-  const decided = decide.success !== null || decidedElsewhere;
   const resubmittedElsewhere = isCode(resubmit.error, "not_revision_requested");
   const resubmitted = resubmit.success !== null || resubmittedElsewhere;
 
-  // a card that was already decided or resubmitted leaves the refetched list: keep it, with its message
+  // a card that was already resubmitted leaves the refetched list: keep it, with its message
   useEffect(() => {
-    if (decidedElsewhere || resubmittedElsewhere) onSettled?.(approval);
-    // only when one of these errors arrives
-  }, [decidedElsewhere, resubmittedElsewhere]);
+    if (resubmittedElsewhere) onSettled?.(approval);
+    // only when that error arrives
+  }, [resubmittedElsewhere]);
 
-  async function onDecide(d: { decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }) {
-    const r = await decide.run({ approvalId: a.id, ...d });
-    if (r) onSettled?.({ ...approval, ...r });
-    decideOutcome.request({ onlyIfLost: true });
-  }
   async function onResubmit() {
     const r = await resubmit.run({ approvalId: a.id, note: note.trim() });
     if (r) onSettled?.(approval);

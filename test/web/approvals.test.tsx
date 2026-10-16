@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { afterEach, describe, expect, it } from "vitest";
 import { slaText } from "../../src/web/components/ApprovalCard.tsx";
 import { formatDate } from "../../src/web/components/dates.ts";
-import { ApprovalsPage } from "../../src/web/pages/ApprovalsPage.tsx";
+import { ApprovalsPage, signoffSummary, startGroup } from "../../src/web/pages/ApprovalsPage.tsx";
 import { approval } from "./fixtures.ts";
 import { announced, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
@@ -167,7 +167,12 @@ describe("ApprovalsPage", () => {
     renderWith(<ApprovalsPage />, { me: PERSONAS.admin!, path: "/approvals" });
     const manager = await screen.findByRole("article", { name: "manager approval for Avery Abara" });
     expect(within(manager).getByText("You are deciding on behalf of the hiring manager (M01). The decision is audited.")).toBeTruthy();
-    expect(within(screen.getByRole("article", { name: "closeout for Wren Abara" })).getByText("You are deciding on behalf of People Ops. The decision is audited.")).toBeTruthy();
+    // sign-offs are rows under one notice, which each row's buttons point at
+    const signoffs = screen.getByRole("region", { name: "People Ops sign-offs" });
+    const notice = within(signoffs).getByText("You are deciding these on behalf of People Ops. Each decision is audited.");
+    const approve = within(signoffs).getByRole("button", { name: "Approve sign-off for Wren Abara" });
+    expect(approve.getAttribute("aria-describedby")).toBe(notice.id);
+    expect(screen.getByRole("heading", { name: "Manager approvals" })).toBeTruthy();
     cleanup();
     serve();
     renderWith(<ApprovalsPage />, { me: PERSONAS.manager!, path: "/approvals" });
@@ -255,5 +260,147 @@ describe("ApprovalsPage", () => {
     serve();
     renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: `/approvals#approval-${encodeURIComponent("apr:E099:manager_approval:1")}` });
     await screen.findByText(/That request is not waiting here any more/);
+  });
+});
+
+describe("People Ops sign-offs as rows", () => {
+  const DAY = 86_400_000;
+  const startIn = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const signoff = (id: string, name: string, startDays: number, dueDays: number) =>
+    approval({
+      id: `apr:${id}:closeout:1`,
+      employeeId: id,
+      employeeName: name,
+      checkpoint: "closeout",
+      stageId: "closeout",
+      approverRole: "coordinator",
+      approverStaffId: null,
+      request: { summary: "All stages before sign-off are complete", startDate: startIn(startDays) },
+      dueAt: new Date(Date.now() + dueDays * DAY).toISOString(),
+    });
+  // start in 13, 14, 15, 42 and 43 days, and 2 days ago; two overdue
+  const ROWS = [signoff("E010", "Zed Young", 43, 1), signoff("E011", "Ann Bell", 14, -6), signoff("E012", "Cy Dunn", 15, 2), signoff("E013", "Bo Erl", 13, -1), signoff("E014", "Di Fox", -2, 3), signoff("E015", "Ed Gale", 42, 4)];
+  const names = (root: HTMLElement) => within(root).getAllByRole("listitem").map((li) => li.getAttribute("aria-label")!.replace("Sign-off for ", ""));
+
+  it("sorts by start date under a summary line, grouped by how soon each person starts", async () => {
+    serve(ROWS);
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
+    const section = await screen.findByRole("region", { name: "People Ops sign-offs" });
+    expect(within(section).getByTestId("signoff-summary").textContent).toBe("6 sign-offs waiting, 2 overdue, 2 start within 2 weeks");
+    const groups = [...section.querySelectorAll<HTMLElement>(".start-group")];
+    expect(groups.map((g) => g.querySelector("h3")!.textContent)).toEqual(["Already started (1)", "Starts within 2 weeks (2)", "In 2 to 6 weeks (2)", "Later (1)"]);
+    expect(groups.map((g) => names(g))).toEqual([["Di Fox"], ["Bo Erl", "Ann Bell"], ["Cy Dunn", "Ed Gale"], ["Zed Young"]]);
+    // no card repeats the same request 24 times
+    expect(within(section).queryByRole("article")).toBeNull();
+    const ann = within(section).getByRole("listitem", { name: "Sign-off for Ann Bell" });
+    expect(ann.textContent).toContain("in 14 days");
+    expect(within(ann).getByText("Overdue by 6 days")).toBeTruthy();
+    expect(within(ann).getByRole("link", { name: "Ann Bell" }).getAttribute("href")).toBe("/cases/E011");
+  });
+
+  it("sorts by most overdue or by name, kept in the URL", async () => {
+    serve(ROWS);
+    const { router } = renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
+    const section = await screen.findByRole("region", { name: "People Ops sign-offs" });
+    fireEvent.change(within(section).getByLabelText("Sort"), { target: { value: "overdue" } });
+    await waitFor(() => expect(router.state.location.search).toBe("?sort=overdue"));
+    expect(names(section)).toEqual(["Ann Bell", "Bo Erl", "Zed Young", "Cy Dunn", "Di Fox", "Ed Gale"]);
+    expect(section.querySelector(".start-group")).toBeNull();
+    fireEvent.change(within(section).getByLabelText("Sort"), { target: { value: "name" } });
+    await waitFor(() => expect(router.state.location.search).toBe("?sort=name"));
+    expect(names(section)).toEqual(["Ann Bell", "Bo Erl", "Cy Dunn", "Di Fox", "Ed Gale", "Zed Young"]);
+    fireEvent.change(within(section).getByLabelText("Sort"), { target: { value: "start" } });
+    await waitFor(() => expect(router.state.location.search).toBe(""));
+  });
+
+  it("approves in the row: pending inside the row, then 'approved' with no SLA and focus on the outcome", async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const calls = mockFetch(async (_url, method) => {
+      if (method === "POST") {
+        await gate;
+        return { body: { ...ROWS[1]!, status: "approved", decidedAt: new Date().toISOString() } };
+      }
+      return { body: { items: ROWS, nextCursor: null } };
+    });
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
+    const approve = await screen.findByRole("button", { name: "Approve sign-off for Ann Bell" });
+    const other = screen.getByRole("button", { name: "Approve sign-off for Bo Erl" });
+    approve.focus();
+    fireEvent.click(approve);
+    await waitFor(() => expect(isBusy(approve)).toBe(true));
+    expect(isBusy(other)).toBe(false);
+    release();
+    const row = screen.getByRole("listitem", { name: "Sign-off for Ann Bell" });
+    const outcome = await within(row).findByText("Approved. Onboarding finishes once HR (simulated) activates the worker.");
+    await waitFor(() => expect(document.activeElement).toBe(outcome));
+    expect(within(row).getByText("approved")).toBeTruthy();
+    expect(within(row).queryByText(/Overdue by|Due in/)).toBeNull();
+    expect(calls.find((c) => c.method === "POST")!.body).toEqual({ decision: "approve" });
+  });
+
+  it("rejects only with a reason; Cancel returns focus to Reject...", async () => {
+    const calls = serve(ROWS);
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
+    const opener = await screen.findByRole("button", { name: "Reject: sign-off for Ann Bell" });
+    expect(opener.textContent).toBe("Reject...");
+    fireEvent.click(opener);
+    const row = screen.getByRole("listitem", { name: "Sign-off for Ann Bell" });
+    const send = within(row).getByRole("button", { name: "Reject sign-off for Ann Bell" }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    fireEvent.click(within(row).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(document.activeElement).toBe(within(row).getByRole("button", { name: "Reject: sign-off for Ann Bell" })));
+    fireEvent.click(within(row).getByRole("button", { name: "Reject: sign-off for Ann Bell" }));
+    fireEvent.change(within(row).getByLabelText("Why reject Ann Bell's sign-off? (required)"), { target: { value: " badge not active " } });
+    fireEvent.click(within(row).getByRole("button", { name: "Reject sign-off for Ann Bell" }));
+    await waitFor(() => expect(posts(calls)).toHaveLength(1));
+    expect(posts(calls)[0]!.body).toEqual({ decision: "reject", reason: "badge not active" });
+  });
+
+  it("says 'Already decided' in the row when another tab decided first", async () => {
+    mockFetch((_url, method) => (method === "POST" ? { status: 409, body: { error: { code: "approval_not_pending", message: "approval is approved", requestId: "r-9" } } } : { body: { items: ROWS, nextCursor: null } }));
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
+    fireEvent.click(await screen.findByRole("button", { name: "Approve sign-off for Ann Bell" }));
+    const row = screen.getByRole("listitem", { name: "Sign-off for Ann Bell" });
+    expect((await within(row).findByRole("alert")).textContent).toContain("Already decided. Nothing more to do.");
+    expect(within(row).queryByText(/Overdue by/)).toBeNull();
+  });
+
+  it("focuses the row a queue item's Decide in Approvals points at", async () => {
+    serve(ROWS);
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals#approval-apr%3AE013%3Acloseout%3A1" });
+    const row = await screen.findByRole("listitem", { name: "Sign-off for Bo Erl" });
+    await waitFor(() => expect(document.activeElement).toBe(row));
+    expect(row.id).toBe("approval-apr:E013:closeout:1");
+  });
+
+  it("an empty list says nothing is waiting", async () => {
+    serve([]);
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
+    expect(await screen.findByText("Nothing waiting for a decision.")).toBeTruthy();
+  });
+});
+
+describe("start groups", () => {
+  it("draws the boundaries at 14 and 42 days, and puts a past start date first", () => {
+    const at = (days: number) => {
+      const d = new Date(2026, 9, 16 + days);
+      return approval({ checkpoint: "closeout", request: { startDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` } });
+    };
+    const today = "2026-10-16";
+    expect([-1, 0, 13, 14, 15, 42, 43].map((d) => startGroup(at(d), today))).toEqual([
+      "Already started",
+      "Starts within 2 weeks",
+      "Starts within 2 weeks",
+      "Starts within 2 weeks",
+      "In 2 to 6 weeks",
+      "In 2 to 6 weeks",
+      "Later",
+    ]);
+    expect(signoffSummary([at(3), { ...at(20), dueAt: "2020-01-01T00:00:00.000Z" }, { ...at(1), status: "approved" }], today)).toBe("2 sign-offs waiting, 1 overdue, 1 starts within 2 weeks");
   });
 });
