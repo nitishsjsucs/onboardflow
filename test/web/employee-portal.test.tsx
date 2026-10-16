@@ -4,7 +4,7 @@ import type { BlockerView, ChecklistDto, TaskView } from "../../src/shared/api.t
 import { STAGES } from "../../src/shared/stages.ts";
 import { EmployeePortalPage } from "../../src/web/pages/EmployeePortalPage.tsx";
 import { blocker } from "./fixtures.ts";
-import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { announced, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 vi.mock("../../src/web/live/useCaseLive.ts", () => ({ useCaseLive: () => ({ state: null, status: "connected" }) }));
 
@@ -68,7 +68,7 @@ describe("EmployeePortalPage", () => {
     expect(screen.getByRole("status", { name: /live updates: Live/ })).toBeTruthy();
   });
 
-  it("completes a task with Idempotency-Key and X-OnboardFlow, updating optimistically", async () => {
+  it("completes a task with Idempotency-Key and X-OnboardFlow, changing the row only once the server confirmed", async () => {
     let release: (() => void) | null = null;
     const calls = mockFetch(async (url, method) => {
       if (method === "POST") {
@@ -82,15 +82,53 @@ describe("EmployeePortalPage", () => {
     renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
     await screen.findByText("Submit Form W-4");
     const paperwork = screen.getByRole("region", { name: "Paperwork and verification checklist" });
-    fireEvent.click(within(paperwork).getByRole("button", { name: "Mark done: Submit Form W-4" }));
-    // optimistic: the button disappears before the server answers
-    await waitFor(() => expect(within(paperwork).queryByRole("button", { name: /^Mark done/ })).toBeNull());
+    const button = within(paperwork).getByRole("button", { name: "Mark done: Submit Form W-4" });
+    button.focus();
+    fireEvent.click(button);
+    // while the request is in flight the task stays open and the button stays, focused, unavailable
+    await waitFor(() => expect(isBusy(button)).toBe(true));
+    expect(document.activeElement).toBe(button);
+    expect(button.closest("li")!.className).toBe("open");
     const post = calls.find((c) => c.method === "POST");
     expect(post?.url).toBe("/api/tasks/chk%3AE001%3Aw4/complete");
     expect(post?.headers["X-OnboardFlow"]).toBe("1");
     expect(post?.headers["Idempotency-Key"]).toMatch(/^[0-9a-f-]{36}$/);
     release!();
+    // confirmed: the row is done, and its confirmation takes the focus the removed button had
+    const confirmation = await within(paperwork).findByText("Marked done: Submit Form W-4");
+    expect(within(paperwork).queryByRole("button", { name: /^Mark done/ })).toBeNull();
+    expect(confirmation.closest("li")!.className).toBe("done");
+    await waitFor(() => expect(document.activeElement).toBe(confirmation));
     await waitFor(() => expect(calls.filter((c) => c.method === "GET").length).toBeGreaterThanOrEqual(2));
+  });
+
+  it("keeps Mark done focused after a failed completion, so Enter tries again with the same key", async () => {
+    let fail = true;
+    const calls = mockFetch((_url, method) => {
+      if (method === "POST") {
+        if (fail) {
+          fail = false;
+          return { status: 502, raw: "<html>Bad gateway</html>" };
+        }
+        return { body: task("chk:E001:w4", "paperwork", "Submit Form W-4", "done") };
+      }
+      return { body: checklist };
+    });
+    renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
+    const button = await screen.findByRole("button", { name: "Mark done: Submit Form W-4" });
+    const row = button.closest("li") as HTMLElement;
+    button.focus();
+    fireEvent.click(button);
+    expect((await within(row).findByRole("alert")).textContent).toContain("Trying again is safe");
+    // the same button, still mounted, enabled and focused (no optimistic removal and rollback)
+    expect(within(row).getByRole("button", { name: "Mark done: Submit Form W-4" })).toBe(button);
+    expect(document.activeElement).toBe(button);
+    expect(isBusy(button)).toBe(false);
+    fireEvent.click(document.activeElement as HTMLElement);
+    await within(row).findByText("Marked done: Submit Form W-4");
+    const posts = calls.filter((c) => c.method === "POST");
+    expect(posts).toHaveLength(2);
+    expect(posts[1]!.headers["Idempotency-Key"]).toBe(posts[0]!.headers["Idempotency-Key"]);
   });
 
   it("offers no Mark done for tasks of a stage that has not started, and says when they open", async () => {
@@ -126,7 +164,7 @@ describe("EmployeePortalPage", () => {
     fireEvent.click(button);
     const alert = await within(row).findByRole("alert");
     expect(alert.textContent).toContain("Paperwork and verification has not started yet. Its tasks open when it starts.");
-    // the optimistic update was rolled back, so the task can be tried again
+    // the task stayed open, so it can be tried again
     fireEvent.click(await within(row).findByRole("button", { name: "Mark done: Submit Form W-4" }));
     await within(row).findByText("Marked done: Submit Form W-4");
     expect(within(row).queryByRole("alert")).toBeNull();

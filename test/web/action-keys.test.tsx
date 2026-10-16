@@ -5,7 +5,7 @@ import { ApiError } from "../../src/web/api/client.ts";
 import { CaseDetailPage } from "../../src/web/pages/CaseDetailPage.tsx";
 import { QueuePage } from "../../src/web/pages/QueuePage.tsx";
 import { blocker, caseDetail } from "./fixtures.ts";
-import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { announced, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 vi.mock("../../src/web/live/useCaseLive.ts", () => ({ useCaseLive: () => ({ state: null, status: "connected" }) }));
 vi.mock("../../src/web/live/useHubLive.ts", () => ({ useHubLive: () => ({ state: null, status: "connected" }) }));
@@ -102,7 +102,7 @@ describe("Idempotency-Key per user action", () => {
     const retry = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
     const row = retry.closest("li")!;
     fireEvent.click(retry);
-    await waitFor(() => expect(retry.disabled).toBe(true));
+    await waitFor(() => expect(isBusy(retry)).toBe(true));
     fireEvent.click(retry);
     (release as unknown as () => void)();
     // the conflict is explained inside the blocker's row, not at the end of the page
@@ -110,7 +110,7 @@ describe("Idempotency-Key per user action", () => {
     expect(alert.textContent).toContain("IT provisioning is not blocked right now (active), so there is nothing to retry.");
     expect(alert.textContent).toContain("Request id r1");
     expect(screen.getAllByRole("alert")).toHaveLength(1);
-    await waitFor(() => expect(retry.disabled).toBe(false));
+    await waitFor(() => expect(isBusy(retry)).toBe(false));
     expect(posts(calls)).toHaveLength(1);
     answer = { status: 202, body: { round: 3 } };
     fireEvent.click(retry);
@@ -177,9 +177,10 @@ describe("Idempotency-Key per user action", () => {
     const a = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
     const b = screen.getByRole("button", { name: "Retry stage: IT provisioning for Blake Brennick" }) as HTMLButtonElement;
     fireEvent.click(a);
-    await waitFor(() => expect(a.disabled).toBe(true));
+    await waitFor(() => expect(isBusy(a)).toBe(true));
+    expect(isBusy(b)).toBe(false);
     expect(b.disabled).toBe(false);
     (release as unknown as () => void)();
-    await waitFor(() => expect(a.disabled).toBe(false));
+    await waitFor(() => expect(isBusy(a)).toBe(false));
   });
 });

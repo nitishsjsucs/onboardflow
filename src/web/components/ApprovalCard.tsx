@@ -9,6 +9,8 @@ import type { ApprovalView, MeDto } from "../../shared/api.ts";
 import { ApiError } from "../api/client.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useDecide, useResubmit } from "../api/queries.ts";
+import { useFocusRequest } from "../hooks/useFocus.ts";
+import { ActionButton } from "./ActionButton.tsx";
 import { ActionMessage } from "./ActionMessage.tsx";
 import { label, StatusBadge } from "./StatusBadge.tsx";
 
@@ -67,6 +69,9 @@ export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettle
   const nextStep = a.checkpoint === "manager_approval" ? "IT provisioning starts next." : "Onboarding finishes once HR (simulated) activates the worker.";
   const decide = useItemAction(useDecide(), (_r, v) => (v.decision === "approve" ? `Approved. ${nextStep}` : "Rejected. People Ops can revise and resubmit it."));
   const resubmit = useItemAction(useResubmit(), (r) => `Resubmitted: round ${r.round} sent for approval`);
+  // a decision removes the buttons that had focus: the card's outcome takes it instead
+  const decideOutcome = useFocusRequest<HTMLDivElement>();
+  const resubmitOutcome = useFocusRequest<HTMLDivElement>();
   const busy = decide.pending || resubmit.pending;
   const who = `${label(a.checkpoint)} for ${a.employeeName}`;
   const needsPriv = a.request.needsPrivilegedAccess === true && a.checkpoint === "manager_approval";
@@ -76,10 +81,12 @@ export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettle
   async function onDecide(d: { decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }) {
     await decide.run({ approvalId: a.id, ...d });
     onSettled?.(a);
+    decideOutcome.request({ onlyIfLost: true });
   }
   async function onResubmit() {
     await resubmit.run({ approvalId: a.id, note: note.trim() });
     onSettled?.(a);
+    resubmitOutcome.request({ onlyIfLost: true });
   }
 
   return (
@@ -132,19 +139,19 @@ export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettle
             <input id={ids.reason} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Required to reject, optional to approve" style={{ width: "100%" }} />
           </div>
           <div className="row">
-            <button
-              type="button"
+            <ActionButton
               className="primary"
               aria-label={`Approve ${who}`}
               aria-describedby={needsPriv && privileged === null ? ids.privHint : undefined}
-              disabled={busy || (needsPriv && privileged === null)}
+              disabled={needsPriv && privileged === null}
+              busy={busy}
               onClick={() => void onDecide({ decision: "approve", ...(reason.trim() ? { reason: reason.trim() } : {}), ...(needsPriv ? { privilegedAccessApproved: privileged === true } : {}) })}
             >
               Approve
-            </button>
-            <button type="button" className="danger" aria-label={`Reject ${who}`} disabled={busy || reason.trim().length === 0} onClick={() => void onDecide({ decision: "reject", reason: reason.trim() })}>
+            </ActionButton>
+            <ActionButton className="danger" aria-label={`Reject ${who}`} disabled={reason.trim().length === 0} busy={busy} onClick={() => void onDecide({ decision: "reject", reason: reason.trim() })}>
               Reject
-            </button>
+            </ActionButton>
             {needsPriv && privileged === null ? (
               <span id={ids.privHint} className="muted hint">
                 Choose whether to grant privileged access before approving.
@@ -158,14 +165,14 @@ export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettle
           <label htmlFor={ids.note}>What changed (sent to the approver with the resubmission)</label>
           <div className="row">
             <input id={ids.note} value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: "1 1 220px" }} />
-            <button type="button" className="primary" aria-label={`Resubmit ${who}`} disabled={busy || note.trim().length === 0} onClick={() => void onResubmit()}>
+            <ActionButton className="primary" aria-label={`Resubmit ${who}`} disabled={note.trim().length === 0} busy={busy} onClick={() => void onResubmit()}>
               Resubmit
-            </button>
+            </ActionButton>
           </div>
         </div>
       ) : null}
-      <ActionMessage error={decide.error} success={decide.success} context={{ action: `decide the ${who}`, subject: "this approval" }} />
-      <ActionMessage error={resubmit.error} success={resubmit.success} context={{ action: `resubmit the ${who}`, subject: "this approval" }} />
+      <ActionMessage ref={decideOutcome.ref} error={decide.error} success={decide.success} context={{ action: `decide the ${who}`, subject: "this approval" }} />
+      <ActionMessage ref={resubmitOutcome.ref} error={resubmit.error} success={resubmit.success} context={{ action: `resubmit the ${who}`, subject: "this approval" }} />
     </article>
   );
 }

@@ -5,7 +5,7 @@ a { color: var(--accent); }
 button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 6px 12px; }
 button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 button.danger { color: var(--bad); border-color: var(--bad); }
-button:disabled { opacity: 0.55; cursor: default; }
+button:disabled, button[aria-disabled="true"] { opacity: 0.55; cursor: default; }
 input, select, textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
 h1 { font-size: 1.45rem; margin: 0 0 4px; }
 h2 { font-size: 1.1rem; margin: 0 0 12px; }
@@ -93,7 +93,7 @@ ul.tasks li.done .title { text-decoration: line-through; color: var(--muted); }
 
 .skip-link { position: absolute; left: 8px; top: -60px; z-index: 10; background: var(--surface); color: var(--accent); padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px; }
 .skip-link:focus { top: 8px; }
-main:focus:not(:focus-visible), h1:focus:not(:focus-visible) { outline: none; }
+main:focus:not(:focus-visible), h1:focus:not(:focus-visible), h2:focus:not(:focus-visible), .action-msg:focus:not(:focus-visible), .title:focus:not(:focus-visible), .confirm p:focus:not(:focus-visible), .timeline li:focus:not(:focus-visible) { outline: none; }
 .notice { border-left: 4px solid var(--info); }
 .notice.error { border-left-color: var(--bad); }
 .notice p:last-child { margin-bottom: 0; }

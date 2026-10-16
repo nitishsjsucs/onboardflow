@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { formatDate, slaText } from "../../src/web/components/ApprovalCard.tsx";
 import { ApprovalsPage } from "../../src/web/pages/ApprovalsPage.tsx";
 import { approval } from "./fixtures.ts";
-import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { announced, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 afterEach(cleanup);
 
@@ -48,6 +48,19 @@ describe("ApprovalsPage", () => {
       expect(within(card).queryByRole("button", { name: /^Approve/ })).toBeNull();
       cleanup();
     }
+  });
+
+  it("moves focus from the removed Approve button to the card's outcome", async () => {
+    serve();
+    renderWith(<ApprovalsPage />, { me: PERSONAS.manager!, path: "/approvals" });
+    const card = await screen.findByRole("article", { name: "manager approval for Avery Abara" });
+    fireEvent.click(within(card).getByLabelText("Approve without privileged access"));
+    const approve = within(card).getByRole("button", { name: "Approve manager approval for Avery Abara" });
+    approve.focus();
+    fireEvent.click(approve);
+    const outcome = await within(card).findByText("Approved. IT provisioning starts next.");
+    expect(within(card).queryByRole("button", { name: /^Approve/ })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(outcome));
   });
 
   it("rejects with a reason (the field has a visible label), and needs no privileged choice to reject", async () => {
@@ -158,9 +171,10 @@ describe("ApprovalsPage", () => {
     fireEvent.click(within(avery).getByLabelText("Grant privileged access"));
     const approveAvery = within(avery).getByRole("button", { name: "Approve manager approval for Avery Abara" }) as HTMLButtonElement;
     fireEvent.click(approveAvery);
-    await waitFor(() => expect(approveAvery.disabled).toBe(true));
+    await waitFor(() => expect(isBusy(approveAvery)).toBe(true));
     const approveBlake = within(blake).getByRole("button", { name: "Approve manager approval for Blake Brennick" }) as HTMLButtonElement;
     expect(approveBlake.disabled).toBe(false);
+    expect(isBusy(approveBlake)).toBe(false);
     fireEvent.click(approveBlake);
     expect((await within(blake).findByRole("alert")).textContent).toContain("Already decided. Nothing more to do.");
     expect(within(avery).queryByRole("alert")).toBeNull();

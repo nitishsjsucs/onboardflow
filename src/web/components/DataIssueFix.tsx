@@ -8,13 +8,15 @@
 // Validation is client-side only, on purpose: the API still accepts any cost
 // center (eval scenario R09 PATCHes "CC 1100" and expects another data issue
 // round). The fix and the retry stay two calls, each with its own key.
-import { useId, useState } from "react";
+import { type Ref, useId, useRef, useState } from "react";
 import type { EmployeeProfileDto, MeDto } from "../../shared/api.ts";
 import { ALLOWED_BUNDLES, COST_CENTER_PATTERN, type FixableField, type LicenseBundle } from "../../shared/domain.ts";
 import { STAGE_BY_ID, type StageId } from "../../shared/stages.ts";
 import { type ItemAction, useItemAction } from "../api/item-action.ts";
 import { useEmployeeProfile, useFixField, useRetryStage } from "../api/queries.ts";
 import { can } from "../auth/session.tsx";
+import { useFocusRequest } from "../hooks/useFocus.ts";
+import { ActionButton } from "./ActionButton.tsx";
 import { ActionMessage } from "./ActionMessage.tsx";
 import { FIELD_LABELS, isFixableField, SYSTEM_NAMES } from "./blocker-text.ts";
 import { label } from "./StatusBadge.tsx";
@@ -53,6 +55,9 @@ export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, det
   const fix = useItemAction(useFixField(), (_r, v) => `Saved the ${FIELD_LABELS[v.field]} for ${employeeName}`);
   const retry = useItemAction(useRetryStage(), (r) => `Retry requested for ${stage}: round ${r.round} running`);
   const hintId = useId();
+  // after a saved fix, the next step is Retry: focus goes to it (or to the confirmation when this user may not retry)
+  const next = useFocusRequest<HTMLButtonElement>();
+  const fixMessage = useRef<HTMLDivElement>(null);
   if (!field || (!mayFix && !mayRetry)) return null;
   const fieldLabel = FIELD_LABELS[field];
   const system = SYSTEM_NAMES[String(detail.system ?? "")] ?? "A simulated system";
@@ -77,7 +82,18 @@ export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, det
           "Loading the current value..."
         )}
       </p>
-      {mayFix ? <FieldForm field={field} profile={p} employeeId={employeeId} employeeName={employeeName} fix={fix} showSuccess={!mayRetry} /> : null}
+      {mayFix ? (
+        <FieldForm
+          field={field}
+          profile={p}
+          employeeId={employeeId}
+          employeeName={employeeName}
+          fix={fix}
+          showSuccess={!mayRetry}
+          messageRef={fixMessage}
+          onFixed={() => next.request({ target: () => next.ref.current ?? fixMessage.current })}
+        />
+      ) : null}
       {mayRetry ? (
         <div className="data-fix-retry">
           {looksValid ? (
@@ -85,15 +101,26 @@ export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, det
               <p style={{ margin: "8px 0 4px" }}>
                 {saved ? "Saved." : `The ${fieldLabel} now looks valid.`} Retry {stage} now?
               </p>
-              <button type="button" className="primary" aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} now for ${employeeName}`} disabled={retry.pending || retryRunning} onClick={() => void retry.run({ employeeId, stageId })}>
+              <ActionButton
+                ref={next.ref}
+                className="primary"
+                aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} now for ${employeeName}`}
+                busy={retry.pending || retryRunning}
+                onClick={() => void retry.run({ employeeId, stageId })}
+              >
                 {retryRunning ? "Retry running" : `Retry ${stage} now`}
-              </button>
+              </ActionButton>
             </>
           ) : (
             <>
-              <button type="button" aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} for ${employeeName}`} aria-describedby={hintId} disabled={retry.pending || retryRunning} onClick={() => void retry.run({ employeeId, stageId })}>
+              <ActionButton
+                aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} for ${employeeName}`}
+                aria-describedby={hintId}
+                busy={retry.pending || retryRunning}
+                onClick={() => void retry.run({ employeeId, stageId })}
+              >
                 {retryRunning ? "Retry running" : `Retry ${stage}`}
-              </button>
+              </ActionButton>
               <p id={hintId} className="muted hint">
                 Fix the {fieldLabel} first, or the retry fails again and uses one of this stage's recovery rounds.
               </p>
@@ -113,6 +140,8 @@ function FieldForm({
   employeeName,
   fix,
   showSuccess,
+  messageRef,
+  onFixed,
 }: {
   field: FixableField;
   profile: EmployeeProfileDto | undefined;
@@ -121,11 +150,17 @@ function FieldForm({
   fix: ItemAction<{ employeeId: string; field: FixableField; value: string | boolean }, EmployeeProfileDto>;
   /** Show the save confirmation here (when there is no retry prompt to carry it). */
   showSuccess: boolean;
+  messageRef: Ref<HTMLDivElement>;
+  /** Called after a fix was saved. */
+  onFixed: () => void;
 }) {
   const [value, setValue] = useState("");
   const inputId = useId();
   const hintId = useId();
   const context = { action: `fix the ${FIELD_LABELS[field]} for ${employeeName}`, subject: `the ${FIELD_LABELS[field]}` };
+  const save = async (v: string | boolean) => {
+    if (await fix.run({ employeeId, field, value: v })) onFixed();
+  };
   if (field === "photoOnFile") {
     const onFile = fix.success !== null || p?.photoOnFile === true;
     return (
@@ -133,11 +168,11 @@ function FieldForm({
         {onFile ? (
           <span className="badge ok">Photo on file</span>
         ) : (
-          <button type="button" aria-label={`Mark photo on file for ${employeeName}`} disabled={fix.pending} onClick={() => void fix.run({ employeeId, field, value: true })}>
+          <ActionButton aria-label={`Mark photo on file for ${employeeName}`} busy={fix.pending} onClick={() => void save(true)}>
             Mark photo on file
-          </button>
+          </ActionButton>
         )}
-        <ActionMessage error={fix.error} success={showSuccess ? fix.success : null} context={context} />
+        <ActionMessage ref={messageRef} error={fix.error} success={showSuccess ? fix.success : null} context={context} />
       </div>
     );
   }
@@ -149,20 +184,20 @@ function FieldForm({
         className="data-fix-form"
         onSubmit={(e) => {
           e.preventDefault();
-          if (valid) void fix.run({ employeeId, field, value: trimmed });
+          if (valid) void save(trimmed);
         }}
       >
         <label htmlFor={inputId}>New cost center</label>
         <div className="row">
           <input id={inputId} aria-describedby={hintId} value={value} onChange={(e) => setValue(e.target.value)} autoComplete="off" spellCheck={false} />
-          <button type="submit" disabled={!valid || fix.pending}>
+          <ActionButton type="submit" disabled={!valid} busy={fix.pending}>
             Fix cost center
-          </button>
+          </ActionButton>
         </div>
         <span id={hintId} className="muted hint">
           CC- followed by 4 digits, for example CC-1100
         </span>
-        <ActionMessage error={fix.error} success={showSuccess ? fix.success : null} context={context} />
+        <ActionMessage ref={messageRef} error={fix.error} success={showSuccess ? fix.success : null} context={context} />
       </form>
     );
   }
@@ -173,7 +208,7 @@ function FieldForm({
       className="data-fix-form"
       onSubmit={(e) => {
         e.preventDefault();
-        if (value) void fix.run({ employeeId, field, value });
+        if (value) void save(value);
       }}
     >
       <label htmlFor={inputId}>New license bundle</label>
@@ -186,14 +221,14 @@ function FieldForm({
             </option>
           ))}
         </select>
-        <button type="submit" disabled={!value || fix.pending}>
+        <ActionButton type="submit" disabled={!value} busy={fix.pending}>
           Fix license bundle
-        </button>
+        </ActionButton>
       </div>
       <span id={hintId} className="muted hint">
         {p ? (options.length > 0 ? `Bundles IT (simulated) accepts for a ${label(p.employmentType)} employee.` : `No other bundle is allowed for a ${label(p.employmentType)} employee.`) : "Loading the allowed bundles..."}
       </span>
-      <ActionMessage error={fix.error} context={context} />
+      <ActionMessage ref={messageRef} error={fix.error} success={showSuccess ? fix.success : null} context={context} />
     </form>
   );
 }

@@ -4,7 +4,7 @@
 // it); admins can pick one. Filters live in the URL. The list refreshes when
 // the ops hub publishes a new version, without polling.
 import { useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { BlockerView, MeDto, TaskView } from "../../shared/api.ts";
 import { BLOCKER_KINDS, type BlockerKind, isOneOf } from "../../shared/domain.ts";
@@ -13,6 +13,7 @@ import { STAGE_BY_ID } from "../../shared/stages.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { keys, useCompleteTask, useOpenBlockers, useOpenFollowups, useResolveBlocker, useRetryStage } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
+import { ActionButton } from "../components/ActionButton.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { blockerDetail, blockerTitle, DEPARTMENT_NAMES, FIELD_LABELS, isFixableField, KIND_NAMES, queueOrder, relativeTime, stageState } from "../components/blocker-text.ts";
 import { DataIssueFix } from "../components/DataIssueFix.tsx";
@@ -20,6 +21,7 @@ import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { TaskList } from "../components/TaskList.tsx";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+import { useFocusRequest, useFocusRescue } from "../hooks/useFocus.ts";
 import { useHubLive } from "../live/useHubLive.ts";
 
 export function approvalAnchor(approvalId: string): string {
@@ -70,6 +72,7 @@ function FollowUpLine({ task, owner, employeeName }: { task: TaskView; owner: st
   const { me } = useSession();
   const hintId = useId();
   const done = useItemAction(useCompleteTask(), () => `Follow-up done: ${task.title}`);
+  const outcome = useFocusRequest<HTMLDivElement>();
   return (
     <div className="followup-line">
       <span>
@@ -77,15 +80,23 @@ function FollowUpLine({ task, owner, employeeName }: { task: TaskView; owner: st
       </span>
       {can.workDepartment(me, owner) && !done.success ? (
         <span className="row">
-          <button type="button" aria-label={`Mark follow-up done for ${employeeName}: ${task.title}`} aria-describedby={hintId} disabled={done.pending} onClick={() => void done.run({ taskId: task.id })}>
+          <ActionButton
+            aria-label={`Mark follow-up done for ${employeeName}: ${task.title}`}
+            aria-describedby={hintId}
+            busy={done.pending}
+            onClick={async () => {
+              await done.run({ taskId: task.id });
+              outcome.request({ onlyIfLost: true });
+            }}
+          >
             Mark follow-up done
-          </button>
+          </ActionButton>
           <span id={hintId} className="muted hint">
             Marks your follow-up task done; it does not unblock the stage.
           </span>
         </span>
       ) : null}
-      <ActionMessage error={done.error} success={done.success} context={{ action: "mark the follow-up done", subject: "this follow-up" }} />
+      <ActionMessage ref={outcome.ref} error={done.error} success={done.success} context={{ action: "mark the follow-up done", subject: "this follow-up" }} />
     </div>
   );
 }
@@ -109,9 +120,9 @@ function ResolveForm({ b, title, onCancel }: { b: BlockerView; title: string; on
         This closes the blocker only. If the condition still holds, the agents open it again.
       </p>
       <div className="row">
-        <button type="submit" disabled={!reason.trim() || resolve.pending}>
+        <ActionButton type="submit" disabled={!reason.trim()} busy={resolve.pending}>
           Resolve blocker
-        </button>
+        </ActionButton>
         <button type="button" onClick={onCancel} disabled={resolve.pending}>
           Cancel
         </button>
@@ -135,9 +146,9 @@ function KindActions({ b, me, stage, pendingFix }: { b: BlockerView; me: MeDto |
       const text = running ? "Retry running" : "Retry stage";
       return (
         <>
-          <button type="button" className="primary" aria-label={`${text}: ${stage} for ${b.employeeName}`} disabled={retry.pending || running} onClick={() => void retry.run({ employeeId: b.employeeId, stageId: b.stageId })}>
+          <ActionButton className="primary" aria-label={`${text}: ${stage} for ${b.employeeName}`} busy={retry.pending || running} onClick={() => void retry.run({ employeeId: b.employeeId, stageId: b.stageId })}>
             {text}
-          </button>
+          </ActionButton>
           <ActionMessage error={retry.error} success={retry.success} context={{ action: `retry ${stage}`, subject: stage }} />
         </>
       );
@@ -173,6 +184,8 @@ function KindActions({ b, me, stage, pendingFix }: { b: BlockerView; me: MeDto |
 
 function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: TaskView | undefined; me: MeDto | null; pendingFix: PendingFix | undefined }) {
   const [resolving, setResolving] = useState(false);
+  // Cancel closes the form: focus goes back to the Resolve... button that opened it
+  const resolveButton = useFocusRequest<HTMLButtonElement>();
   const titleId = useId();
   const stage = STAGE_BY_ID[b.stageId].name;
   const title = blockerTitle(b);
@@ -180,7 +193,7 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
   const state = stageState(b);
   const canResolve = b.kind !== "approval_rejected" && can.workDepartment(me, b.ownerDepartment);
   return (
-    <li className="queue-item" id={queueItemId(b.id)} data-testid={`blocker-${b.kind}`} aria-labelledby={titleId}>
+    <li className="queue-item" id={queueItemId(b.id)} data-focus-item={b.id} data-testid={`blocker-${b.kind}`} aria-labelledby={titleId}>
       <div className="item-main">
         <div className="title" id={titleId} tabIndex={-1}>
           <span className={`badge ${b.severity === "high" ? "bad" : b.severity === "medium" ? "warn" : ""}`}>{b.severity}</span> {title}
@@ -200,7 +213,7 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
       <div className="item-actions">
         <KindActions b={b} me={me} stage={stage} pendingFix={pendingFix} />
         {canResolve && !resolving ? (
-          <button type="button" aria-label={`Resolve: ${title}, ${b.employeeName}`} onClick={() => setResolving(true)}>
+          <button type="button" ref={resolveButton.ref} aria-label={`Resolve: ${title}, ${b.employeeName}`} onClick={() => setResolving(true)}>
             Resolve...
           </button>
         ) : null}
@@ -208,7 +221,16 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
       {b.kind === "data_issue" ? (
         <DataIssueFix me={me} employeeId={b.employeeId} employeeName={b.employeeName} stageId={b.stageId} owner={b.ownerDepartment} detail={b.detail} retryRunning={b.stageStatus === "active"} />
       ) : null}
-      {resolving ? <ResolveForm b={b} title={title} onCancel={() => setResolving(false)} /> : null}
+      {resolving ? (
+        <ResolveForm
+          b={b}
+          title={title}
+          onCancel={() => {
+            setResolving(false);
+            resolveButton.request();
+          }}
+        />
+      ) : null}
       {followUp ? <FollowUpLine task={followUp} owner={b.ownerDepartment} employeeName={b.employeeName} /> : null}
     </li>
   );
@@ -261,6 +283,22 @@ export function QueuePage() {
     return issue ? { issue, shown: shownIds.has(issue.id) } : undefined;
   };
   const scope = me?.role === "coordinator" && me.department ? DEPARTMENT_NAMES[me.department] : department ? DEPARTMENT_NAMES[department] : "all departments";
+  // an item leaves the list once its blocker resolves (by hand, or after a retry succeeds): focus moves
+  // to the item that took its place, or to the list's heading when the list is empty
+  const listRef = useRef<HTMLUListElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const titleAt = (i: number) => listRef.current?.children[i]?.querySelector<HTMLElement>(".title");
+  const rescue = useFocusRescue(
+    items.map((b) => b.id),
+    (i) => titleAt(i) ?? headingRef.current,
+  );
+  const more = useFocusRequest<HTMLElement>();
+  const loadMore = async () => {
+    const first = items.length;
+    await Promise.all([list.hasNextPage ? list.fetchNextPage() : null, followups.hasNextPage ? followups.fetchNextPage() : null]);
+    // the button goes away after the last page: continue at the first new item
+    more.request({ onlyIfLost: true, target: () => titleAt(first) });
+  };
 
   return (
     <>
@@ -297,7 +335,9 @@ export function QueuePage() {
         {all.hasNextPage ? <span className="muted small">Counts cover the blockers loaded so far.</span> : null}
       </div>
       <section className="card" aria-label="open blockers">
-        <h2>Open blockers</h2>
+        <h2 ref={headingRef} tabIndex={-1}>
+          Open blockers
+        </h2>
         <QueryState query={list} what="the open blockers">
           {() =>
             items.length === 0 ? (
@@ -315,23 +355,15 @@ export function QueuePage() {
               </EmptyState>
             ) : (
               <>
-                <ul className="tasks queue">
+                <ul className="tasks queue" ref={listRef} {...rescue}>
                   {items.map((b) => (
                     <QueueItem key={b.id} b={b} me={me} followUp={b.followUpTaskId ? byId.get(b.followUpTaskId) : undefined} pendingFix={pendingFixFor(b)} />
                   ))}
                 </ul>
                 {list.hasNextPage || followups.hasNextPage ? (
-                  <button
-                    type="button"
-                    style={{ marginTop: 12 }}
-                    disabled={list.isFetchingNextPage || followups.isFetchingNextPage}
-                    onClick={() => {
-                      if (list.hasNextPage) void list.fetchNextPage();
-                      if (followups.hasNextPage) void followups.fetchNextPage();
-                    }}
-                  >
+                  <ActionButton style={{ marginTop: 12 }} busy={list.isFetchingNextPage || followups.isFetchingNextPage} onClick={() => void loadMore()}>
                     {list.isFetchingNextPage ? "Loading..." : `Showing ${items.length}; load more`}
-                  </button>
+                  </ActionButton>
                 ) : null}
               </>
             )

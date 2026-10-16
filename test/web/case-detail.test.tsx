@@ -104,6 +104,51 @@ describe("CaseDetailPage", () => {
     expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
   });
 
+  it("focuses the confirm prompt, returns focus to the opener on Cancel, and focuses the result after Confirm", async () => {
+    serve(caseDetail(null));
+    mockFetch((url, method) => {
+      if (method === "POST") return { status: 202, body: { runNo: 2, instanceId: "onb-E001-1" } };
+      if (url.includes("/audit")) return { body: { items: [], nextCursor: null } };
+      return { body: caseDetail(null) };
+    });
+    renderWith(null, { me: PERSONAS.admin!, path: "/cases/E001", routes });
+    const controls = await screen.findByRole("region", { name: "admin controls" });
+    fireEvent.change(within(controls).getByLabelText("Reason (audited)"), { target: { value: "stuck after the IT outage" } });
+    const restart = within(controls).getByRole("button", { name: "Restart workflow" });
+    restart.focus();
+    fireEvent.click(restart);
+    const step = within(controls).getByRole("group", { name: "Confirm restart" });
+    await waitFor(() => expect(document.activeElement).toBe(step.querySelector("p")));
+    fireEvent.click(within(step).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(document.activeElement).toBe(restart));
+    fireEvent.click(restart);
+    const confirm = within(controls).getByRole("button", { name: "Confirm restart" });
+    confirm.focus();
+    fireEvent.click(confirm);
+    const result = await within(controls).findByText("Restarted: run 2");
+    expect(within(controls).queryByRole("group", { name: "Confirm restart" })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(result));
+  });
+
+  it("moves focus to the Blockers heading when a retried stage leaves the blocked list", async () => {
+    let d = caseDetail();
+    mockFetch((url, method) => {
+      if (method === "POST") {
+        d = caseDetail(null);
+        return { status: 202, body: { round: 2 } };
+      }
+      if (url.includes("/audit")) return { body: { items: [], nextCursor: null } };
+      return { body: d };
+    });
+    renderWith(null, { me: PERSONAS.it!, path: "/cases/E001", routes });
+    const retry = await screen.findByRole("button", { name: "Retry IT provisioning for Avery Abara" });
+    retry.focus();
+    fireEvent.click(retry);
+    // the blocked stage and its blocker are gone after the refetch, and so is the section
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Retry/ })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1 })));
+  });
+
   it("confirms a terminate, announces it and clears the reason", async () => {
     const calls = mockFetch((url, method) => {
       if (method === "POST") return { status: 202, body: { status: "failed", failureReason: "terminated" } };

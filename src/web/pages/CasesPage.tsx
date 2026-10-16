@@ -2,6 +2,7 @@
 // live in the URL (?q=&status=&stage=), so reload, back and links from the
 // dashboard keep them; the search waits until typing stops. Load more follows
 // the API's cursor, 100 employees at a time.
+import { useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { EmployeeSummary, MeDto } from "../../shared/api.ts";
 import { CASE_STATUSES, isOneOf } from "../../shared/domain.ts";
@@ -9,12 +10,14 @@ import { STAGE_IDS, STAGES } from "../../shared/stages.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useEmployees, useStartCase } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
+import { ActionButton } from "../components/ActionButton.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
 import { useDebouncedValue } from "../hooks/useDebouncedValue.ts";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+import { useFocusRequest } from "../hooks/useFocus.ts";
 
 export const SEARCH_DEBOUNCE_MS = 250;
 
@@ -32,6 +35,14 @@ export function CasesPage() {
   const q = useDebouncedValue(qParam.trim(), SEARCH_DEBOUNCE_MS);
   const list = useEmployees({ q, status, stage });
   const items = (list.data?.pages ?? []).flatMap((p) => p.items);
+  const tbody = useRef<HTMLTableSectionElement>(null);
+  const more = useFocusRequest<HTMLElement>();
+  const loadMore = async () => {
+    const first = items.length;
+    await list.fetchNextPage();
+    // Load more goes away after the last page: continue at the first new employee
+    more.request({ onlyIfLost: true, target: () => tbody.current?.children[first]?.querySelector<HTMLElement>("a") });
+  };
 
   /** Typing replaces the history entry; choosing a filter adds one, so Back restores the previous filter. */
   const setFilter = (key: "q" | "status" | "stage", value: string, replace = false) => {
@@ -85,7 +96,7 @@ export function CasesPage() {
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody ref={tbody}>
                     {items.map((e) => (
                       <CaseRow key={e.id} e={e} me={me} />
                     ))}
@@ -93,9 +104,9 @@ export function CasesPage() {
                 </table>
               </div>
               {list.hasNextPage ? (
-                <button type="button" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>
+                <ActionButton onClick={() => void loadMore()} busy={list.isFetchingNextPage}>
                   {list.isFetchingNextPage ? "Loading..." : "Load more"}
-                </button>
+                </ActionButton>
               ) : null}
             </>
           )
@@ -107,7 +118,9 @@ export function CasesPage() {
 
 function CaseRow({ e, me }: { e: EmployeeSummary; me: MeDto | null }) {
   const start = useItemAction(useStartCase(), () => `Onboarding started for ${e.name}`);
-  const startable = e.caseStatus === "not_started" && can.startCase(me);
+  const outcome = useFocusRequest<HTMLDivElement>();
+  // hidden as soon as the start succeeds (not on the refetch), so the confirmation can take focus in the same render
+  const startable = e.caseStatus === "not_started" && can.startCase(me) && !start.success;
   return (
     <tr>
       <td data-label={COLUMNS[0]}>
@@ -128,11 +141,18 @@ function CaseRow({ e, me }: { e: EmployeeSummary; me: MeDto | null }) {
       <td data-label={COLUMNS[5]}>{e.openBlockers > 0 ? <span className="badge bad">{e.openBlockers}</span> : "0"}</td>
       <td data-label={COLUMNS[6]} className={startable || start.success || start.error ? "" : "empty-cell"}>
         {startable ? (
-          <button type="button" aria-label={`Start onboarding for ${e.name}`} disabled={start.pending} onClick={() => void start.run({ employeeId: e.id })}>
+          <ActionButton
+            aria-label={`Start onboarding for ${e.name}`}
+            busy={start.pending}
+            onClick={async () => {
+              await start.run({ employeeId: e.id });
+              outcome.request({ onlyIfLost: true });
+            }}
+          >
             Start
-          </button>
+          </ActionButton>
         ) : null}
-        <ActionMessage error={start.error} success={start.success} context={{ action: `start onboarding for ${e.name}`, subject: `employee ${e.id}` }} />
+        <ActionMessage ref={outcome.ref} error={start.error} success={start.success} context={{ action: `start onboarding for ${e.name}`, subject: `employee ${e.id}` }} />
       </td>
     </tr>
   );

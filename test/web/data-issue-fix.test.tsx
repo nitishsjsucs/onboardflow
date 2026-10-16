@@ -4,7 +4,7 @@ import type { EmployeeProfileDto } from "../../src/shared/api.ts";
 import { DataIssueFix } from "../../src/web/components/DataIssueFix.tsx";
 import { CaseDetailPage } from "../../src/web/pages/CaseDetailPage.tsx";
 import { caseDetail, profile } from "./fixtures.ts";
-import { type MockResponse, announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { type MockResponse, announced, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 vi.mock("../../src/web/live/useCaseLive.ts", () => ({ useCaseLive: () => ({ state: null, status: "connected" }) }));
 
@@ -83,7 +83,7 @@ describe("DataIssueFix", () => {
     await screen.findByText("CC 1100");
     const running = screen.getByRole("button", { name: "Retry running: Pre-boarding intake for Logan Northcott" }) as HTMLButtonElement;
     expect(running.textContent).toBe("Retry running");
-    expect(running.disabled).toBe(true);
+    expect(isBusy(running)).toBe(true);
   });
 
   it("offers only the bundles IT accepts for the employment type, minus the rejected one, with nothing preselected", async () => {
@@ -103,13 +103,26 @@ describe("DataIssueFix", () => {
     expect((screen.getByRole("button", { name: "Fix license bundle" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("marks the photo on file and then says so", async () => {
+  it("marks the photo on file, then says so and moves focus to Retry now", async () => {
     const calls = serve(profile({ photoOnFile: false }));
     fixFor(PHOTO, PERSONAS.admin!, "facilities_setup", "facilities");
-    fireEvent.click(await screen.findByRole("button", { name: "Mark photo on file for Logan Northcott" }));
+    const mark = await screen.findByRole("button", { name: "Mark photo on file for Logan Northcott" });
+    mark.focus();
+    fireEvent.click(mark);
     await screen.findByText("Photo on file");
     expect(writes(calls)[0]!.body).toEqual({ photoOnFile: true });
     expect(screen.queryByRole("button", { name: /Mark photo on file/ })).toBeNull();
+    // the removed button's focus goes to the next step
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Retry Facilities setup now for Logan Northcott" })));
+  });
+
+  it("moves focus to Retry now after a saved cost center", async () => {
+    serve(profile());
+    fixFor(COST_CENTER, PERSONAS.peopleOps!);
+    await screen.findByText("CC 1100");
+    fireEvent.change(screen.getByLabelText("New cost center"), { target: { value: "CC-1100" } });
+    fireEvent.click(screen.getByRole("button", { name: "Fix cost center" }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Retry Pre-boarding intake now for Logan Northcott" })));
   });
 
   it("explains field_locked_by_approval inside the row", async () => {

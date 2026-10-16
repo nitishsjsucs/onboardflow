@@ -30,29 +30,21 @@ export function useChecklist(enabled = true) {
 
 /**
  * Completes a checklist task or a follow-up (same endpoint) with one Idempotency-Key per action
- * (reused on a retry, see action-keys.ts), and marks a checklist task done optimistically.
+ * (reused on a retry, see action-keys.ts). The checklist changes only once the server confirmed:
+ * an optimistic "done" removed the Mark done button that had focus, and a failure put it back with
+ * focus on <body>, so a keyboard user could not simply press Enter again.
  */
 export function useCompleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { taskId: string }) =>
       apiFetch<TaskView>(`/api/tasks/${encodeURIComponent(v.taskId)}/complete`, { method: "POST", body: {}, idempotencyKey: actionKeys.keyFor(actionId("completeTask", v)) }),
-    onSuccess: (_d, v) => actionKeys.settle(actionId("completeTask", v), null),
-    onMutate: async (v) => {
-      const previous = qc.getQueryData<ChecklistDto>(keys.checklist);
-      if (previous) {
-        await qc.cancelQueries({ queryKey: keys.checklist });
-        qc.setQueryData<ChecklistDto>(keys.checklist, {
-          ...previous,
-          tasks: previous.tasks.map((t) => (t.id === v.taskId ? { ...t, status: "done" } : t)),
-        });
-      }
-      return { previous };
+    onSuccess: (_d, v) => {
+      actionKeys.settle(actionId("completeTask", v), null);
+      const current = qc.getQueryData<ChecklistDto>(keys.checklist);
+      if (current) qc.setQueryData<ChecklistDto>(keys.checklist, { ...current, tasks: current.tasks.map((t) => (t.id === v.taskId ? { ...t, status: "done" } : t)) });
     },
-    onError: (e, v, ctx) => {
-      actionKeys.settle(actionId("completeTask", v), e);
-      if (ctx?.previous) qc.setQueryData(keys.checklist, ctx.previous);
-    },
+    onError: (e, v) => actionKeys.settle(actionId("completeTask", v), e),
     onSettled: () => Promise.all([keys.checklist, keys.followups, ["case"]].map((k) => qc.invalidateQueries({ queryKey: k }))),
   });
 }

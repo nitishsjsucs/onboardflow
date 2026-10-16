@@ -1,13 +1,14 @@
 // Case detail: stages, provisioning per simulated system, tasks, approvals,
 // blockers (with retry for permitted roles), the audit trail, and admin
 // controls. Live CaseAgent state refreshes the view.
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { CaseDetail, MeDto, StageView } from "../../shared/api.ts";
 import { ApiError } from "../api/client.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useAdminCaseAction, useCase, useCaseAudit, useRetryStage } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
+import { ActionButton } from "../components/ActionButton.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
@@ -20,6 +21,7 @@ import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
 import { overdueTaskIds, TaskList } from "../components/TaskList.tsx";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+import { useFocusRequest, useFocusRescue } from "../hooks/useFocus.ts";
 import { useCaseLive } from "../live/useCaseLive.ts";
 
 function LiveCase({ id }: { id: string }) {
@@ -77,12 +79,20 @@ export function CaseDetailPage() {
 function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto | null; audit: ReturnType<typeof useCaseAudit> }) {
   const openBlockers = d.blockers.filter((b) => b.status === "open");
   const blockedStages = d.stages.filter((s) => s.status === "blocked");
+  // a retried stage leaves the blocked list on the next refresh: focus moves to the section's heading,
+  // or to the page heading when the section goes away
+  const blockersHeading = useRef<HTMLHeadingElement>(null);
+  const pageHeading = useRef<HTMLHeadingElement>(null);
+  const rescue = useFocusRescue(
+    blockedStages.map((s) => s.id),
+    () => blockersHeading.current ?? pageHeading.current,
+  );
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1 tabIndex={-1}>
+          <h1 tabIndex={-1} ref={pageHeading}>
             {d.employee.firstName} {d.employee.lastName} <span className="muted mono">{d.employee.id}</span>
           </h1>
           <div className="sub">
@@ -102,8 +112,10 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
       </section>
 
       {blockedStages.length > 0 || openBlockers.length > 0 ? (
-        <section className="card" aria-label="blockers">
-          <h2>Blockers</h2>
+        <section className="card" aria-label="blockers" {...rescue}>
+          <h2 ref={blockersHeading} tabIndex={-1}>
+            Blockers
+          </h2>
           <BlockerList blockers={openBlockers} />
           {blockedStages.map((s) => {
             // an outage blocker can stay open beside the data issue a later retry hit: the data issue is what blocks the stage now
@@ -114,7 +126,7 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
             const dataIssue = blocker?.kind === "data_issue" ? blocker.detail : s.blockedReason?.class === "fatal" && isFixableField(s.blockedReason.field) ? s.blockedReason : null;
             if (dataIssue) {
               return (
-                <div key={s.id} className="blocked-stage">
+                <div key={s.id} className="blocked-stage" data-focus-item={s.id}>
                   <p style={{ margin: "8px 0 4px" }}>
                     <strong>{s.name} is blocked.</strong>
                   </p>
@@ -162,7 +174,7 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
             <AuditTimeline
               events={(audit.data?.pages ?? []).flatMap((p) => p.items)}
               hasMore={!!audit.hasNextPage}
-              onMore={() => void audit.fetchNextPage()}
+              onMore={() => audit.fetchNextPage()}
               loadingMore={audit.isFetchingNextPage}
             />
           )}
@@ -175,15 +187,15 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
 function BlockedStageRow({ employeeId, employeeName, stage: s, canRetry }: { employeeId: string; employeeName: string; stage: StageView; canRetry: boolean }) {
   const retry = useItemAction(useRetryStage(), (r) => `Retry requested for ${s.name}: round ${r.round} running`);
   return (
-    <div className="blocked-stage">
+    <div className="blocked-stage" data-focus-item={s.id}>
       <div className="row" style={{ marginTop: 8 }}>
         <span>
           {s.name} is blocked{s.blockedReason?.message ? `: ${String(s.blockedReason.message)}` : ""}.
         </span>
         {canRetry ? (
-          <button type="button" className="primary" aria-label={`Retry ${s.name} for ${employeeName}`} disabled={retry.pending} onClick={() => void retry.run({ employeeId, stageId: s.id })}>
+          <ActionButton className="primary" aria-label={`Retry ${s.name} for ${employeeName}`} busy={retry.pending} onClick={() => void retry.run({ employeeId, stageId: s.id })}>
             Retry {s.name}
-          </button>
+          </ActionButton>
         ) : null}
       </div>
       <ActionMessage error={retry.error} success={retry.success} context={{ action: `retry ${s.name}`, subject: s.name }} />
@@ -206,6 +218,20 @@ function AdminControls({ employeeId, employeeName, c }: { employeeId: string; em
   const restart = useItemAction(useAdminCaseAction("restart"), (r) => `Restarted: run ${r.runNo ?? c.runNo + 1}`);
   const terminate = useItemAction(useAdminCaseAction("terminate"), () => `Terminated ${employeeName}'s onboarding`);
   const busy = restart.pending || terminate.pending;
+  // Focus: opening the step moves it to the prompt (so it is read out, and Tab reaches Confirm next), Cancel
+  // returns it to the button that opened the step, and the result takes it once the step closes.
+  const prompt = useFocusRequest<HTMLParagraphElement>();
+  const opener = { restart: useFocusRequest<HTMLButtonElement>(), terminate: useFocusRequest<HTMLButtonElement>() };
+  const outcome = { restart: useFocusRequest<HTMLDivElement>(), terminate: useFocusRequest<HTMLDivElement>() };
+  const open = (kind: "restart" | "terminate") => {
+    setConfirming(kind);
+    prompt.request();
+  };
+  const cancel = () => {
+    const kind = confirming;
+    setConfirming(null);
+    if (kind) opener[kind].request();
+  };
   const started = c.workflowInstanceId !== null;
   const ended = c.status === "complete" || c.status === "failed";
   const trimmed = reason.trim();
@@ -215,11 +241,14 @@ function AdminControls({ employeeId, employeeName, c }: { employeeId: string; em
 
   async function confirm() {
     const kind = confirming;
-    setConfirming(null);
+    if (!kind) return;
     const action = kind === "restart" ? restart : terminate;
     (kind === "restart" ? terminate : restart).reset();
+    // the step stays open, with Confirm focused and busy, until the server answers
     const r = await action.run({ employeeId, reason: trimmed });
+    setConfirming(null);
     if (r !== undefined) setReason("");
+    outcome[kind].request();
   }
 
   return (
@@ -231,33 +260,33 @@ function AdminControls({ employeeId, employeeName, c }: { employeeId: string; em
         At least {MIN_ADMIN_REASON} characters; it is stored with the action in the audit trail.
       </p>
       <div className="row" style={{ marginTop: 8 }}>
-        <button type="button" disabled={!started || !reasonOk || busy || confirming !== null} onClick={() => setConfirming("restart")}>
+        <button type="button" ref={opener.restart.ref} disabled={!started || !reasonOk || busy || confirming !== null} onClick={() => open("restart")}>
           Restart workflow
         </button>
-        <button type="button" className="danger" disabled={!started || ended || !reasonOk || busy || confirming !== null} onClick={() => setConfirming("terminate")}>
+        <button type="button" ref={opener.terminate.ref} className="danger" disabled={!started || ended || !reasonOk || busy || confirming !== null} onClick={() => open("terminate")}>
           Terminate
         </button>
       </div>
       {!started ? <p className="muted">{notStarted}</p> : ended ? <p className="muted">{endedText} Terminate is not available.</p> : null}
       {confirming ? (
         <div className="confirm" role="group" aria-label={confirming === "restart" ? "Confirm restart" : "Confirm terminate"}>
-          <p>
+          <p ref={prompt.ref} tabIndex={-1}>
             {confirming === "restart"
               ? `Restart the workflow as run ${c.runNo + 1}?`
               : `Terminate ${employeeName}'s onboarding? The case ends as failed (terminated). This cannot be undone.`}
           </p>
           <div className="row">
-            <button type="button" className={confirming === "terminate" ? "danger" : "primary"} onClick={() => void confirm()}>
-              {confirming === "restart" ? "Confirm restart" : "Confirm terminate"}
-            </button>
-            <button type="button" onClick={() => setConfirming(null)}>
+            <ActionButton className={confirming === "terminate" ? "danger" : "primary"} busy={busy} onClick={() => void confirm()}>
+              {busy ? (confirming === "restart" ? "Restarting..." : "Terminating...") : confirming === "restart" ? "Confirm restart" : "Confirm terminate"}
+            </ActionButton>
+            <button type="button" onClick={cancel} disabled={busy}>
               Cancel
             </button>
           </div>
         </div>
       ) : null}
-      <ActionMessage error={restart.error} success={restart.success} context={{ action: "restart the workflow" }} />
-      <ActionMessage error={terminate.error} success={terminate.success} context={{ action: "terminate the case" }} />
+      <ActionMessage ref={outcome.restart.ref} error={restart.error} success={restart.success} context={{ action: "restart the workflow" }} />
+      <ActionMessage ref={outcome.terminate.ref} error={terminate.error} success={terminate.success} context={{ action: "terminate the case" }} />
     </section>
   );
 }

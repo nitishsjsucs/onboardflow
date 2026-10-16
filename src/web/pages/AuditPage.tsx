@@ -39,7 +39,7 @@ export function AuditPage() {
             <AuditTimeline
               events={(q.data?.pages ?? []).flatMap((p) => p.items)}
               hasMore={!!q.hasNextPage}
-              onMore={() => void q.fetchNextPage()}
+              onMore={() => q.fetchNextPage()}
               loadingMore={q.isFetchingNextPage}
             />
           )}

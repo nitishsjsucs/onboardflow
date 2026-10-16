@@ -2,6 +2,7 @@
 // call log of one case (every attempt, outcome, latency and idempotency key).
 import { useState } from "react";
 import { useCaseIntegrations, useIntegrationHealth } from "../api/queries.ts";
+import { ActionButton } from "../components/ActionButton.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { IntegrationHealthTable } from "../components/IntegrationHealthTable.tsx";
 import { QueryError, QueryState } from "../components/QueryState.tsx";
@@ -84,9 +85,9 @@ export function IntegrationsPage() {
           </div>
         )}
         {log.hasNextPage ? (
-          <button type="button" onClick={() => void log.fetchNextPage()}>
-            Load more
-          </button>
+          <ActionButton onClick={() => void log.fetchNextPage()} busy={log.isFetchingNextPage}>
+            {log.isFetchingNextPage ? "Loading..." : "Load more"}
+          </ActionButton>
         ) : null}
       </section>
     </>

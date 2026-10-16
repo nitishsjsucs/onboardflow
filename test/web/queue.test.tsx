@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BlockerView, TaskView } from "../../src/shared/api.ts";
 import { QueuePage } from "../../src/web/pages/QueuePage.tsx";
 import { blocker, profile } from "./fixtures.ts";
-import { type FetchCall, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { type FetchCall, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 const hub = vi.hoisted(() => ({ onVersion: undefined as undefined | ((v: number) => void) }));
 vi.mock("../../src/web/live/useHubLive.ts", () => ({
@@ -259,18 +259,51 @@ describe("QueuePage", () => {
     expect(post.body).toEqual({ resolution: "Vendor fixed the device API" });
   });
 
+  it("returns focus to Resolve... on Cancel, and to the next item when a resolved item leaves the list", async () => {
+    let items = [blocker(), blocker({ id: "blk:E009", employeeId: "E009", employeeName: "Noor Haddad", detectedAt: "2026-10-08T11:30:00.000Z" })];
+    mockFetch((url, method) => {
+      if (method === "POST") {
+        items = items.slice(1);
+        return { body: { ...blocker(), status: "resolved" } };
+      }
+      if (url.startsWith("/api/blockers")) return { body: { items, nextCursor: null } };
+      return { body: { items: [], nextCursor: null } };
+    });
+    renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
+    const open = await screen.findByRole("button", { name: "Resolve: IT (simulated) could not order the device, Avery Abara" });
+    open.focus();
+    fireEvent.click(open);
+    // the form's reason field takes focus; Cancel gives it back to the button that opened the form
+    expect(document.activeElement).toBe(screen.getByLabelText("Reason for resolving"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    const again = screen.getByRole("button", { name: "Resolve: IT (simulated) could not order the device, Avery Abara" });
+    await waitFor(() => expect(document.activeElement).toBe(again));
+    fireEvent.click(again);
+    fireEvent.change(screen.getByLabelText("Reason for resolving"), { target: { value: "Vendor fixed the device API" } });
+    const submit = screen.getByRole("button", { name: "Resolve blocker" });
+    submit.focus();
+    fireEvent.click(submit);
+    // the blocker resolved and its item left the list: focus goes to the item that took its place
+    await waitFor(() => expect(screen.queryByRole("link", { name: "Avery Abara" })).toBeNull());
+    const next = screen.getByRole("listitem", { name: /could not order the device/ });
+    expect(within(next).getByRole("link", { name: "Noor Haddad" })).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(next.querySelector(".title")));
+  });
+
   it("disables Retry while the stage's retry is running, and says which round", async () => {
     serve([blocker({ stageStatus: "active", stageRound: 3 })]);
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
     // the accessible name says the retry is running, not only the visible text (assistive tech reads the name)
     const retry = (await screen.findByRole("button", { name: "Retry running: IT provisioning for Avery Abara" })) as HTMLButtonElement;
-    expect(retry.disabled).toBe(true);
+    // unavailable, but still focusable: a retry that just started must not drop keyboard focus to <body>
+    expect(isBusy(retry)).toBe(true);
     expect(retry.textContent).toBe("Retry running");
     expect(screen.getByText(": Retry running, round 3")).toBeTruthy();
     cleanup();
     serve([blocker({ stageStatus: "blocked", stageRound: 3 })]);
     renderWith(<QueuePage />, { me: PERSONAS.it!, path: "/queue" });
     const idle = (await screen.findByRole("button", { name: "Retry stage: IT provisioning for Avery Abara" })) as HTMLButtonElement;
+    expect(isBusy(idle)).toBe(false);
     expect(idle.disabled).toBe(false);
     expect(idle.textContent).toBe("Retry stage");
     expect(screen.getByText(": Blocked after round 3")).toBeTruthy();

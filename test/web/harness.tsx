@@ -36,6 +36,11 @@ export type FetchCall = { url: string; method: string; headers: Record<string, s
 
 export type MockResponse = { status?: number; body?: unknown; /** sent as is, not JSON-encoded (a proxy's HTML page, a garbled body) */ raw?: string };
 
+/** A button whose request is in flight: aria-disabled, but not disabled, so it keeps keyboard focus. */
+export function isBusy(el: HTMLElement): boolean {
+  return el.getAttribute("aria-disabled") === "true" && !(el as HTMLButtonElement).disabled;
+}
+
 /** The visually hidden live region's current text. */
 export function announced(): string {
   return document.querySelector('[data-testid="announcer"]')?.textContent ?? "";

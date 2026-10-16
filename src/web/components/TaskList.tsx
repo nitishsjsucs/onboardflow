@@ -1,7 +1,10 @@
+import { useRef } from "react";
 import type { BlockerView, TaskView } from "../../shared/api.ts";
 import { isStageId, STAGE_BY_ID } from "../../shared/stages.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useCompleteTask } from "../api/queries.ts";
+import { useFocusRequest, useFocusRescue } from "../hooks/useFocus.ts";
+import { ActionButton } from "./ActionButton.tsx";
 import { ActionMessage } from "./ActionMessage.tsx";
 import { EmptyState } from "./EmptyState.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
@@ -36,9 +39,15 @@ export function isOverdue(t: TaskView, overdueIds: ReadonlySet<string> = new Set
 
 /** A list of checklist tasks or follow-ups. */
 export function TaskList({ tasks, completable, doneLabel = "Mark done", notStartedStages, overdueIds }: TaskListProps) {
+  // a completed follow-up leaves the open list on the next refetch: focus moves to the next row
+  const list = useRef<HTMLUListElement>(null);
+  const rescue = useFocusRescue(
+    tasks.map((t) => t.id),
+    (i) => list.current?.children[i]?.querySelector<HTMLElement>(".title"),
+  );
   if (tasks.length === 0) return <EmptyState>No tasks.</EmptyState>;
   return (
-    <ul className="tasks">
+    <ul className="tasks" ref={list} {...rescue}>
       {tasks.map((t) => {
         const notStarted = t.status === "open" && !!notStartedStages?.has(t.stageId);
         const overdue = isOverdue(t, overdueIds, notStartedStages);
@@ -55,7 +64,9 @@ export function TaskList({ tasks, completable, doneLabel = "Mark done", notStart
 function TaskText({ task: t, notStarted }: { task: TaskView; notStarted: boolean }) {
   return (
     <div className="item-main">
-      <div className="title">{t.title}</div>
+      <div className="title" tabIndex={-1}>
+        {t.title}
+      </div>
       <div className="muted">
         {t.description}
         {t.dueAt ? ` Due ${new Date(t.dueAt).toLocaleDateString()}.` : ""}
@@ -73,7 +84,7 @@ function TaskBadge({ task: t, notStarted, overdue }: { task: TaskView; notStarte
 
 function TaskRow({ task: t, notStarted, overdue }: { task: TaskView; notStarted: boolean; overdue: boolean }) {
   return (
-    <li className={t.status}>
+    <li className={t.status} data-focus-item={t.id}>
       <TaskText task={t} notStarted={notStarted} />
       <div className="item-actions">
         <TaskBadge task={t} notStarted={notStarted} overdue={overdue} />
@@ -82,20 +93,34 @@ function TaskRow({ task: t, notStarted, overdue }: { task: TaskView; notStarted:
   );
 }
 
-function CompletableTask({ task: t, doneLabel, notStarted, overdue }: { task: TaskView; doneLabel: string; notStarted: boolean; overdue: boolean }) {
-  const complete = useItemAction(useCompleteTask(), () => `Marked done: ${t.title}`);
+/**
+ * A task with its own Mark done. The button stays mounted and focusable while the request is in flight,
+ * and the row turns done only on success (in the same render as the confirmation, which then takes focus).
+ */
+function CompletableTask({ task, doneLabel, notStarted, overdue }: { task: TaskView; doneLabel: string; notStarted: boolean; overdue: boolean }) {
+  const complete = useItemAction(useCompleteTask(), () => `Marked done: ${task.title}`);
+  const outcome = useFocusRequest<HTMLDivElement>();
+  const t = complete.success && task.status === "open" ? { ...task, status: "done" as const } : task;
   return (
-    <li className={t.status}>
+    <li className={t.status} data-focus-item={t.id}>
       <TaskText task={t} notStarted={notStarted} />
       <div className="item-actions">
-        <TaskBadge task={t} notStarted={notStarted} overdue={overdue} />
+        <TaskBadge task={t} notStarted={notStarted} overdue={overdue && t.status === "open"} />
         {t.status === "open" && !notStarted ? (
-          <button type="button" className="primary" aria-label={`${doneLabel}: ${t.title}`} disabled={complete.pending} onClick={() => void complete.run({ taskId: t.id })}>
+          <ActionButton
+            className="primary"
+            aria-label={`${doneLabel}: ${t.title}`}
+            busy={complete.pending}
+            onClick={async () => {
+              await complete.run({ taskId: t.id });
+              outcome.request({ onlyIfLost: true });
+            }}
+          >
             {doneLabel}
-          </button>
+          </ActionButton>
         ) : null}
       </div>
-      <ActionMessage error={complete.error} success={complete.success} context={{ action: `mark "${t.title}" done` }} />
+      <ActionMessage ref={outcome.ref} error={complete.error} success={complete.success} context={{ action: `mark "${t.title}" done` }} />
     </li>
   );
 }

@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CasesPage } from "../../src/web/pages/CasesPage.tsx";
 import { employee } from "./fixtures.ts";
-import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { announced, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -29,14 +29,19 @@ describe("CasesPage actions", () => {
     renderWith(<CasesPage />, { me: PERSONAS.peopleOps!, path: "/cases" });
     const wren = (await screen.findByRole("button", { name: "Start onboarding for Wren Abara" })) as HTMLButtonElement;
     const logan = screen.getByRole("button", { name: "Start onboarding for Logan Northcott" }) as HTMLButtonElement;
+    wren.focus();
     fireEvent.click(wren);
-    await waitFor(() => expect(wren.disabled).toBe(true));
+    await waitFor(() => expect(isBusy(wren)).toBe(true));
     // only the row that acted waits
+    expect(isBusy(logan)).toBe(false);
     expect(logan.disabled).toBe(false);
     (release as unknown as () => void)();
     const row = wren.closest("tr") as HTMLElement;
-    await within(row).findByText("Onboarding started for Wren Abara");
+    const confirmation = await within(row).findByText("Onboarding started for Wren Abara");
     await waitFor(() => expect(announced()).toBe("Onboarding started for Wren Abara"));
+    // Start went away with the success: its confirmation took focus instead of <body>
+    expect(within(row).queryByRole("button", { name: /^Start/ })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(confirmation));
     expect(calls.find((c) => c.method === "POST")!.url).toBe("/api/cases/E003/start");
   });
 
