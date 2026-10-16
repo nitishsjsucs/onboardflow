@@ -11,6 +11,7 @@ import { can, useSession } from "../auth/session.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
+import { DataIssueFix, isFixableField } from "../components/DataIssueFix.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { ProvisioningTracker } from "../components/ProvisioningTracker.tsx";
@@ -104,8 +105,22 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
           <h2>Blockers</h2>
           <BlockerList blockers={openBlockers} />
           {blockedStages.map((s) => {
-            const owner = openBlockers.find((b) => b.stageId === s.id)?.ownerDepartment ?? (s.owner === "manager" ? "people_ops" : s.owner);
-            return <BlockedStageRow key={s.id} employeeId={id} employeeName={`${d.employee.firstName} ${d.employee.lastName}`} stage={s} canRetry={can.retry(me, owner)} />;
+            const blocker = openBlockers.find((b) => b.stageId === s.id);
+            const owner = blocker?.ownerDepartment ?? (s.owner === "manager" ? "people_ops" : s.owner);
+            const name = `${d.employee.firstName} ${d.employee.lastName}`;
+            // a rejected field: guide the fix first, so a retry does not burn a recovery round on the same value
+            const dataIssue = blocker?.kind === "data_issue" ? blocker.detail : s.blockedReason?.class === "fatal" && isFixableField(s.blockedReason.field) ? s.blockedReason : null;
+            if (dataIssue) {
+              return (
+                <div key={s.id} className="blocked-stage">
+                  <p style={{ margin: "8px 0 4px" }}>
+                    <strong>{s.name} is blocked.</strong>
+                  </p>
+                  <DataIssueFix me={me} employeeId={id} employeeName={name} stageId={s.id} owner={owner} detail={dataIssue} />
+                </div>
+              );
+            }
+            return <BlockedStageRow key={s.id} employeeId={id} employeeName={name} stage={s} canRetry={can.retry(me, owner)} />;
           })}
         </section>
       ) : null}

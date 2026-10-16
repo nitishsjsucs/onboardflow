@@ -13,6 +13,7 @@ export const keys = {
   case: (id: string) => ["case", id] as const,
   caseAudit: (id: string) => ["case", id, "audit"] as const,
   employees: (q: string) => ["employees", q] as const,
+  employee: (id: string) => ["employee", id] as const,
   approvals: (status: string) => ["approvals", status] as const,
   blockers: ["blockers"] as const,
   followups: ["followups"] as const,
@@ -127,8 +128,13 @@ export function useFixField() {
   return useAction<{ employeeId: string; field: "costCenter" | "licenseBundle" | "photoOnFile"; value: string | boolean }, EmployeeProfileDto>(
     "fixField",
     (v) => apiFetch<EmployeeProfileDto>(`/api/employees/${v.employeeId}`, { method: "PATCH", body: { [v.field]: v.value }, idempotencyKey: v.key }),
-    [["case"], keys.blockers],
+    [["case"], keys.blockers, ["employee"]],
   );
+}
+
+/** One employee's profile (the values a data issue is about). Coordinators and admins may read any; enable it only where it is shown. */
+export function useEmployeeProfile(id: string, enabled = true) {
+  return useQuery({ queryKey: keys.employee(id), queryFn: ({ signal }) => apiFetch<EmployeeProfileDto>(`/api/employees/${encodeURIComponent(id)}`, { signal }), enabled });
 }
 
 export type EmployeeFilters = { q?: string; status?: string; stage?: string };

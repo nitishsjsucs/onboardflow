@@ -95,3 +95,7 @@ main:focus:not(:focus-visible), h1:focus:not(:focus-visible) { outline: none; }
 .notice.error { border-left-color: var(--bad); }
 .notice p:last-child { margin-bottom: 0; }
 .refresh-warning { color: var(--warn); background: var(--warn-bg); border-radius: 6px; padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.data-fix { flex-basis: 100%; border-left: 3px solid var(--warn); padding: 4px 0 4px 12px; margin-top: 4px; }
+.data-fix p { margin: 0; }
+.data-fix label { display: block; font-weight: 600; font-size: 0.88rem; margin: 6px 0 4px; }
+.hint { display: block; font-size: 0.82rem; margin: 4px 0 0; }

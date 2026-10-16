@@ -1,44 +1,17 @@
 // Department queue: follow-ups the agents created and open blockers, with
 // retry, resolve and data fixes. Coordinators see their own department.
-import { useState } from "react";
 import type { BlockerView, MeDto } from "../../shared/api.ts";
 import { STAGE_BY_ID } from "../../shared/stages.ts";
 import { useItemAction } from "../api/item-action.ts";
-import { useBlockers, useFixField, useFollowups, useResolveBlocker, useRetryStage } from "../api/queries.ts";
+import { useBlockers, useFollowups, useResolveBlocker, useRetryStage } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
+import { DataIssueFix } from "../components/DataIssueFix.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { label } from "../components/StatusBadge.tsx";
 import { TaskList } from "../components/TaskList.tsx";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
-
-const FIXABLE = ["costCenter", "licenseBundle", "photoOnFile"] as const;
-type Fixable = (typeof FIXABLE)[number];
-
-function FieldFix({ blocker }: { blocker: BlockerView }) {
-  const field = blocker.detail.field as Fixable | undefined;
-  const [value, setValue] = useState("");
-  const fix = useItemAction(useFixField(), () => `Saved the ${label(field ?? "")} for ${blocker.employeeName}`);
-  if (!field || !(FIXABLE as readonly string[]).includes(field)) return null;
-  return (
-    <div>
-      {field === "photoOnFile" ? (
-        <button type="button" disabled={fix.pending} onClick={() => void fix.run({ employeeId: blocker.employeeId, field, value: true })}>
-          Mark photo on file
-        </button>
-      ) : (
-        <span className="row">
-          <input aria-label={`new ${field}`} placeholder={field === "costCenter" ? "CC-1234" : "ft-standard"} value={value} onChange={(e) => setValue(e.target.value)} />
-          <button type="button" disabled={!value || fix.pending} onClick={() => void fix.run({ employeeId: blocker.employeeId, field, value })}>
-            Fix {label(field)}
-          </button>
-        </span>
-      )}
-      <ActionMessage error={fix.error} success={fix.success} context={{ action: `fix the ${label(field)}`, subject: `employee ${blocker.employeeId}` }} />
-    </div>
-  );
-}
 
 function BlockerRow({ b, me }: { b: BlockerView; me: MeDto | null }) {
   const stage = STAGE_BY_ID[b.stageId].name;
@@ -55,8 +28,7 @@ function BlockerRow({ b, me }: { b: BlockerView; me: MeDto | null }) {
         </div>
       </div>
       <div className="item-actions">
-        {can.fixField(me, (b.detail.field as Fixable) ?? "costCenter") && b.kind === "data_issue" ? <FieldFix blocker={b} /> : null}
-        {can.retry(me, b.ownerDepartment) && b.kind !== "approval_overdue" && b.kind !== "employee_task_overdue" && b.kind !== "approval_rejected" ? (
+        {can.retry(me, b.ownerDepartment) && (b.kind === "integration_outage" || b.kind === "provisioning_stalled") ? (
           <button type="button" className="primary" aria-label={`Retry ${stage} for ${b.employeeName}`} disabled={retry.pending} onClick={() => void retry.run({ employeeId: b.employeeId, stageId: b.stageId })}>
             Retry stage
           </button>
@@ -67,6 +39,7 @@ function BlockerRow({ b, me }: { b: BlockerView; me: MeDto | null }) {
           </button>
         ) : null}
       </div>
+      {b.kind === "data_issue" ? <DataIssueFix me={me} employeeId={b.employeeId} employeeName={b.employeeName} stageId={b.stageId} owner={b.ownerDepartment} detail={b.detail} /> : null}
       <ActionMessage error={retry.error} success={retry.success} context={{ action: `retry ${stage}`, subject: stage }} />
       <ActionMessage error={resolve.error} success={resolve.success} context={{ action: "resolve this blocker", subject: "this blocker" }} />
     </li>

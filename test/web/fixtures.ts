@@ -1,4 +1,4 @@
-import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, EmployeeSummary } from "../../src/shared/api.ts";
+import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, EmployeeProfileDto, EmployeeSummary } from "../../src/shared/api.ts";
 import { STAGES } from "../../src/shared/stages.ts";
 
 export function approval(over: Partial<ApprovalView> = {}): ApprovalView {
@@ -144,6 +144,28 @@ export function employee(id: string, name: string, over: Partial<EmployeeSummary
     caseStatus: "not_started",
     currentStage: null,
     openBlockers: 0,
+    ...over,
+  };
+}
+
+export function profile(over: Partial<EmployeeProfileDto> = {}): EmployeeProfileDto {
+  return {
+    id: "E042",
+    email: "logan.northcott.e042@onboardflow.test",
+    firstName: "Logan",
+    lastName: "Northcott",
+    jobTitle: "Software Engineer",
+    orgUnit: "Engineering",
+    employmentType: "full_time",
+    workMode: "onsite",
+    site: "Austin",
+    startDate: "2026-11-02",
+    managerId: "M01",
+    equipmentProfile: "engineering",
+    licenseBundle: "ft-engineering",
+    needsPrivilegedAccess: false,
+    costCenter: "CC 1100",
+    photoOnFile: true,
     ...over,
   };
 }
