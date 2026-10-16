@@ -149,6 +149,8 @@ describe("CaseDetailPage data issues", () => {
         resolvedBy: null,
         resolution: null,
         followUpTaskId: null,
+        stageStatus: "blocked",
+        stageRound: 1,
       },
     ];
     return d;

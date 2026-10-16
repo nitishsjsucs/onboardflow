@@ -8,6 +8,7 @@ import { blocker, caseDetail } from "./fixtures.ts";
 import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 vi.mock("../../src/web/live/useCaseLive.ts", () => ({ useCaseLive: () => ({ state: null, status: "connected" }) }));
+vi.mock("../../src/web/live/useHubLive.ts", () => ({ useHubLive: () => ({ state: null, status: "connected" }) }));
 
 afterEach(cleanup);
 

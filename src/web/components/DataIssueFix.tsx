@@ -10,20 +10,16 @@
 // round). The fix and the retry stay two calls, each with its own key.
 import { useId, useState } from "react";
 import type { EmployeeProfileDto, MeDto } from "../../shared/api.ts";
-import { ALLOWED_BUNDLES, COST_CENTER_PATTERN, FIXABLE_FIELDS, type FixableField, type LicenseBundle } from "../../shared/domain.ts";
+import { ALLOWED_BUNDLES, COST_CENTER_PATTERN, type FixableField, type LicenseBundle } from "../../shared/domain.ts";
 import { STAGE_BY_ID, type StageId } from "../../shared/stages.ts";
 import { type ItemAction, useItemAction } from "../api/item-action.ts";
 import { useEmployeeProfile, useFixField, useRetryStage } from "../api/queries.ts";
 import { can } from "../auth/session.tsx";
 import { ActionMessage } from "./ActionMessage.tsx";
+import { FIELD_LABELS, isFixableField, SYSTEM_NAMES } from "./blocker-text.ts";
 import { label } from "./StatusBadge.tsx";
 
-export const SYSTEM_NAMES: Record<string, string> = { hr: "HR", it: "IT", facilities: "Facilities" };
-export const FIELD_LABELS: Record<FixableField, string> = { costCenter: "cost center", licenseBundle: "license bundle", photoOnFile: "badge photo" };
-
-export function isFixableField(v: unknown): v is FixableField {
-  return typeof v === "string" && (FIXABLE_FIELDS as readonly string[]).includes(v);
-}
+export { isFixableField };
 
 /** Whether the profile's value would pass the simulated system's check. */
 export function fieldLooksValid(field: FixableField, p: EmployeeProfileDto): boolean {

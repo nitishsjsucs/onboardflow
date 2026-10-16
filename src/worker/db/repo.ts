@@ -188,12 +188,17 @@ export type BlockerRow = {
   resolved_by: string | null;
   resolution: string | null;
   follow_up_task_id: string | null;
+  /** The blocked stage's current status and round (read-only, for the queue: "Retry running, round 3"). */
+  stage_status: StageView["status"] | null;
+  stage_round: number | null;
 };
 
 export const BLOCKER_SELECT = `SELECT b.id, b.employee_id, e.first_name || ' ' || e.last_name AS employee_name, b.stage_id, b.kind, b.severity,
   b.owner_department, b.subject, b.status, b.detail_json, b.detected_at, b.resolved_at, b.resolved_by, b.resolution,
-  (SELECT t.id FROM tasks t WHERE t.blocker_id = b.id LIMIT 1) AS follow_up_task_id
-  FROM blockers b JOIN employees e ON e.id = b.employee_id`;
+  (SELECT t.id FROM tasks t WHERE t.blocker_id = b.id LIMIT 1) AS follow_up_task_id,
+  cs.status AS stage_status, cs.round AS stage_round
+  FROM blockers b JOIN employees e ON e.id = b.employee_id
+  LEFT JOIN case_stages cs ON cs.employee_id = b.employee_id AND cs.stage_id = b.stage_id`;
 
 export function toBlockerView(r: BlockerRow): BlockerView {
   return {
@@ -212,6 +217,8 @@ export function toBlockerView(r: BlockerRow): BlockerView {
     resolvedBy: r.resolved_by,
     resolution: r.resolution,
     followUpTaskId: r.follow_up_task_id,
+    stageStatus: r.stage_status ?? null,
+    stageRound: r.stage_round ?? null,
   };
 }
 

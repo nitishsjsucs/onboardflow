@@ -100,12 +100,36 @@ export function useResubmit() {
   );
 }
 
-export function useBlockers(status: "open" | "resolved" | "all" = "open") {
-  return useQuery({ queryKey: [...keys.blockers, status], queryFn: ({ signal }) => apiFetch<Page<BlockerView>>(`/api/blockers?status=${status}&limit=100`, { signal }) });
+export type QueueFilters = { kind?: string | null; department?: string | null };
+
+function queueParams(base: Record<string, string>, f: QueueFilters): string {
+  const params = new URLSearchParams(base);
+  if (f.kind) params.set("kind", f.kind);
+  if (f.department) params.set("department", f.department);
+  return params.toString();
 }
 
-export function useFollowups() {
-  return useQuery({ queryKey: keys.followups, queryFn: ({ signal }) => apiFetch<Page<TaskView>>("/api/followups?limit=100", { signal }) });
+/** Open blockers, filtered on the server (a coordinator's department is forced there), one page of 100 at a time. */
+export function useOpenBlockers(f: QueueFilters, enabled = true) {
+  const qs = queueParams({ status: "open", limit: "100" }, f);
+  return useInfiniteQuery({
+    queryKey: [...keys.blockers, "open", qs],
+    enabled,
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => apiFetch<Page<BlockerView>>(`/api/blockers?${qs}${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+/** Open follow-ups of the department (admins may pick one), one page of 100 at a time. */
+export function useOpenFollowups(department?: string | null) {
+  const qs = queueParams({ limit: "100" }, { department });
+  return useInfiniteQuery({
+    queryKey: [...keys.followups, qs],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => apiFetch<Page<TaskView>>(`/api/followups?${qs}${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
+    getNextPageParam: (last) => last.nextCursor,
+  });
 }
 
 export function useRetryStage() {

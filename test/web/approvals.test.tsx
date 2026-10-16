@@ -90,4 +90,18 @@ describe("ApprovalsPage", () => {
     (release as unknown as () => void)();
     await waitFor(() => expect(announced()).toMatch(/^Approved/));
   });
+
+  it("focuses the card named by /approvals#approval-<id> (the queue's link)", async () => {
+    serve();
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: `/approvals#approval-${encodeURIComponent("apr:E002:manager_approval:1")}` });
+    const card = await screen.findByRole("article", { name: /manager approval for Blake Brennick/ });
+    await waitFor(() => expect(document.activeElement).toBe(card));
+    expect(card.id).toBe("approval-apr:E002:manager_approval:1");
+  });
+
+  it("says so when the linked card is not waiting any more", async () => {
+    serve();
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: `/approvals#approval-${encodeURIComponent("apr:E099:manager_approval:1")}` });
+    await screen.findByText(/That request is not waiting here any more/);
+  });
 });

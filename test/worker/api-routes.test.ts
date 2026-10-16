@@ -119,7 +119,9 @@ describe("mutation routes return the documented shapes", () => {
       await waitForStage(id, "manager_approval", "revision_requested");
       valid(ScanResponse, await api(`/api/cases/${id}/scan`, { as: "C01", body: {} }));
       const blockers = valid(page(BlockerViewSchema), await api("/api/blockers", { as: "C01" }));
-      expect(blockers.items.some((b) => b.kind === "approval_rejected" && b.employeeId === id)).toBe(true);
+      const rejectedBlocker = blockers.items.find((b) => b.kind === "approval_rejected" && b.employeeId === id);
+      // each blocker carries its stage's current status and round, for the queue's stage line
+      expect([rejectedBlocker?.stageStatus, rejectedBlocker?.stageRound]).toEqual(["revision_requested", 1]);
       const queue = valid(page(ApprovalViewSchema), await api("/api/approvals?status=rejected", { as: "C01" }));
       expect(queue.items.find((a) => a.id === apr)?.resubmittable).toBe(true);
       expect(valid(RoundResponse, await api(`/api/approvals/${apr}/resubmit`, { as: "C01", body: { note: "revised" } }), 202).round).toBe(2);
@@ -129,8 +131,14 @@ describe("mutation routes return the documented shapes", () => {
       valid(ApprovalViewSchema, await api(`/api/approvals/${apr2}/decision`, { as: m, body: { decision: "approve" } }));
       await waitForStage(id, "it_provisioning", "blocked");
       const blocker = await waitFor(() => DB.prepare("SELECT id FROM blockers WHERE employee_id = ? AND kind = 'integration_outage' AND status = 'open'").bind(id).first<{ id: string }>(), { what: "outage blocker" });
+      const outage = valid(page(BlockerViewSchema), await api("/api/blockers?kind=integration_outage", { as: "C03" })).items.find((b) => b.id === blocker.id);
+      expect([outage?.stageStatus, outage?.stageRound]).toEqual(["blocked", 1]);
       expect(valid(BlockerViewSchema, await api(`/api/blockers/${blocker.id}/resolve`, { as: "C03", body: { resolution: "vendor ticket" } })).status).toBe("resolved");
       valid(RoundResponse, await api(`/api/cases/${id}/stages/it_provisioning/retry`, { as: "C03", body: {} }), 202);
+      const retried = valid(page(BlockerViewSchema), await api("/api/blockers?status=resolved&kind=integration_outage", { as: "C03" })).items.find((b) => b.id === blocker.id);
+      // the retry advanced the stage's round; with the outage still injected it may already be blocked again
+      expect(retried?.stageRound).toBe(2);
+      expect(["active", "blocked"]).toContain(retried?.stageStatus);
       valid(RestartResponse, await api(`/api/cases/${id}/restart`, { as: "A01", body: { reason: "test" } }), 202);
       valid(TerminateResponse, await api(`/api/cases/${id}/terminate`, { as: "A01", body: { reason: "test" } }), 202);
       valid(ErrorEnvelopeSchema, await api(`/api/cases/${id}/terminate`, { as: "A01", body: { reason: "again" } }), 409);

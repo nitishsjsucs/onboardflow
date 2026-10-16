@@ -110,13 +110,14 @@ export function AppShell() {
       firstRender.current = false;
       return;
     }
+    if (location.hash) return; // the page focuses its own #target (for example an approval card)
     const t = setTimeout(() => {
       const h1 = main.current?.querySelector<HTMLElement>("h1");
       if (h1 && !h1.hasAttribute("tabindex")) h1.setAttribute("tabindex", "-1");
       (h1 ?? main.current)?.focus();
     }, 0);
     return () => clearTimeout(t);
-  }, [location.pathname]);
+  }, [location.pathname, location.hash]);
   if (!me) return <Outlet />;
   const here = location.pathname + location.search;
   return (

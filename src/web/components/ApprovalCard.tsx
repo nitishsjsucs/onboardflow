@@ -29,7 +29,7 @@ export function ApprovalCard({ approval: a, canDecide, canResubmit }: ApprovalCa
   const onResubmit = (n: string) => void resubmit.run({ approvalId: a.id, note: n });
   const needsPriv = a.request.needsPrivilegedAccess === true && a.checkpoint === "manager_approval";
   return (
-    <article className="card" aria-label={`${label(a.checkpoint)} for ${a.employeeName}`}>
+    <article className="card" id={`approval-${a.id}`} tabIndex={-1} aria-label={`${label(a.checkpoint)} for ${a.employeeName}`}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <strong>
           {label(a.checkpoint)}: {a.employeeName} ({a.employeeId})

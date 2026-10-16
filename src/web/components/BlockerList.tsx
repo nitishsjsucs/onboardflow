@@ -1,26 +1,34 @@
-import type { ReactNode } from "react";
 import type { BlockerView } from "../../shared/api.ts";
+import { STAGE_BY_ID } from "../../shared/stages.ts";
+import { blockerDetail, blockerTitle, DEPARTMENT_NAMES, relativeTime, stageState } from "./blocker-text.ts";
 import { EmptyState } from "./EmptyState.tsx";
-import { label } from "./StatusBadge.tsx";
 
-export function BlockerList({ blockers, actions }: { blockers: BlockerView[]; actions?: (b: BlockerView) => ReactNode }) {
+/** Blockers of one case for staff (case detail): plain titles, the stage's state, the owner and the age. */
+export function BlockerList({ blockers }: { blockers: BlockerView[] }) {
   if (blockers.length === 0) return <EmptyState>No blockers.</EmptyState>;
   return (
     <ul className="tasks">
-      {blockers.map((b) => (
-        <li key={b.id} data-testid={`blocker-${b.kind}`}>
-          <div>
-            <div className="title">
-              <span className={`badge ${b.severity === "high" ? "bad" : "warn"}`}>{label(b.kind)}</span> {b.employeeName} ({b.employeeId}), {label(b.stageId)}
+      {blockers.map((b) => {
+        const state = stageState(b);
+        const detail = blockerDetail(b);
+        return (
+          <li key={b.id} data-testid={`blocker-${b.kind}`}>
+            <div className="item-main">
+              <div className="title">
+                <span className={`badge ${b.severity === "high" ? "bad" : "warn"}`}>{b.severity}</span> {blockerTitle(b)}
+              </div>
+              <div className="muted">
+                {STAGE_BY_ID[b.stageId].name}
+                {state ? `: ${state}` : ""}. {detail ? `${detail} ` : ""}Owner {DEPARTMENT_NAMES[b.ownerDepartment]},{" "}
+                <time dateTime={b.detectedAt} title={new Date(b.detectedAt).toLocaleString()}>
+                  detected {relativeTime(b.detectedAt)}
+                </time>
+                .{b.status === "resolved" ? ` Resolved: ${b.resolution ?? ""}` : ""}
+              </div>
             </div>
-            <div className="muted">
-              Owner: {label(b.ownerDepartment)}. Subject: <span className="mono">{b.subject}</span>. Detected {new Date(b.detectedAt).toLocaleString()}.
-              {b.status === "resolved" ? ` Resolved: ${b.resolution ?? ""}` : ""}
-            </div>
-          </div>
-          {actions ? <div className="row">{actions(b)}</div> : null}
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -197,6 +197,9 @@ export const BlockerViewSchema = z.object({
   resolvedBy: z.string().nullable(),
   resolution: z.string().nullable(),
   followUpTaskId: z.string().nullable(),
+  /** The blocked stage's current status and round (null if the case has no row for the stage). */
+  stageStatus: z.enum(STAGE_STATUSES).nullable(),
+  stageRound: z.number().int().nullable(),
 });
 export type BlockerView = z.infer<typeof BlockerViewSchema>;
 

@@ -98,6 +98,8 @@ export function caseDetail(blockedStage: string | null = "it_provisioning"): Cas
             resolvedBy: null,
             resolution: null,
             followUpTaskId: "fu:x",
+            stageStatus: "blocked",
+            stageRound: 1,
           },
         ]
       : [],
@@ -126,6 +128,8 @@ export function blocker(over: Partial<BlockerView> = {}): BlockerView {
     resolvedBy: null,
     resolution: null,
     followUpTaskId: null,
+    stageStatus: "blocked",
+    stageRound: 1,
     ...over,
   };
 }

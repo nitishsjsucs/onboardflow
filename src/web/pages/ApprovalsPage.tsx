@@ -1,5 +1,7 @@
 // Approvals: pending checkpoint cards for the approver (manager, People Ops,
 // admin on behalf), plus rejected requests People Ops can revise and resubmit.
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import type { ApprovalView } from "../../shared/api.ts";
 import { useApprovals } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
@@ -21,6 +23,19 @@ export function ApprovalsPage() {
       (a.checkpoint === "closeout" && me.role === "coordinator" && me.department === "people_ops"));
 
   const toResubmit = (rejected.data?.items ?? []).filter((a) => a.resubmittable);
+  // /approvals#approval-<id> (from a queue item): scroll that card into view and focus it once the lists are in
+  const location = useLocation();
+  const ready = pending.data !== undefined && (!showRejected || rejected.data !== undefined);
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    if (!ready || !location.hash.startsWith("#approval-")) return;
+    const el = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    setMissing(!el);
+    if (el) {
+      el.scrollIntoView?.({ block: "center" });
+      el.focus();
+    }
+  }, [ready, location.hash]);
   return (
     <>
       <div className="page-head">
@@ -29,6 +44,11 @@ export function ApprovalsPage() {
           <div className="sub">Equipment and access requests (manager) and People Ops sign-off. Admins decide on behalf, and it is audited.</div>
         </div>
       </div>
+      {missing ? (
+        <p className="notice card" role="status">
+          That request is not waiting here any more; it may have been decided or resubmitted already.
+        </p>
+      ) : null}
       <QueryState query={pending} what="the approvals">
         {() =>
           pending.data!.items.length === 0 ? (
