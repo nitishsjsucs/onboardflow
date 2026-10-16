@@ -130,3 +130,6 @@ ul.notices li { margin: 4px 0; }
 .funnel-bar .seg { display: block; height: 100%; }
 a.kpi-link { display: block; text-decoration: none; color: inherit; }
 a.kpi-link:hover, a.kpi-link:focus-visible { border-color: var(--accent); }
+.confirm { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--warn); border-radius: 6px; background: var(--surface-2); }
+.confirm p { margin: 0 0 8px; }
+section.card > label[for] { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }

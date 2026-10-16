@@ -58,20 +58,29 @@ describe("Idempotency-Key per user action", () => {
     });
     renderWith(null, { me: PERSONAS.admin!, path: "/cases/E001", routes });
     const controls = await screen.findByRole("region", { name: "admin controls" });
-    fireEvent.change(within(controls).getByLabelText("admin reason"), { target: { value: "stuck" } });
+    const reason = within(controls).getByLabelText("Reason (audited)") as HTMLInputElement;
+    fireEvent.change(reason, { target: { value: "stuck after the IT outage" } });
     const restart = within(controls).getByRole("button", { name: "Restart workflow" }) as HTMLButtonElement;
-    fireEvent.click(restart);
+    const confirmRestart = async () => {
+      await waitFor(() => expect(restart.disabled).toBe(false));
+      fireEvent.click(restart);
+      fireEvent.click(within(controls).getByRole("button", { name: "Confirm restart" }));
+    };
+    await confirmRestart();
     expect((await within(controls).findByRole("alert")).textContent).toMatch(/Could not reach OnboardFlow\. .*Trying again is safe: it is sent as the same action\./);
     expect(screen.queryByText(/Failed to fetch/)).toBeNull();
-    await waitFor(() => expect(restart.disabled).toBe(false));
-    fireEvent.click(restart);
+    // the outcome is unknown: the reason stays, so trying again is the same action
+    expect(reason.value).toBe("stuck after the IT outage");
+    await confirmRestart();
     await waitFor(() => expect(posts(calls)).toHaveLength(2));
     const [a, b] = posts(calls);
     expect(a!.headers["Idempotency-Key"]).toBeTruthy();
     expect(b!.headers["Idempotency-Key"]).toBe(a!.headers["Idempotency-Key"]);
-    // the 202 settled it: the next restart is a new action with a new key
-    await waitFor(() => expect(restart.disabled).toBe(false));
-    fireEvent.click(restart);
+    // the 202 settled it and cleared the reason: the next restart is a new action with a new key
+    await within(controls).findByText("Restarted: run 2");
+    expect(reason.value).toBe("");
+    fireEvent.change(reason, { target: { value: "stuck after the IT outage" } });
+    await confirmRestart();
     await waitFor(() => expect(posts(calls)).toHaveLength(3));
     expect(posts(calls)[2]!.headers["Idempotency-Key"]).not.toBe(a!.headers["Idempotency-Key"]);
   });

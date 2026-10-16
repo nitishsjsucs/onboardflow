@@ -1,7 +1,7 @@
 // Case detail: stages, provisioning per simulated system, tasks, approvals,
 // blockers (with retry for permitted roles), the audit trail, and admin
 // controls. Live CaseAgent state refreshes the view.
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { CaseDetail, MeDto, StageView } from "../../shared/api.ts";
 import { ApiError } from "../api/client.ts";
@@ -151,7 +151,7 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
         <TaskList tasks={d.tasks} notStartedStages={new Set(d.stages.filter((s) => s.status === "pending").map((s) => s.id))} overdueIds={overdueTaskIds(openBlockers)} />
       </section>
 
-      {can.restartOrTerminate(me) ? <AdminControls employeeId={id} /> : null}
+      {can.restartOrTerminate(me) ? <AdminControls employeeId={id} employeeName={`${d.employee.firstName} ${d.employee.lastName}`} c={d.case} /> : null}
 
       <section className="card" aria-label="audit trail section">
         <h2>Audit trail</h2>
@@ -189,23 +189,71 @@ function BlockedStageRow({ employeeId, employeeName, stage: s, canRetry }: { emp
   );
 }
 
-function AdminControls({ employeeId }: { employeeId: string }) {
+export const MIN_ADMIN_REASON = 10;
+
+/**
+ * Restart and terminate, for admins. Each opens a confirm step that names the employee and the effect, and
+ * nothing is sent before Confirm. The controls are disabled, with the reason, where the server would refuse
+ * (409 case_finished or not_started). The reason is cleared only after a success: after an unknown outcome
+ * it stays, so trying again is the same action with the same Idempotency-Key.
+ */
+function AdminControls({ employeeId, employeeName, c }: { employeeId: string; employeeName: string; c: CaseDetail["case"] }) {
   const [reason, setReason] = useState("");
-  const restart = useItemAction(useAdminCaseAction("restart"), (r) => `Restarted: run ${r.runNo ?? ""}`.trim());
-  const terminate = useItemAction(useAdminCaseAction("terminate"), () => "Terminated");
+  const [confirming, setConfirming] = useState<"restart" | "terminate" | null>(null);
+  const ids = { reason: useId(), hint: useId() };
+  const restart = useItemAction(useAdminCaseAction("restart"), (r) => `Restarted: run ${r.runNo ?? c.runNo + 1}`);
+  const terminate = useItemAction(useAdminCaseAction("terminate"), () => `Terminated ${employeeName}'s onboarding`);
   const busy = restart.pending || terminate.pending;
+  const started = c.workflowInstanceId !== null;
+  const ended = c.status === "complete" || c.status === "failed";
+  const trimmed = reason.trim();
+  const reasonOk = trimmed.length >= MIN_ADMIN_REASON;
+  const notStarted = "The case has not started.";
+  const endedText = `This case already ended: ${label(c.status)}${c.failureReason ? ` (${label(c.failureReason)})` : ""}.`;
+
+  async function confirm() {
+    const kind = confirming;
+    setConfirming(null);
+    const action = kind === "restart" ? restart : terminate;
+    (kind === "restart" ? terminate : restart).reset();
+    const r = await action.run({ employeeId, reason: trimmed });
+    if (r !== undefined) setReason("");
+  }
+
   return (
     <section className="card" aria-label="admin controls">
       <h2>Admin controls</h2>
-      <div className="row">
-        <input aria-label="admin reason" placeholder="Reason (audited)" value={reason} onChange={(e) => setReason(e.target.value)} />
-        <button type="button" disabled={!reason || busy} onClick={() => void restart.run({ employeeId, reason })}>
+      <label htmlFor={ids.reason}>Reason (audited)</label>
+      <input id={ids.reason} aria-describedby={ids.hint} value={reason} onChange={(e) => setReason(e.target.value)} disabled={busy} style={{ width: "100%", maxWidth: 520 }} />
+      <p id={ids.hint} className="muted hint">
+        At least {MIN_ADMIN_REASON} characters; it is stored with the action in the audit trail.
+      </p>
+      <div className="row" style={{ marginTop: 8 }}>
+        <button type="button" disabled={!started || !reasonOk || busy || confirming !== null} onClick={() => setConfirming("restart")}>
           Restart workflow
         </button>
-        <button type="button" className="danger" disabled={!reason || busy} onClick={() => void terminate.run({ employeeId, reason })}>
+        <button type="button" className="danger" disabled={!started || ended || !reasonOk || busy || confirming !== null} onClick={() => setConfirming("terminate")}>
           Terminate
         </button>
       </div>
+      {!started ? <p className="muted">{notStarted}</p> : ended ? <p className="muted">{endedText} Terminate is not available.</p> : null}
+      {confirming ? (
+        <div className="confirm" role="group" aria-label={confirming === "restart" ? "Confirm restart" : "Confirm terminate"}>
+          <p>
+            {confirming === "restart"
+              ? `Restart the workflow as run ${c.runNo + 1}?`
+              : `Terminate ${employeeName}'s onboarding? The case ends as failed (terminated). This cannot be undone.`}
+          </p>
+          <div className="row">
+            <button type="button" className={confirming === "terminate" ? "danger" : "primary"} onClick={() => void confirm()}>
+              {confirming === "restart" ? "Confirm restart" : "Confirm terminate"}
+            </button>
+            <button type="button" onClick={() => setConfirming(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
       <ActionMessage error={restart.error} success={restart.success} context={{ action: "restart the workflow" }} />
       <ActionMessage error={terminate.error} success={terminate.success} context={{ action: "terminate the case" }} />
     </section>

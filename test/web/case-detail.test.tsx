@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { CaseDetail } from "../../src/shared/api.ts";
 import { CaseDetailPage } from "../../src/web/pages/CaseDetailPage.tsx";
 import { caseDetail } from "./fixtures.ts";
-import { mockFetch, PERSONAS, renderWith } from "./harness.tsx";
+import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 vi.mock("../../src/web/live/useCaseLive.ts", () => ({ useCaseLive: () => ({ state: null, status: "connected" }) }));
 
@@ -62,6 +63,64 @@ describe("CaseDetailPage", () => {
     renderWith(null, { me: PERSONAS.peopleOps!, path: "/cases/E001", routes });
     await screen.findByRole("list", { name: "onboarding stages" });
     expect(screen.queryByRole("region", { name: "admin controls" })).toBeNull();
+  });
+
+  it("enables the controls only where the server would accept them, and says why not", async () => {
+    const cases: Array<[string, Partial<CaseDetail["case"]>, boolean, boolean, string | null]> = [
+      ["in progress", {}, true, true, null],
+      ["complete", { status: "complete" }, true, false, "This case already ended: complete. Terminate is not available."],
+      ["terminated", { status: "failed", failureReason: "terminated" }, true, false, "This case already ended: failed (terminated). Terminate is not available."],
+      ["not started", { status: "not_started", workflowInstanceId: null }, false, false, "The case has not started."],
+    ];
+    for (const [, over, restartOn, terminateOn, why] of cases) {
+      const d = caseDetail(null);
+      d.case = { ...d.case, ...over };
+      serve(d);
+      renderWith(null, { me: PERSONAS.admin!, path: "/cases/E001", routes });
+      const controls = await screen.findByRole("region", { name: "admin controls" });
+      fireEvent.change(within(controls).getByLabelText("Reason (audited)"), { target: { value: "a reason long enough" } });
+      expect((within(controls).getByRole("button", { name: "Restart workflow" }) as HTMLButtonElement).disabled).toBe(!restartOn);
+      expect((within(controls).getByRole("button", { name: "Terminate" }) as HTMLButtonElement).disabled).toBe(!terminateOn);
+      if (why) expect(within(controls).getByText(why)).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("needs a reason of 10 characters and a confirm step; Cancel sends nothing", async () => {
+    const calls = serve(caseDetail(null));
+    renderWith(null, { me: PERSONAS.admin!, path: "/cases/E001", routes });
+    const controls = await screen.findByRole("region", { name: "admin controls" });
+    const terminate = within(controls).getByRole("button", { name: "Terminate" }) as HTMLButtonElement;
+    fireEvent.change(within(controls).getByLabelText("Reason (audited)"), { target: { value: "too short" } });
+    expect(terminate.disabled).toBe(true);
+    fireEvent.change(within(controls).getByLabelText("Reason (audited)"), { target: { value: "duplicate hire record" } });
+    fireEvent.click(terminate);
+    expect(within(controls).getByText("Terminate Avery Abara's onboarding? The case ends as failed (terminated). This cannot be undone.")).toBeTruthy();
+    fireEvent.click(within(controls).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(within(controls).getByRole("button", { name: "Restart workflow" }));
+    expect(within(controls).getByText("Restart the workflow as run 2?")).toBeTruthy();
+    fireEvent.click(within(controls).getByRole("button", { name: "Cancel" }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(0);
+  });
+
+  it("confirms a terminate, announces it and clears the reason", async () => {
+    const calls = mockFetch((url, method) => {
+      if (method === "POST") return { status: 202, body: { status: "failed", failureReason: "terminated" } };
+      if (url.includes("/audit")) return { body: { items: [], nextCursor: null } };
+      return { body: caseDetail(null) };
+    });
+    renderWith(null, { me: PERSONAS.admin!, path: "/cases/E001", routes });
+    const controls = await screen.findByRole("region", { name: "admin controls" });
+    const reason = within(controls).getByLabelText("Reason (audited)") as HTMLInputElement;
+    fireEvent.change(reason, { target: { value: "duplicate hire record" } });
+    fireEvent.click(within(controls).getByRole("button", { name: "Terminate" }));
+    fireEvent.click(within(controls).getByRole("button", { name: "Confirm terminate" }));
+    await within(controls).findByText("Terminated Avery Abara's onboarding");
+    await waitFor(() => expect(announced()).toBe("Terminated Avery Abara's onboarding"));
+    expect(reason.value).toBe("");
+    const post = calls.find((c) => c.method === "POST")!;
+    expect([post.url, post.body]).toEqual(["/api/cases/E001/terminate", { reason: "duplicate hire record" }]);
   });
 
   it("shows staff the same Overdue and Not open yet task badges as the employee", async () => {
