@@ -11,9 +11,11 @@ import { ActionMessage } from "../components/ActionMessage.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
 export function CasesPage() {
   const { me } = useSession();
+  useDocumentTitle(me?.role === "manager" ? "My team" : "Cases");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [stage, setStage] = useState("");

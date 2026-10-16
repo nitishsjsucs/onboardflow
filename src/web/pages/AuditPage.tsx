@@ -5,8 +5,10 @@ import { AUDIT_ACTIONS } from "../../shared/domain.ts";
 import { useAuditExplorer } from "../api/queries.ts";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
 import { QueryState } from "../components/QueryState.tsx";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
 export function AuditPage() {
+  useDocumentTitle("Audit log");
   const [action, setAction] = useState("");
   const [actor, setActor] = useState("");
   const [employeeId, setEmployeeId] = useState("");

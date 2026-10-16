@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import type { CaseDetail, MeDto, StageView } from "../../shared/api.ts";
+import { ApiError } from "../api/client.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useAdminCaseAction, useCase, useCaseAudit, useRetryStage } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
@@ -16,6 +17,7 @@ import { ProvisioningTracker } from "../components/ProvisioningTracker.tsx";
 import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
 import { TaskList } from "../components/TaskList.tsx";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 import { useCaseLive } from "../live/useCaseLive.ts";
 
 function LiveCase({ id }: { id: string }) {
@@ -41,6 +43,8 @@ export function CaseDetailPage() {
   const q = useCase(id);
   const audit = useCaseAudit(id);
   const back = listFor(me);
+  const notFound = q.error instanceof ApiError && q.error.status === 404;
+  useDocumentTitle(q.data ? `${q.data.employee.firstName} ${q.data.employee.lastName}` : notFound ? `No case ${id}` : `Case ${id}`);
 
   return (
     <QueryState

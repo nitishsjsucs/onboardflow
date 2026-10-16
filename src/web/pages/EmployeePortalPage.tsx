@@ -12,6 +12,7 @@ import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
 import { TaskList } from "../components/TaskList.tsx";
 import { useCaseLive } from "../live/useCaseLive.ts";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
 function whatIsNext(data: ChecklistDto): string {
   if (data.caseStatus === "complete") return "You are all set. Welcome aboard!";
@@ -29,6 +30,7 @@ function Live({ employeeId }: { employeeId: string }) {
 }
 
 export function EmployeePortalPage() {
+  useDocumentTitle("My onboarding");
   const { me } = useSession();
   const q = useChecklist(!!me?.employeeId);
 

@@ -11,6 +11,7 @@ import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { label } from "../components/StatusBadge.tsx";
 import { TaskList } from "../components/TaskList.tsx";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
 const FIXABLE = ["costCenter", "licenseBundle", "photoOnFile"] as const;
 type Fixable = (typeof FIXABLE)[number];
@@ -73,6 +74,7 @@ function BlockerRow({ b, me }: { b: BlockerView; me: MeDto | null }) {
 }
 
 export function QueuePage() {
+  useDocumentTitle("Queue");
   const { me } = useSession();
   const followups = useFollowups();
   const blockers = useBlockers("open");

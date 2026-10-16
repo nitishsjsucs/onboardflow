@@ -6,10 +6,12 @@ import { EmptyState } from "../components/EmptyState.tsx";
 import { IntegrationHealthTable } from "../components/IntegrationHealthTable.tsx";
 import { QueryError, QueryState } from "../components/QueryState.tsx";
 import { StatusBadge } from "../components/StatusBadge.tsx";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
 const WINDOWS = ["1h", "24h", "7d", "all"] as const;
 
 export function IntegrationsPage() {
+  useDocumentTitle("Integrations");
   const [window, setWindow] = useState<(typeof WINDOWS)[number]>("24h");
   const [caseId, setCaseId] = useState("");
   const health = useIntegrationHealth(window);

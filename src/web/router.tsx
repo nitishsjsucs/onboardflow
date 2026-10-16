@@ -1,5 +1,6 @@
 // Route table (SPEC 17). Exported as data so tests can mount it in a memory router.
-import { Navigate, Outlet, type RouteObject, createBrowserRouter } from "react-router";
+import { Navigate, Outlet, type RouteObject, createBrowserRouter, useLocation } from "react-router";
+import { loginUrl } from "./auth/next.ts";
 import { homeFor, useSession } from "./auth/session.tsx";
 import { AppShell } from "./components/AppShell.tsx";
 import { RoleGate } from "./components/RoleGate.tsx";
@@ -14,10 +15,17 @@ import { QueuePage } from "./pages/QueuePage.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
 import { NotFoundPage } from "./pages/NotFoundPage.tsx";
 
+/** Signed out: go to the login page and come back here afterwards (/login?next=..., checked by safeNext). */
 function RequireSession() {
   const { me, loading } = useSession();
-  if (loading) return <p className="muted" style={{ padding: 24 }}>Loading...</p>;
-  if (!me) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (loading)
+    return (
+      <p className="muted" role="status" style={{ padding: 24 }}>
+        Loading...
+      </p>
+    );
+  if (!me) return <Navigate to={loginUrl(location.pathname + location.search)} replace />;
   return <Outlet />;
 }
 

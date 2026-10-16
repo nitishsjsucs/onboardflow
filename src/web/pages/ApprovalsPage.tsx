@@ -6,8 +6,10 @@ import { can, useSession } from "../auth/session.tsx";
 import { ApprovalCard } from "../components/ApprovalCard.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
 export function ApprovalsPage() {
+  useDocumentTitle("Approvals");
   const { me } = useSession();
   const pending = useApprovals("pending");
   const showRejected = can.resubmit(me);

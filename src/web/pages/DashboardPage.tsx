@@ -9,6 +9,7 @@ import { QueryState } from "../components/QueryState.tsx";
 import { StageFunnelChart } from "../components/StageFunnelChart.tsx";
 import { label } from "../components/StatusBadge.tsx";
 import { useHubLive } from "../live/useHubLive.ts";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
 function Breakdown({ title, data }: { title: string; data: Record<string, number> }) {
   return (
@@ -115,6 +116,7 @@ export function DashboardView({ hub }: { hub: HubState }) {
 }
 
 export function DashboardPage() {
+  useDocumentTitle("Dashboard");
   const live = useHubLive();
   const fallback = useDashboardSummary(!live.state);
   const hub = live.state ?? fallback.data ?? null;
