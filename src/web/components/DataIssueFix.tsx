@@ -159,7 +159,10 @@ function FieldForm({
   const hintId = useId();
   const context = { action: `fix the ${FIELD_LABELS[field]} for ${employeeName}`, subject: `the ${FIELD_LABELS[field]}` };
   const save = async (v: string | boolean) => {
-    if (await fix.run({ employeeId, field, value: v })) onFixed();
+    if (!(await fix.run({ employeeId, field, value: v }))) return;
+    // the saved value is now the current one: clear the form (the bundle list no longer offers it)
+    setValue("");
+    onFixed();
   };
   if (field === "photoOnFile") {
     const onFile = fix.success !== null || p?.photoOnFile === true;
@@ -203,12 +206,13 @@ function FieldForm({
   }
   // licenseBundle: only the bundles the simulated IT system accepts for this employment type, minus the rejected one
   const options: LicenseBundle[] = p ? ALLOWED_BUNDLES[p.employmentType].filter((b) => b !== p.licenseBundle) : [];
+  const chosen = (options as string[]).includes(value);
   return (
     <form
       className="data-fix-form"
       onSubmit={(e) => {
         e.preventDefault();
-        if (value) void save(value);
+        if (chosen) void save(value);
       }}
     >
       <label htmlFor={inputId}>New license bundle</label>
@@ -221,7 +225,7 @@ function FieldForm({
             </option>
           ))}
         </select>
-        <ActionButton type="submit" disabled={!value} busy={fix.pending}>
+        <ActionButton type="submit" disabled={!chosen} busy={fix.pending}>
           Fix license bundle
         </ActionButton>
       </div>

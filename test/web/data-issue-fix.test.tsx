@@ -125,6 +125,22 @@ describe("DataIssueFix", () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Retry Pre-boarding intake now for Logan Northcott" })));
   });
 
+  it("clears the bundle choice after a saved fix, so Fix license bundle cannot resend it", async () => {
+    const calls = serve(profile({ licenseBundle: "ft-standard" }));
+    fixFor(BUNDLE, PERSONAS.it!, "it_provisioning", "it");
+    await screen.findByText("ft-standard");
+    const select = screen.getByLabelText("New license bundle") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "ft-engineering" } });
+    fireEvent.click(screen.getByRole("button", { name: "Fix license bundle" }));
+    await screen.findByText("Saved. Retry IT provisioning now?");
+    expect(writes(calls)[0]!.body).toEqual({ licenseBundle: "ft-engineering" });
+    // the profile refetched: ft-engineering is current, so the list offers only the other bundle, none chosen
+    await waitFor(() => expect([...select.options].map((o) => o.value)).toEqual(["", "ft-standard"]));
+    expect(select.value).toBe("");
+    expect((screen.getByRole("button", { name: "Fix license bundle" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(writes(calls)).toHaveLength(1);
+  });
+
   it("explains field_locked_by_approval inside the row", async () => {
     serve(profile({ licenseBundle: "ft-standard" }), (_url, method) =>
       method === "PATCH"
