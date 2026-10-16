@@ -19,8 +19,6 @@ import { ActionMessage } from "./ActionMessage.tsx";
 import { FIELD_LABELS, isFixableField, SYSTEM_NAMES } from "./blocker-text.ts";
 import { label } from "./StatusBadge.tsx";
 
-export { isFixableField };
-
 /** Whether the profile's value would pass the simulated system's check. */
 export function fieldLooksValid(field: FixableField, p: EmployeeProfileDto): boolean {
   if (field === "costCenter") return COST_CENTER_PATTERN.test(p.costCenter);
