@@ -1,7 +1,8 @@
 import { focusManager } from "@tanstack/react-query";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { formatDate, slaText } from "../../src/web/components/ApprovalCard.tsx";
+import { slaText } from "../../src/web/components/ApprovalCard.tsx";
+import { formatDate } from "../../src/web/components/dates.ts";
 import { ApprovalsPage } from "../../src/web/pages/ApprovalsPage.tsx";
 import { approval } from "./fixtures.ts";
 import { announced, isBusy, mockFetch, PERSONAS, renderWith } from "./harness.tsx";

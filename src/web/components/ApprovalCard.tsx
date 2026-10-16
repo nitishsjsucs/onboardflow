@@ -12,6 +12,7 @@ import { useDecide, useResubmit } from "../api/queries.ts";
 import { useFocusRequest } from "../hooks/useFocus.ts";
 import { ActionButton } from "./ActionButton.tsx";
 import { ActionMessage } from "./ActionMessage.tsx";
+import { formatDate } from "./dates.ts";
 import { label, StatusBadge } from "./StatusBadge.tsx";
 
 /** "Due in 5 h", "Due in 3 days" (from 48 h), "Overdue by 5 days". */
@@ -20,15 +21,6 @@ export function slaText(dueAt: string, now = Date.now()): string {
   const h = Math.abs(ms) / 3_600_000;
   const amount = h >= 48 ? `${Math.round(h / 24)} days` : h < 1 ? "less than 1 h" : `${Math.round(h)} h`;
   return ms >= 0 ? `Due in ${amount}` : `Overdue by ${amount}`;
-}
-
-/** A date-only value (YYYY-MM-DD) in the local format, without the UTC shift new Date() would add. */
-export function formatDate(v: unknown): string {
-  const s = String(v);
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString();
-  const t = Date.parse(s);
-  return /^\d{4}-\d{2}-\d{2}T/.test(s) && !Number.isNaN(t) ? new Date(t).toLocaleDateString() : s;
 }
 
 const REQUEST_FIELDS: Record<string, { label: string; format?: (v: unknown) => string }> = {
