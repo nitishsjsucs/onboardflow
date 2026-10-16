@@ -207,8 +207,9 @@ section.card > label[for] { display: block; font-weight: 600; font-size: 0.88rem
 .attempts-panel { margin-top: 6px; padding-left: 10px; border-left: 3px solid var(--border); }
 .attempts-panel p { margin: 4px 0; }
 .attempt-list { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 0; margin: 4px 0; font-size: 0.85rem; }
-.attempt-list li { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
-.attempt-list li.failed { color: var(--bad); }
+/* one chip per attempt; specific enough to win over the queue's own list items (ul.tasks li), which stack on a phone */
+.attempts-panel .attempt-list li { display: inline-flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 4px; white-space: nowrap; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+.attempts-panel .attempt-list li.failed { color: var(--bad); }
 @media (forced-colors: active) {
   .pip { forced-color-adjust: none; border-color: CanvasText; }
   .pip.used { background: CanvasText; }
