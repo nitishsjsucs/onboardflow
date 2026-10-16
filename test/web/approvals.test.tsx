@@ -50,6 +50,52 @@ describe("ApprovalsPage", () => {
     }
   });
 
+  it("after a decision the card shows the decided approval: its status, no SLA, and the reason", async () => {
+    for (const [decision, status, text] of [
+      ["approve", "approved", "Approved. IT provisioning starts next."],
+      ["reject", "rejected", "Rejected. People Ops can revise and resubmit it."],
+    ] as const) {
+      let list = [approval({ dueAt: new Date(Date.now() - 6 * 86_400_000).toISOString() })];
+      const calls = mockFetch((_url, method, body) => {
+        if (method === "POST") {
+          const decided = { ...list[0]!, status, reason: (body as { reason?: string }).reason ?? null, decidedAt: new Date().toISOString(), decidedBy: PERSONAS.manager!.email };
+          list = [];
+          return { body: decided };
+        }
+        return { body: { items: list, nextCursor: null } };
+      });
+      renderWith(<ApprovalsPage />, { me: PERSONAS.manager!, path: "/approvals" });
+      const card = await screen.findByRole("article", { name: "manager approval for Avery Abara" });
+      expect(within(card).getByText("pending")).toBeTruthy();
+      expect(within(card).getByText("Overdue by 6 days")).toBeTruthy();
+      if (decision === "approve") fireEvent.click(within(card).getByLabelText("Grant privileged access"));
+      else fireEvent.change(within(card).getByLabelText("Reason"), { target: { value: "wrong laptop" } });
+      fireEvent.click(within(card).getByRole("button", { name: new RegExp(`^${decision === "approve" ? "Approve" : "Reject"} manager approval`) }));
+      await within(card).findByText(text);
+      // the list refetched without the card; the card stays, drawn from the decided approval
+      await waitFor(() => expect(calls.filter((c) => c.method === "GET").length).toBeGreaterThanOrEqual(2));
+      const kept = screen.getByRole("article", { name: "manager approval for Avery Abara" });
+      expect(within(kept).getByText(status)).toBeTruthy();
+      expect(within(kept).queryByText("pending")).toBeNull();
+      expect(within(kept).queryByText(/Overdue by|Due in/)).toBeNull();
+      if (decision === "reject") expect(within(kept).getByText("Reason: wrong laptop")).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("a card decided elsewhere shows no stale status or SLA", async () => {
+    mockFetch((_url, method) =>
+      method === "POST" ? { status: 409, body: { error: { code: "approval_not_pending", message: "approval is approved", requestId: "r-9" } } } : { body: { items: [approval({ dueAt: new Date(Date.now() - 6 * 86_400_000).toISOString() })], nextCursor: null } },
+    );
+    renderWith(<ApprovalsPage />, { me: PERSONAS.manager!, path: "/approvals" });
+    const card = await screen.findByRole("article", { name: "manager approval for Avery Abara" });
+    fireEvent.click(within(card).getByLabelText("Grant privileged access"));
+    fireEvent.click(within(card).getByRole("button", { name: "Approve manager approval for Avery Abara" }));
+    expect((await within(card).findByRole("alert")).textContent).toContain("Already decided. Nothing more to do.");
+    expect(within(card).queryByText("pending")).toBeNull();
+    expect(within(card).queryByText(/Overdue by/)).toBeNull();
+  });
+
   it("moves focus from the removed Approve button to the card's outcome", async () => {
     serve();
     renderWith(<ApprovalsPage />, { me: PERSONAS.manager!, path: "/approvals" });

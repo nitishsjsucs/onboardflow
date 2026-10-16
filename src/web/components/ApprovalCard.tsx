@@ -3,7 +3,7 @@
 // request). Each card sends its own decision with its own pending state and
 // messages. A privileged-access request needs an explicit choice before
 // Approve: a manager who did not notice a checkbox used to decline it silently.
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import type { ApprovalView, MeDto } from "../../shared/api.ts";
 import { ApiError } from "../api/client.ts";
@@ -57,17 +57,23 @@ export type ApprovalCardProps = {
   me: MeDto | null;
   canDecide: boolean;
   canResubmit: boolean;
-  /** Called once this card's request is settled (decided, already decided, or resubmitted), so the page keeps it on screen. */
+  /**
+   * Called once this card's request is settled (decided, already decided, or resubmitted), with the card's
+   * view from then on (after a decision, the approval the server returned), so the page keeps it on screen.
+   */
   onSettled?: (a: ApprovalView) => void;
 };
 
-export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettled }: ApprovalCardProps) {
+export function ApprovalCard({ approval, me, canDecide, canResubmit, onSettled }: ApprovalCardProps) {
   const [reason, setReason] = useState("");
   const [privileged, setPrivileged] = useState<boolean | null>(null);
   const [note, setNote] = useState("");
   const ids = { reason: useId(), note: useId(), privHint: useId() };
-  const nextStep = a.checkpoint === "manager_approval" ? "IT provisioning starts next." : "Onboarding finishes once HR (simulated) activates the worker.";
+  const nextStep = approval.checkpoint === "manager_approval" ? "IT provisioning starts next." : "Onboarding finishes once HR (simulated) activates the worker.";
   const decide = useItemAction(useDecide(), (_r, v) => (v.decision === "approve" ? `Approved. ${nextStep}` : "Rejected. People Ops can revise and resubmit it."));
+  // after a decision the card shows the decided approval (status, reason), not the pending one it was drawn from;
+  // fields only the list carries (the round history) stay
+  const a: ApprovalView = decide.result ? { ...approval, ...decide.result } : approval;
   const resubmit = useItemAction(useResubmit(), (r) => `Resubmitted: round ${r.round} sent for approval`);
   // a decision removes the buttons that had focus: the card's outcome takes it instead
   const decideOutcome = useFocusRequest<HTMLDivElement>();
@@ -75,17 +81,26 @@ export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettle
   const busy = decide.pending || resubmit.pending;
   const who = `${label(a.checkpoint)} for ${a.employeeName}`;
   const needsPriv = a.request.needsPrivilegedAccess === true && a.checkpoint === "manager_approval";
-  const decided = decide.success !== null || isCode(decide.error, "approval_not_pending");
-  const resubmitted = resubmit.success !== null || isCode(resubmit.error, "not_revision_requested");
+  // decided elsewhere (another tab or person): the outcome is not known here, so no status or SLA is shown
+  const decidedElsewhere = isCode(decide.error, "approval_not_pending");
+  const decided = decide.success !== null || decidedElsewhere;
+  const resubmittedElsewhere = isCode(resubmit.error, "not_revision_requested");
+  const resubmitted = resubmit.success !== null || resubmittedElsewhere;
+
+  // a card that was already decided or resubmitted leaves the refetched list: keep it, with its message
+  useEffect(() => {
+    if (decidedElsewhere || resubmittedElsewhere) onSettled?.(approval);
+    // only when one of these errors arrives
+  }, [decidedElsewhere, resubmittedElsewhere]);
 
   async function onDecide(d: { decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }) {
-    await decide.run({ approvalId: a.id, ...d });
-    onSettled?.(a);
+    const r = await decide.run({ approvalId: a.id, ...d });
+    if (r) onSettled?.({ ...approval, ...r });
     decideOutcome.request({ onlyIfLost: true });
   }
   async function onResubmit() {
-    await resubmit.run({ approvalId: a.id, note: note.trim() });
-    onSettled?.(a);
+    const r = await resubmit.run({ approvalId: a.id, note: note.trim() });
+    if (r) onSettled?.(approval);
     resubmitOutcome.request({ onlyIfLost: true });
   }
 
@@ -97,7 +112,7 @@ export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettle
         </strong>
         <span className="row">
           {a.round > 1 ? <span className="badge info">round {a.round}</span> : null}
-          <StatusBadge status={a.status} />
+          {decidedElsewhere ? null : <StatusBadge status={a.status} />}
         </span>
       </div>
       <dl className="request-fields">
@@ -108,7 +123,7 @@ export function ApprovalCard({ approval: a, me, canDecide, canResubmit, onSettle
           </div>
         ))}
       </dl>
-      {a.status === "pending" ? <p className="muted">{slaText(a.dueAt)}</p> : null}
+      {a.status === "pending" && !decided ? <p className="muted">{slaText(a.dueAt)}</p> : null}
       {a.previousRound ? (
         <div className="round-history">
           <p>

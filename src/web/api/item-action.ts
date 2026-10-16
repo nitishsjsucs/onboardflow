@@ -12,12 +12,17 @@ export type ItemAction<V, R> = {
   pending: boolean;
   error: unknown;
   success: string | null;
+  /** The last successful answer (for example the decided approval), until the next failure or reset. */
+  result: R | null;
   reset: () => void;
 };
 
+type State<R> = { error: unknown; success: string | null; result: R | null; pending: boolean };
+
 export function useItemAction<V, R>(mutation: { mutateAsync: (v: V) => Promise<R> }, success?: (result: R, v: V) => string | null): ItemAction<V, R> {
   const announce = useAnnounce();
-  const [state, setState] = useState<{ error: unknown; success: string | null; pending: boolean }>({ error: null, success: null, pending: false });
+  const idle: State<R> = { error: null, success: null, result: null, pending: false };
+  const [state, setState] = useState<State<R>>(idle);
   const inFlight = useRef(false);
   const run = async (v: V): Promise<R | undefined> => {
     if (inFlight.current) return undefined;
@@ -26,15 +31,15 @@ export function useItemAction<V, R>(mutation: { mutateAsync: (v: V) => Promise<R
     try {
       const r = await mutation.mutateAsync(v);
       const msg = success ? success(r, v) : null;
-      setState({ error: null, success: msg, pending: false });
+      setState({ error: null, success: msg, result: r, pending: false });
       if (msg) announce(msg);
       return r;
     } catch (e) {
-      setState({ error: e, success: null, pending: false });
+      setState({ error: e, success: null, result: null, pending: false });
       return undefined;
     } finally {
       inFlight.current = false;
     }
   };
-  return { run, pending: state.pending, error: state.error, success: state.success, reset: () => setState({ error: null, success: null, pending: false }) };
+  return { run, pending: state.pending, error: state.error, success: state.success, result: state.result, reset: () => setState(idle) };
 }
