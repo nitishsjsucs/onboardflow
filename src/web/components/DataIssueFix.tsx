@@ -18,7 +18,7 @@ import { can } from "../auth/session.tsx";
 import { useFocusRequest } from "../hooks/useFocus.ts";
 import { ActionButton } from "./ActionButton.tsx";
 import { ActionMessage } from "./ActionMessage.tsx";
-import { FIELD_LABELS, isFixableField, SYSTEM_NAMES } from "./blocker-text.ts";
+import { FIELD_LABELS, isFixableField, readableMessage, SYSTEM_NAMES } from "./blocker-text.ts";
 import { label } from "./StatusBadge.tsx";
 
 /** Whether the profile's value would pass the simulated system's check. */
@@ -44,9 +44,11 @@ export type DataIssueFixProps = {
   detail: Record<string, unknown>;
   /** The stage is running again (a retry is in flight on the server), so Retry would answer 409. */
   retryRunning?: boolean;
+  /** Repeat the system's message (off in the queue, whose item already shows it under the title). */
+  showMessage?: boolean;
 };
 
-export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, detail, retryRunning }: DataIssueFixProps) {
+export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, detail, retryRunning, showMessage = true }: DataIssueFixProps) {
   const field = isFixableField(detail.field) ? detail.field : null;
   const mayFix = !!field && can.fixField(me, field);
   const mayRetry = can.retry(me, owner);
@@ -64,7 +66,7 @@ export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, det
   const p = profile.data;
   const saved = fix.success !== null;
   const looksValid = saved || (p ? fieldLooksValid(field, p) : false);
-  const message = typeof detail.message === "string" && detail.message ? detail.message : null;
+  const message = showMessage && typeof detail.message === "string" && detail.message ? readableMessage(detail.message) : null;
   return (
     <div className="data-fix">
       <p className="data-fix-reason">

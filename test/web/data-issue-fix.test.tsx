@@ -38,7 +38,8 @@ describe("DataIssueFix", () => {
   it("shows what was rejected and the current value, and accepts only a cost center the simulated HR system takes", async () => {
     serve(profile());
     fixFor(COST_CENTER, PERSONAS.peopleOps!);
-    expect(screen.getByText("HR (simulated) rejected the cost center: costCenter must match CC-####")).toBeTruthy();
+    // field names in words, no raw codes
+    expect(screen.getByText("HR (simulated) rejected the cost center: cost center must match CC-####")).toBeTruthy();
     expect((await screen.findByText("CC 1100")).className).toContain("mono");
     const input = screen.getByLabelText("New cost center");
     const hint = screen.getByText("CC- followed by 4 digits, for example CC-1100");

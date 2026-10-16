@@ -83,7 +83,7 @@ export function blockerTitle(b: BlockerView): string {
 }
 
 /** A simulated system's message with field names in words ("costCenter must match" -> "cost center must match"). */
-function readableMessage(m: string): string {
+export function readableMessage(m: string): string {
   return m
     .replace(/\b(costCenter|licenseBundle|photoOnFile)\b/g, (f) => FIELD_LABELS[f as FixableField])
     .replace(/_/g, " ")
@@ -110,6 +110,11 @@ export function blockerDetail(b: BlockerView): string | null {
     case "employee_task_overdue":
       return "The employee has checklist tasks past their due date.";
   }
+}
+
+/** The sentence with a full stop at the end, unless it already ends with one (or ? or !). */
+export function sentence(s: string): string {
+  return /[.?!]$/.test(s) ? s : `${s}.`;
 }
 
 /** The blocked stage's state now: "Retry running, round 3", "Blocked after round 3". */

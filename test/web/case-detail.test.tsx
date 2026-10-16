@@ -31,6 +31,18 @@ describe("CaseDetailPage", () => {
     expect(screen.getAllByText("simulated").length).toBeGreaterThan(0);
   });
 
+  it("writes a blocker's detail as its own sentence, and the blocked stage's reason in words", async () => {
+    const d = caseDetail();
+    d.blockers[0]!.detail = { system: "it", operation: "it.order-device", class: "retryable", message: "service_unavailable: simulated outage" };
+    d.blockers[0]!.detectedAt = new Date(Date.now() - 8 * 86_400_000).toISOString();
+    d.stages.find((s) => s.id === "it_provisioning")!.blockedReason = { class: "retryable", operation: "it.order-device", message: "service_unavailable: simulated outage", round: 1 };
+    serve(d);
+    renderWith(null, { me: PERSONAS.it!, path: "/cases/E001", routes });
+    const item = await screen.findByTestId("blocker-integration_outage");
+    expect(item.querySelector(".muted")!.textContent).toBe("IT provisioning: Blocked after round 1. Service unavailable: simulated outage. Owner IT, detected 8 days ago.");
+    expect(screen.getByText("IT provisioning is blocked: service unavailable: simulated outage.")).toBeTruthy();
+  });
+
   it("shows Retry only to the owning department and admins, and sends the retry", async () => {
     const calls = serve();
     renderWith(null, { me: PERSONAS.it!, path: "/cases/E001", routes });

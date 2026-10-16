@@ -219,7 +219,7 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
         ) : null}
       </div>
       {b.kind === "data_issue" ? (
-        <DataIssueFix me={me} employeeId={b.employeeId} employeeName={b.employeeName} stageId={b.stageId} owner={b.ownerDepartment} detail={b.detail} retryRunning={b.stageStatus === "active"} />
+        <DataIssueFix me={me} employeeId={b.employeeId} employeeName={b.employeeName} stageId={b.stageId} owner={b.ownerDepartment} detail={b.detail} retryRunning={b.stageStatus === "active"} showMessage={false} />
       ) : null}
       {resolving ? (
         <ResolveForm

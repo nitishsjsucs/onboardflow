@@ -12,7 +12,7 @@ import { ActionButton } from "../components/ActionButton.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
-import { isFixableField } from "../components/blocker-text.ts";
+import { isFixableField, readableMessage } from "../components/blocker-text.ts";
 import { DataIssueFix } from "../components/DataIssueFix.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { QueryState } from "../components/QueryState.tsx";
@@ -190,7 +190,7 @@ function BlockedStageRow({ employeeId, employeeName, stage: s, canRetry }: { emp
     <div className="blocked-stage" data-focus-item={s.id}>
       <div className="row" style={{ marginTop: 8 }}>
         <span>
-          {s.name} is blocked{s.blockedReason?.message ? `: ${String(s.blockedReason.message)}` : ""}.
+          {s.name} is blocked{typeof s.blockedReason?.message === "string" && s.blockedReason.message ? `: ${readableMessage(s.blockedReason.message)}` : ""}.
         </span>
         {canRetry ? (
           <ActionButton className="primary" aria-label={`Retry ${s.name} for ${employeeName}`} busy={retry.pending} onClick={() => void retry.run({ employeeId, stageId: s.id })}>

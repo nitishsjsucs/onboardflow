@@ -160,6 +160,17 @@ describe("QueuePage", () => {
     for (const t of titles) expect(t).not.toMatch(/apr:|blk:|Subject:|\w\.\w+-\w+|_/);
   });
 
+  it("shows a data issue's rejection once, in words, without codes or field names", async () => {
+    serve([blocker({ ...costCenter, detail: { ...costCenter.detail, message: "validation_failed: costCenter must match CC-####" } })]);
+    renderWith(<QueuePage />, { me: PERSONAS.peopleOps!, path: "/queue" });
+    const it = await screen.findByRole("listitem", { name: /Cost center rejected by HR/ });
+    await within(it).findByLabelText("New cost center");
+    expect(within(it).getAllByText(/must match CC-####/)).toHaveLength(1);
+    expect(within(it).getByText("Validation failed: cost center must match CC-####")).toBeTruthy();
+    expect(within(it).getByText("HR (simulated) rejected the cost center.")).toBeTruthy();
+    expect(it.textContent).not.toMatch(/validation_failed|costCenter/);
+  });
+
   it("orders high severity first, then the oldest first", async () => {
     const newerHigh = blocker({ id: "blk:new", employeeName: "Newer High", employeeId: "E010", detectedAt: "2026-10-08T12:00:00.000Z" });
     const olderHigh = blocker({ id: "blk:old", employeeName: "Older High", employeeId: "E011", detectedAt: "2026-10-08T01:00:00.000Z" });
