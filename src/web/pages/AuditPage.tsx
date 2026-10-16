@@ -20,7 +20,7 @@ export function AuditPage() {
           <h1>Audit log</h1>
           <div className="sub">Append-only. Every user, agent and workflow action, newest first.</div>
         </div>
-        <div className="row">
+        <div className="row filters">
           <select aria-label="action" value={action} onChange={(e) => setAction(e.target.value)}>
             <option value="">Any action</option>
             {AUDIT_ACTIONS.map((a) => (

@@ -23,6 +23,7 @@
   --info: #2f5bd3;
   --info-bg: #e5ecfb;
   --idle-bg: #eceef1;
+  --violet: #7b4fd0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -44,6 +45,7 @@
     --info: #8fb0ff;
     --info-bg: #1b2440;
     --idle-bg: #26292e;
+    --violet: #b9a2f2;
   }
 }
 
@@ -65,4 +67,5 @@
   --info: #8fb0ff;
   --info-bg: #1b2440;
   --idle-bg: #26292e;
+  --violet: #b9a2f2;
 }

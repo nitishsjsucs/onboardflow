@@ -11,7 +11,7 @@ const SEGMENTS = [
   { key: "complete", label: "complete", color: "var(--ok)" },
   { key: "active", label: "active", color: "var(--info)" },
   { key: "waiting", label: "waiting on employee", color: "var(--warn)" },
-  { key: "awaitingApproval", label: "awaiting approval", color: "var(--accent)" },
+  { key: "awaitingApproval", label: "awaiting approval", color: "var(--violet)" },
   { key: "blocked", label: "blocked", color: "var(--bad)" },
 ] as const;
 

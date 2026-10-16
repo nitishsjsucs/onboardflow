@@ -75,28 +75,30 @@ export function DashboardView({ hub, isAdmin = false }: { hub: HubState; isAdmin
             </ul>
           )}
           <h2>Integration health (simulated systems)</h2>
-          <table className="list">
-            <thead>
-              <tr>
-                <th>System</th>
-                <th>Calls</th>
-                <th>OK</th>
-                <th>Retried</th>
-                <th>Replayed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(hub.integrationHealth).map(([sys, h]) => (
-                <tr key={sys}>
-                  <td>{sys}</td>
-                  <td>{h.calls}</td>
-                  <td>{h.ok}</td>
-                  <td>{h.retried}</td>
-                  <td>{h.replayed}</td>
+          <div className="table-wrap">
+            <table className="list">
+              <thead>
+                <tr>
+                  <th>System</th>
+                  <th>Calls</th>
+                  <th>OK</th>
+                  <th>Retried</th>
+                  <th>Replayed</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {Object.entries(hub.integrationHealth).map(([sys, h]) => (
+                  <tr key={sys}>
+                    <td>{sys}</td>
+                    <td>{h.calls}</td>
+                    <td>{h.ok}</td>
+                    <td>{h.retried}</td>
+                    <td>{h.replayed}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
         <section className="card" aria-label="recent activity">
           <h2>Recent activity</h2>
