@@ -37,6 +37,28 @@ describe("IntegrationsPage", () => {
     expect(calls.some((c) => c.url === "/api/cases/E042/integrations?limit=50")).toBe(true);
     expect(screen.getAllByText("E042:it.order-device")).toHaveLength(2);
   });
+
+  it("keeps the window and the case id in the URL, so a reload or a shared link shows the same view", async () => {
+    const serve = () => mockFetch((url) => (url.startsWith("/api/integrations/health") ? { body: health } : { body: { items: [], nextCursor: null } }));
+    serve();
+    const { router } = renderWith(<IntegrationsPage />, { me: PERSONAS.it!, path: "/integrations" });
+    await screen.findByTestId("health-it");
+    fireEvent.change(screen.getByLabelText("window"), { target: { value: "7d" } });
+    await waitFor(() => expect(router.state.location.search).toBe("?window=7d"));
+    fireEvent.change(screen.getByLabelText("case id"), { target: { value: "E042" } });
+    await waitFor(() => expect(router.state.location.search).toBe("?window=7d&case=E042"));
+    // the default window is not written to the URL
+    fireEvent.change(screen.getByLabelText("window"), { target: { value: "24h" } });
+    await waitFor(() => expect(router.state.location.search).toBe("?case=E042"));
+    cleanup();
+    const calls = serve();
+    renderWith(<IntegrationsPage />, { me: PERSONAS.it!, path: "/integrations?window=1h&case=e042" });
+    await screen.findByText("No calls for this case yet.");
+    expect((screen.getByLabelText("window") as HTMLSelectElement).value).toBe("1h");
+    expect((screen.getByLabelText("case id") as HTMLInputElement).value).toBe("e042");
+    expect(calls.some((c) => c.url === "/api/integrations/health?window=1h")).toBe(true);
+    expect(calls.some((c) => c.url === "/api/cases/E042/integrations?limit=50")).toBe(true);
+  });
 });
 
 describe("AuditPage", () => {
@@ -51,5 +73,26 @@ describe("AuditPage", () => {
     await waitFor(() => expect(calls.some((c) => c.url === "/api/audit?limit=50&action=approval.approved&employeeId=E001")).toBe(true));
     fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
     await waitFor(() => expect(screen.getAllByTestId("audit-event")).toHaveLength(3));
+  });
+
+  it("keeps the filters in the URL, and a typed filter is sent once typing stops", async () => {
+    const serve = () => mockFetch(() => ({ body: { items: [auditEvent(3)], nextCursor: null } }));
+    const calls = serve();
+    const { router } = renderWith(<AuditPage />, { me: PERSONAS.admin!, path: "/audit" });
+    await screen.findByTestId("audit-event");
+    fireEvent.change(screen.getByLabelText("action"), { target: { value: "approval.approved" } });
+    await waitFor(() => expect(router.state.location.search).toBe("?action=approval.approved"));
+    for (const v of ["a", "a0", "a01"]) fireEvent.change(screen.getByLabelText("actor"), { target: { value: v } });
+    await waitFor(() => expect(router.state.location.search).toBe("?action=approval.approved&actor=a01"));
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/audit?limit=50&action=approval.approved&actor=a01")).toBe(true));
+    // no request per keystroke
+    expect(calls.map((c) => new URL(c.url, "http://x").searchParams.get("actor")).filter((a) => a === "a" || a === "a0")).toEqual([]);
+    cleanup();
+    const again = serve();
+    renderWith(<AuditPage />, { me: PERSONAS.admin!, path: "/audit?action=approval.approved&case=e001" });
+    await screen.findByTestId("audit-event");
+    expect((screen.getByLabelText("action") as HTMLSelectElement).value).toBe("approval.approved");
+    expect((screen.getByLabelText("case") as HTMLInputElement).value).toBe("e001");
+    expect(again[0]!.url).toBe("/api/audit?limit=50&action=approval.approved&employeeId=E001");
   });
 });

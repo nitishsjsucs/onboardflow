@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell, navFor } from "../../src/web/components/AppShell.tsx";
@@ -85,6 +85,20 @@ describe("/approvals gate", () => {
     renderWith(null, { me: { ...PERSONAS.it!, department: "facilities", staffId: "C05" }, path: "/approvals", routes });
     await screen.findByText("Approvals are handled by managers and People Ops.");
     expect(calls.some((c) => c.url.startsWith("/api/approvals"))).toBe(false);
+  });
+
+  it("gives a refused page its own heading and tab title, and a navigation there focuses the heading", async () => {
+    mockFetch((url) => (url === "/api/health" ? { body: { ok: true, authMode: "dev", version: "1.0.0" } } : { body: { items: [], nextCursor: null } }));
+    const { router } = renderWith(null, { me: PERSONAS.it!, path: "/queue", routes });
+    await screen.findByRole("heading", { level: 1, name: "Queue" });
+    await act(() => router.navigate("/approvals"));
+    const h1 = await screen.findByRole("heading", { level: 1, name: "Approvals" });
+    await waitFor(() => expect(document.title).toBe("Approvals, OnboardFlow"));
+    await waitFor(() => expect(document.activeElement).toBe(h1));
+    await act(() => router.navigate("/audit"));
+    await screen.findByRole("heading", { level: 1, name: "Not available" });
+    await waitFor(() => expect(document.title).toBe("Not available, OnboardFlow"));
+    expect(screen.getByText("This page is not available for your role.")).toBeTruthy();
   });
 });
 

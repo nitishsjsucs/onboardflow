@@ -53,6 +53,19 @@ describe("apiFetch", () => {
     expect([e.status, e.code, e.message, e.requestId]).toEqual([409, "stage_not_blocked", "stage is active", "r9"]);
   });
 
+  it("does not follow a redirect: an Access sign-in redirect is a 401, not a network error", async () => {
+    const init: RequestInit[] = [];
+    // what a browser hands back for redirect: "manual" (status 0, no headers or body)
+    globalThis.fetch = vi.fn(async (_url: string, i: RequestInit) => {
+      init.push(i);
+      return { type: "opaqueredirect", status: 0, ok: false, headers: new Headers(), text: async () => "" } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const e = (await caught(apiFetch("/api/cases/E001"))) as ApiError;
+    expect(e).toBeInstanceOf(ApiError);
+    expect([e.status, e.code]).toEqual([401, "unauthenticated"]);
+    expect(init[0]!.redirect).toBe("manual");
+  });
+
   it("returns null for an empty 2xx body", async () => {
     respond("", 200);
     expect(await apiFetch("/api/x")).toBeNull();

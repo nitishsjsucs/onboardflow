@@ -3,8 +3,12 @@
 // that action is retried); the browser sends the Access (or dev) cookie.
 //
 // Every failure is an ApiError, so pages can describe it (errors.ts):
-// - a fetch that never got an answer (offline, DNS, a cross-origin redirect
-//   from an expired Access session) is ApiError(0, "network");
+// - a redirect is not followed (redirect: "manual"): behind Cloudflare Access
+//   an ended session answers with a 302 to the Access sign-in on another
+//   origin, which a followed fetch reports as a network error. It is
+//   ApiError(401, "unauthenticated") instead, so the session-ended banner
+//   offers a reload, and a mutation's key is dropped (it never reached the app);
+// - a fetch that never got an answer (offline, DNS) is ApiError(0, "network");
 // - an answer whose body is not JSON (a proxy's HTML 502, a garbled 200) is
 //   ApiError(status, "non_json_response"), even for a 2xx, because the
 //   outcome of a mutation is then unknown (action-keys.ts keeps its key);
@@ -57,12 +61,14 @@ export async function apiFetch<T>(path: string, o: RequestOptions = {}): Promise
       method,
       headers,
       credentials: "same-origin",
+      redirect: "manual",
       ...(o.body !== undefined ? { body: JSON.stringify(o.body) } : {}),
       ...(o.signal ? { signal: o.signal } : {}),
     });
+    if (res.type === "opaqueredirect") throw new ApiError(401, "unauthenticated", "redirected to sign in: the session ended", null);
     text = await res.text();
   } catch (e) {
-    if (isAbortError(e)) throw e;
+    if (isAbortError(e) || e instanceof ApiError) throw e;
     throw networkError(e);
   }
   const headerRequestId = res.headers.get("X-Request-Id");

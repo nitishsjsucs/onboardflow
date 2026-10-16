@@ -204,6 +204,27 @@ describe("an ended session", () => {
     expect(await screen.findByRole("button", { name: "Reload to sign in" })).toBeTruthy();
   });
 
+  it("Access: a request redirected to the Access sign-in shows the session-ended banner with a reload", async () => {
+    let expired = false;
+    mockFetch((url) => {
+      if (url === "/api/health") return { body: { ok: true, authMode: "access", version: "1.0.0" } };
+      if (url === "/api/me") return { body: PERSONAS.peopleOps! };
+      if (url.includes("/audit")) return { body: { items: [], nextCursor: null } };
+      if (url.startsWith("/api/cases/")) return { body: caseDetail(null) };
+      return { body: { items: [], nextCursor: null } };
+    });
+    const mocked = globalThis.fetch;
+    // once the Access session ends, Access answers every request with a 302 to its sign-in on another origin
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) =>
+      expired && init?.redirect === "manual" ? ({ type: "opaqueredirect", status: 0, ok: false, headers: new Headers(), text: async () => "" } as unknown as Response) : mocked(input, init)) as typeof fetch;
+    const { client } = renderApp("/cases/E002");
+    await screen.findByRole("heading", { name: /Avery Abara/ });
+    expired = true;
+    await client.refetchQueries({ queryKey: ["case"] }).catch(() => undefined);
+    const banner = (await screen.findByText("Your session ended.")).closest("[role=alert]") as HTMLElement;
+    expect(within(banner).getByRole("button", { name: "Reload to sign in" })).toBeTruthy();
+  });
+
   it("explains an Access account with no OnboardFlow access", async () => {
     mockFetch((url) => {
       if (url === "/api/me") return { status: 403, body: { error: { code: "not_provisioned", message: "this email has no OnboardFlow account", requestId: "r3" } } };
