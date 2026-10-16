@@ -5,9 +5,11 @@
 // these schemas, and auth-roles.test.ts iterates the registry.
 import { z } from "zod";
 import {
+  ACTOR_TYPES,
   APPROVAL_STATUSES,
   ASSIGNEES,
   BLOCKER_KINDS,
+  CHECKPOINTS,
   CASE_STATUS_FILTERS,
   CASE_STATUSES,
   EMPLOYMENT_TYPES,
@@ -68,6 +70,7 @@ export const API_ROUTES = [
   { id: "followups.list", method: "GET", path: "/api/followups", roles: OPS },
   { id: "dashboard.summary", method: "GET", path: "/api/dashboard/summary", roles: OPS },
   { id: "dashboard.startReadiness", method: "GET", path: "/api/dashboard/start-readiness", roles: OPS },
+  { id: "dashboard.changes", method: "GET", path: "/api/dashboard/changes", roles: OPS },
   { id: "integrations.health", method: "GET", path: "/api/integrations/health", roles: OPS },
   { id: "audit.list", method: "GET", path: "/api/audit", roles: ADMIN },
 ] as const satisfies readonly RouteDef[];
@@ -121,6 +124,8 @@ export const EmployeesQuery = PageQuery.extend({
 });
 export const MAX_READINESS_WEEKS = 26;
 export const StartReadinessQuery = z.object({ weeks: z.coerce.number().int().min(1).max(MAX_READINESS_WEEKS).optional() });
+export const MAX_CHANGES = 30;
+export const ChangesQuery = z.object({ limit: z.coerce.number().int().min(1).max(MAX_CHANGES).optional() });
 export const ApprovalsQuery = PageQuery.extend({ status: z.enum([...APPROVAL_STATUSES, "all"]).optional() });
 export const BlockersQuery = PageQuery.extend({
   status: z.enum(["open", "resolved", "all"]).optional(),
@@ -384,6 +389,53 @@ export const StartReadinessSchema = z.object({
   alreadyStarted: ReadinessCountsSchema.nullable(),
 });
 export type StartReadinessDto = z.infer<typeof StartReadinessSchema>;
+
+/**
+ * The audit actions the dashboard's "What changed" feed reads, in plain words on the client. Everything
+ * else (integration calls, provisioning polls, task and dev events) is left out as noise.
+ */
+export const CHANGE_ACTIONS = [
+  "case.started",
+  "case.completed",
+  "case.failed",
+  "stage.blocked",
+  "stage.retry_requested",
+  "blocker.opened",
+  "blocker.auto_resolved",
+  "approval.approved",
+  "approval.rejected",
+  "approval.resubmitted",
+] as const;
+export type ChangeAction = (typeof CHANGE_ACTIONS)[number];
+/** The only detail fields the feed carries: no free-text reasons or notes, no email addresses. */
+export const ChangeDetailSchema = z
+  .object({
+    kind: z.enum(BLOCKER_KINDS).optional(),
+    system: z.enum(SYSTEM_IDS).optional(),
+    operation: z.string().optional(),
+    httpStatus: z.number().int().optional(),
+    message: z.string().optional(),
+    checkpoint: z.enum(CHECKPOINTS).optional(),
+    round: z.number().int().optional(),
+    failureReason: z.enum(FAILURE_REASONS).optional(),
+    onBehalfOf: z.string().optional(),
+  })
+  .strict();
+export const ChangeItemSchema = z.object({
+  seq: z.number().int(),
+  occurredAt: z.string(),
+  action: z.enum(CHANGE_ACTIONS),
+  employeeId: z.string(),
+  employeeName: z.string(),
+  stageId: z.enum(STAGE_IDS).nullable(),
+  round: z.number().int().nullable(),
+  actorType: z.enum(ACTOR_TYPES),
+  detail: ChangeDetailSchema,
+});
+export type ChangeItem = z.infer<typeof ChangeItemSchema>;
+/** GET /api/dashboard/changes: the latest case events, newest first. */
+export const ChangesSchema = z.object({ items: z.array(ChangeItemSchema) });
+export type ChangesDto = z.infer<typeof ChangesSchema>;
 
 export const StartResponse = z.object({ instanceId: z.string(), created: z.boolean() });
 export const RoundResponse = z.object({ round: z.number().int() });

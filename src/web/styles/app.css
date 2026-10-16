@@ -129,7 +129,8 @@ ul.notices li { margin: 4px 0; }
 /* Charts: HTML bars on one shared scale, 2 px surface gaps, a 4 px rounded data end, square at the baseline. */
 .chart-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .chart-head h2 { margin: 0; }
-.chart.stale { opacity: 0.55; }
+/* a frame kept on screen while live updates are paused or a refresh runs */
+.stale { opacity: 0.55; }
 .chart-legend { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.82rem; color: var(--muted); }
 .chart-legend li { display: inline-flex; align-items: center; gap: 5px; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; flex: none; }

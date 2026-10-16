@@ -1,15 +1,16 @@
 // Live dashboard: the OpsHubAgent state over a read-only WebSocket, with the
 // /api/dashboard/summary snapshot as the fallback until the first frame.
 import { useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Link } from "react-router";
 import type { HubState } from "../../shared/agent-state.ts";
 import type { MeDto } from "../../shared/api.ts";
 import { BLOCKER_KINDS, isOneOf } from "../../shared/domain.ts";
 import { FIXED_BLOCKER_OWNER } from "../../shared/roles.ts";
-import { DASHBOARD_CARD_STALE_MS, useDashboardSummary, useStartReadiness } from "../api/queries.ts";
+import { DASHBOARD_CARD_STALE_MS, useChanges, useDashboardSummary, useStartReadiness } from "../api/queries.ts";
 import { useSession } from "../auth/session.tsx";
 import { DEPARTMENT_NAMES } from "../components/blocker-text.ts";
+import { ChangesFeed } from "../components/ChangesFeed.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { KpiTile } from "../components/KpiTile.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
@@ -57,6 +58,22 @@ function ReadinessCard({ stale }: { stale: boolean }) {
           {() => <ReadinessChart data={q.data!} asTable={asTable} weeks={READINESS_WEEKS} stale={stale || q.isFetching} />}
         </QueryState>
       </ReadinessFigure>
+    </section>
+  );
+}
+
+export const CHANGES_LIMIT = 15;
+
+/** The latest case events in plain sentences, with their own loading and error states. */
+function ChangesCard({ stale }: { stale: boolean }) {
+  const q = useChanges(CHANGES_LIMIT);
+  const titleId = useId();
+  return (
+    <section className="card" aria-labelledby={titleId}>
+      <h2 id={titleId}>What changed</h2>
+      <QueryState query={q} what="the latest changes">
+        {() => <ChangesFeed items={q.data!.items} stale={stale || q.isFetching} />}
+      </QueryState>
     </section>
   );
 }
@@ -156,19 +173,7 @@ export function DashboardView({ hub, me, stale = false }: { hub: HubState; me: M
             </table>
           </div>
         </section>
-        <section className="card" aria-label="recent activity">
-          <h2>Recent activity</h2>
-          <ol className="timeline">
-            {hub.recentActivity.slice(0, 15).map((a) => (
-              <li key={a.seq}>
-                <time className="muted">{new Date(a.occurredAt).toLocaleTimeString()}</time>
-                <span>
-                  <strong>{a.action}</strong> {a.employeeId ?? ""} <span className="muted">by {a.actorId}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <ChangesCard stale={stale} />
       </div>
       <p className="muted" style={{ fontSize: "0.8rem" }}>
         Reconciled {hub.reconciledAt ? new Date(hub.reconciledAt).toLocaleTimeString() : "never"} (version {hub.version}, audit seq {hub.asOfSeq}).

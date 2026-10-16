@@ -4,6 +4,7 @@ import type { z } from "zod";
 import {
   ApprovalViewSchema,
   AuditEventViewSchema,
+  ChangesSchema,
   BlockerViewSchema,
   CaseDetailSchema,
   ChecklistSchema,
@@ -333,5 +334,64 @@ describe("readiness by start week", () => {
     for (const bad of ["2026-11-2", "2026-02-31", "Nov 2", "2026-11-02T00:00:00Z"]) {
       expect((await api(`/api/employees?startFrom=${encodeURIComponent(bad)}`, { as: "C01" })).status, bad).toBe(400);
     }
+  });
+});
+
+describe("what changed (dashboard feed)", () => {
+  let n = 0;
+  /** Appends an audit row for E077 (a fixture: the triggers allow inserts only). */
+  async function audit(action: string, detail: Record<string, unknown>, over: { stageId?: string | null; round?: number | null; entityId?: string; actorId?: string } = {}) {
+    n++;
+    await DB.prepare(
+      `INSERT INTO audit_events (id, occurred_at, actor_type, actor_id, action, entity_type, entity_id, employee_id, stage_id, round, detail_json)
+       VALUES (?, ?, 'user', ?, ?, 'fixture', ?, 'E077', ?, ?, ?)`,
+    )
+      .bind(`fixture:changes:${n}`, new Date(Date.UTC(2026, 9, 8, 13, n)).toISOString(), over.actorId ?? "c01.someone@onboardflow.test", action, over.entityId ?? `fixture-${n}`, over.stageId ?? null, over.round ?? null, JSON.stringify(detail))
+      .run();
+  }
+
+  it("lists the latest case events in seq order, with only whitelisted detail", async () => {
+    await audit("integration.call", { system: "it" });
+    await audit("stage.blocked", { class: "retryable", system: "it", operation: "it.create-account", httpStatus: 503, message: "service unavailable", round: 2, field: "x", reason: "contact ops@example.com" }, { stageId: "it_provisioning", round: 2 });
+    await audit("stage.retry_requested", { note: "called the vendor, see jo@example.com", newRound: 3 }, { stageId: "it_provisioning", round: 3 });
+    await audit("approval.rejected", { decision: "rejected", reason: "wrong laptop, ask Sam", onBehalfOf: "M01", privilegedAccessApproved: null }, { stageId: "manager_approval", round: 1 });
+    await audit("approval.resubmitted", { note: "fixed the laptop", newRound: 2 }, { stageId: "manager_approval", round: 2 });
+    await audit("blocker.opened", { kind: "integration_outage", ownerDepartment: "it", subject: "it.create-account", severity: "high" }, { stageId: "it_provisioning" });
+    await audit("blocker.opened", { kind: "approval_overdue", ownerDepartment: "people_ops", subject: "apr:E077:closeout:1", severity: "medium" }, { stageId: "closeout" });
+    await audit("blocker.auto_resolved", { kind: "integration_outage", reason: "operation_succeeded" }, { entityId: "blk:E077:integration_outage:it_provisioning:it.create-account:1791460804422" });
+    await audit("provisioning.updated", { status: "active" });
+    await audit("task.completed", {});
+    await audit("dev.login", {});
+    await audit("case.failed", { failureReason: "recovery_rounds_exhausted", operation: "it.create-account", reason: "HTTP 503 from it" }, { stageId: "it_provisioning" });
+
+    const r = valid(ChangesSchema, await api("/api/dashboard/changes?limit=30", { as: "C05" }));
+    expect(r.items.length).toBeGreaterThan(0);
+    // newest first, merged across actions by seq
+    expect(r.items.map((i) => i.seq)).toEqual([...r.items.map((i) => i.seq)].sort((a, b) => b - a));
+    // the noise actions never appear
+    expect(r.items.some((i) => ["integration.call", "provisioning.updated", "task.completed", "dev.login"].includes(i.action))).toBe(false);
+    const mine = r.items.filter((i) => i.employeeId === "E077");
+    expect(mine.map((i) => i.action)).toEqual(["case.failed", "blocker.auto_resolved", "blocker.opened", "approval.resubmitted", "approval.rejected", "stage.retry_requested", "stage.blocked"]);
+    expect(mine.every((i) => i.employeeName.length > 0)).toBe(true);
+    const by = (a: string) => mine.find((i) => i.action === a)!;
+    expect(by("stage.blocked")).toMatchObject({ stageId: "it_provisioning", round: 2, detail: { system: "it", operation: "it.create-account", httpStatus: 503, message: "service unavailable", round: 2 } });
+    expect(by("stage.retry_requested").detail).toEqual({});
+    expect(by("approval.rejected").detail).toEqual({ onBehalfOf: "M01", checkpoint: "manager_approval" });
+    expect(by("approval.resubmitted")).toMatchObject({ round: 2, detail: { checkpoint: "manager_approval" } });
+    // only the approval and checklist kinds of blocker.opened: an outage repeats stage.blocked
+    expect(by("blocker.opened").detail).toEqual({ kind: "approval_overdue", checkpoint: "closeout" });
+    expect(by("blocker.auto_resolved")).toMatchObject({ stageId: "it_provisioning", detail: { kind: "integration_outage" } });
+    expect(by("case.failed").detail).toEqual({ failureReason: "recovery_rounds_exhausted", operation: "it.create-account" });
+    // no reason, note, field or email reaches the response
+    const text = JSON.stringify(r);
+    for (const secret of ["wrong laptop", "fixed the laptop", "called the vendor", "@", "HTTP 503 from it", "operation_succeeded", "privilegedAccessApproved", "ownerDepartment", "subject"]) expect(text, secret).not.toContain(secret);
+  });
+
+  it("bounds the limit", async () => {
+    for (const l of ["0", "31", "x"]) expect((await api(`/api/dashboard/changes?limit=${l}`, { as: "A01" })).status, l).toBe(400);
+    const two = valid(ChangesSchema, await api("/api/dashboard/changes?limit=2", { as: "A01" }));
+    expect(two.items).toHaveLength(2);
+    const dflt = valid(ChangesSchema, await api("/api/dashboard/changes", { as: "C03" }));
+    expect(dflt.items.length).toBeLessThanOrEqual(15);
   });
 });

@@ -24,7 +24,7 @@ export const KIND_NAMES: Record<BlockerKind, string> = {
 /** Blocker kinds that hold an operation stage, where Retry starts a new recovery round. */
 export const RETRYABLE_KINDS: ReadonlySet<BlockerKind> = new Set(["integration_outage", "data_issue", "provisioning_stalled"]);
 
-const OPERATION_TEXT: Record<string, string> = {
+export const OPERATION_TEXT: Record<string, string> = {
   "hr.create-worker": "create the worker record",
   "hr.start-document-verification": "start document verification",
   "hr.get-document-verification": "check document verification",

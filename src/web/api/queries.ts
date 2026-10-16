@@ -3,7 +3,7 @@ import { actionId, actionKeys } from "./action-keys.ts";
 import { apiFetch } from "./client.ts";
 import { shouldRetryQuery } from "./query-client.ts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, StartReadinessDto, TaskView } from "../../shared/api.ts";
+import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChangesDto, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, StartReadinessDto, TaskView } from "../../shared/api.ts";
 import type { HubState } from "../../shared/agent-state.ts";
 
 export type RoundResult = { round: number };
@@ -21,6 +21,7 @@ export const keys = {
   dashboard: ["dashboard"] as const,
   // not under ["dashboard"]: every live hub frame invalidates that key, and these refetch at most once a minute
   readiness: (weeks: number) => ["readiness", weeks] as const,
+  changes: (limit: number) => ["changes", limit] as const,
 };
 
 /** How long the dashboard's aggregate cards (readiness, what changed) count as fresh; also the least time between their refetches. */
@@ -216,6 +217,15 @@ export function useStartReadiness(weeks = 12) {
   return useQuery({
     queryKey: keys.readiness(weeks),
     queryFn: ({ signal }) => apiFetch<StartReadinessDto>(`/api/dashboard/start-readiness?weeks=${weeks}`, { signal }),
+    staleTime: DASHBOARD_CARD_STALE_MS,
+  });
+}
+
+/** The latest case events in plain sentences for the dashboard (coordinators and admins). */
+export function useChanges(limit = 15) {
+  return useQuery({
+    queryKey: keys.changes(limit),
+    queryFn: ({ signal }) => apiFetch<ChangesDto>(`/api/dashboard/changes?limit=${limit}`, { signal }),
     staleTime: DASHBOARD_CARD_STALE_MS,
   });
 }

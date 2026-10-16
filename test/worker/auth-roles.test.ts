@@ -112,6 +112,7 @@ const ROUTE_CASES: Record<RouteId, RouteCase> = {
   "followups.list": { path: "/api/followups", expect: only(OPS) },
   "dashboard.summary": { path: "/api/dashboard/summary", expect: only(OPS) },
   "dashboard.startReadiness": { path: "/api/dashboard/start-readiness", expect: only(OPS) },
+  "dashboard.changes": { path: "/api/dashboard/changes", expect: only(OPS) },
   "integrations.health": { path: "/api/integrations/health", expect: only(OPS) },
   "audit.list": { path: "/api/audit", expect: only({ admin: 200 }) },
 };
