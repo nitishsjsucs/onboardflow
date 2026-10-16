@@ -150,6 +150,11 @@ section.card > label[for] { display: block; font-weight: 600; font-size: 0.88rem
   table.list.stack tr { border-bottom: 1px solid var(--border); padding: 8px 0; }
   table.list.stack td { border: none; padding: 2px 0; display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 8px; }
   table.list.stack td::before { content: attr(data-label); color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+  /* every element of a cell sits in the value column, under its first line, never under the label */
+  table.list.stack td > * { grid-column: 2; }
+  /* badges keep their own width instead of stretching across the value column or the row */
+  table.list.stack td > .badge { justify-self: start; }
+  ul.tasks li > .badge { align-self: flex-start; }
   table.list.stack td.empty-cell { display: none; }
   .card.table-wrap:has(table.stack) { overflow: visible; }
 }
