@@ -178,6 +178,8 @@ export const ApprovalViewSchema = z.object({
   reason: z.string().nullable(),
   /** List responses only: the stage awaits a resubmission of this (rejected) round. */
   resubmittable: z.boolean().optional(),
+  /** List responses only, for rounds after the first: why the previous round was rejected, and the People Ops note sent with the resubmission. */
+  previousRound: z.object({ round: z.number().int(), reason: z.string().nullable(), note: z.string().nullable() }).optional(),
 });
 export type ApprovalView = z.infer<typeof ApprovalViewSchema>;
 

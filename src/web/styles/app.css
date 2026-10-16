@@ -112,3 +112,12 @@ a.button-link.primary { background: var(--accent); color: var(--accent-text); bo
 .resolve-form label { font-weight: 600; font-size: 0.88rem; }
 .warn-text { color: var(--warn); }
 article.card:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.request-fields { margin: 8px 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; color: var(--muted); }
+.request-fields > div { display: contents; }
+.request-fields dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.round-history { border-left: 3px solid var(--info); padding-left: 10px; margin: 8px 0; }
+.round-history p { margin: 2px 0; }
+.on-behalf { margin: 0; padding: 6px 10px; background: var(--info-bg); border-radius: 6px; }
+fieldset.priv { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin: 0; display: grid; gap: 4px; }
+fieldset.priv legend { font-weight: 600; padding: 0 4px; }
+article.card label[for] { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }

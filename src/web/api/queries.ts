@@ -61,8 +61,14 @@ export function useCompleteTask() {
 // Approvals, queue, cases
 // ---------------------------------------------------------------------------
 
+/** Refetches when the window regains focus: managers have no live hub, and a decision may have come from another tab. */
 export function useApprovals(status: "pending" | "rejected" | "all" = "pending", enabled = true) {
-  return useQuery({ queryKey: keys.approvals(status), queryFn: ({ signal }) => apiFetch<Page<ApprovalView>>(`/api/approvals?status=${status}&limit=100`, { signal }), enabled });
+  return useQuery({
+    queryKey: keys.approvals(status),
+    queryFn: ({ signal }) => apiFetch<Page<ApprovalView>>(`/api/approvals?status=${status}&limit=100`, { signal }),
+    enabled,
+    refetchOnWindowFocus: true,
+  });
 }
 
 /**

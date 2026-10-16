@@ -87,7 +87,9 @@ describe("read routes return the documented shapes", () => {
   });
 
   it("queues, dashboard, health, audit explorer", async () => {
-    valid(page(ApprovalViewSchema), await api("/api/approvals?status=all", { as: "A01" }));
+    const all = valid(page(ApprovalViewSchema), await api("/api/approvals?status=all", { as: "A01" }));
+    // round history is only for rounds after the first
+    expect(all.items.filter((a) => a.round === 1).every((a) => a.previousRound === undefined)).toBe(true);
     valid(page(ApprovalViewSchema), await api("/api/approvals", { as: manager }));
     valid(page(BlockerViewSchema), await api("/api/blockers?status=all", { as: "C03" }));
     valid(page(TaskViewSchema), await api("/api/followups?status=all", { as: "C01" }));
@@ -128,6 +130,9 @@ describe("mutation routes return the documented shapes", () => {
       await setFault({ system: "it", operation: "create-account", employeeRef: id, fault: "fail_503" });
       const apr2 = `apr:${id}:manager_approval:2`;
       await waitFor(() => DB.prepare("SELECT 1 AS ok FROM approvals WHERE id = ? AND status = 'pending'").bind(apr2).first(), { what: apr2 });
+      // the round-2 card carries the round-1 rejection reason and the note People Ops resubmitted with
+      const round2 = valid(page(ApprovalViewSchema), await api("/api/approvals", { as: m })).items.find((a) => a.id === apr2);
+      expect(round2?.previousRound).toEqual({ round: 1, reason: "no", note: "revised" });
       valid(ApprovalViewSchema, await api(`/api/approvals/${apr2}/decision`, { as: m, body: { decision: "approve" } }));
       await waitForStage(id, "it_provisioning", "blocked");
       const blocker = await waitFor(() => DB.prepare("SELECT id FROM blockers WHERE employee_id = ? AND kind = 'integration_outage' AND status = 'open'").bind(id).first<{ id: string }>(), { what: "outage blocker" });

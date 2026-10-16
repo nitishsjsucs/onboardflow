@@ -1,6 +1,7 @@
 // /api/approvals: the approver's queue, decisions (admin on behalf), and People Ops resubmission.
 import { Hono } from "hono";
 import { ApprovalsQuery, DecisionBody, ResubmitBody } from "../../shared/api.ts";
+import { approvalId } from "../../shared/ids.ts";
 import { requireRole } from "../auth/middleware.ts";
 import { canDecideApproval, canResubmit } from "../auth/policy.ts";
 import { APPROVAL_SELECT, type ApprovalRow, getApproval, toApprovalView } from "../db/repo.ts";
@@ -44,11 +45,15 @@ export function approvalRoutes() {
       round: number;
     }>();
     const awaiting = new Set(stages.results.map((s) => `${s.employee_id}:${s.stage_id}:${s.round}`));
+    const previous = await previousRounds(c.env.DB, rows.results.slice(0, limit));
     return c.json(
       toPage(
         rows.results,
         limit,
-        (a) => ({ ...toApprovalView(a), resubmittable: a.status === "rejected" && awaiting.has(`${a.employee_id}:${a.stage_id}:${a.round}`) }),
+        (a) => {
+          const prev = previous.get(approvalId(a.employee_id, a.checkpoint, a.round - 1));
+          return { ...toApprovalView(a), resubmittable: a.status === "rejected" && awaiting.has(`${a.employee_id}:${a.stage_id}:${a.round}`), ...(a.round > 1 && prev ? { previousRound: prev } : {}) };
+        },
         (a) => a.id,
       ),
     );
@@ -76,4 +81,31 @@ export function approvalRoutes() {
   });
 
   return r;
+}
+
+type PreviousRound = { round: number; reason: string | null; note: string | null };
+
+/**
+ * Read-only round history for the approvals list: for each item past round 1, the previous round's
+ * rejection reason (its approvals row) and the People Ops note sent with the resubmission (the
+ * approval.resubmitted audit row of that approval, entity index). One query per 50 items, usually one.
+ */
+async function previousRounds(db: D1Database, items: ApprovalRow[]): Promise<Map<string, PreviousRound>> {
+  const ids = [...new Set(items.filter((a) => a.round > 1).map((a) => approvalId(a.employee_id, a.checkpoint, a.round - 1)))];
+  const out = new Map<string, PreviousRound>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const r = await db
+      .prepare(
+        `SELECT a.id, a.round, a.reason,
+                (SELECT json_extract(ae.detail_json, '$.note') FROM audit_events ae
+                  WHERE ae.entity_type = 'approval' AND ae.entity_id = a.id AND ae.action = 'approval.resubmitted'
+                  ORDER BY ae.seq DESC LIMIT 1) AS note
+           FROM approvals a WHERE a.id IN (${chunk.map(() => "?").join(", ")})`,
+      )
+      .bind(...chunk)
+      .all<{ id: string; round: number; reason: string | null; note: string | null }>();
+    for (const row of r.results) out.set(row.id, { round: row.round, reason: row.reason, note: typeof row.note === "string" ? row.note : null });
+  }
+  return out;
 }
