@@ -1069,7 +1069,7 @@ Mutating routes (every non-GET under `/api`):
 | GET | `/api/health` | public | none | `{ ok: true, authMode, version }` |
 | GET | `/api/me` | any | none | `Me = { email, role, displayName, employeeId?, staffId?, department? }` |
 | GET | `/api/me/checklist` | employee | none | `{ caseStatus, stages: StageView[8], tasks: TaskView[] }` |
-| GET | `/api/employees` | manager (reports), coordinator, admin | query `stage?, status?, orgUnit?, q?, cursor?, limit?` | `Page<EmployeeSummary>` |
+| GET | `/api/employees` | manager (reports), coordinator, admin | query `stage?, status?, orgUnit?, q?, cursor?, limit?` (`status` is a case status, or `open`: in progress, blocked or awaiting approval; added 2026-10-16 for the dashboard's stage links) | `Page<EmployeeSummary>` |
 | GET | `/api/employees/:id` | policy `canViewCase` | none | `EmployeeProfile` |
 | PATCH | `/api/employees/:id` | coordinator (field owner), admin | `{ costCenter?, licenseBundle?, photoOnFile? }` | `EmployeeProfile` (audit `employee.field_corrected` with before/after) |
 | POST | `/api/cases/:id/start` | coordinator(people_ops), admin | `{}` | 202 `{ instanceId, created }` |
