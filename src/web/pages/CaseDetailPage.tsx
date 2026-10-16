@@ -2,8 +2,8 @@
 // blockers (with retry for permitted roles), the audit trail, and admin
 // controls. Live CaseAgent state refreshes the view.
 import { useState } from "react";
-import { useParams } from "react-router";
-import type { StageView } from "../../shared/api.ts";
+import { Link, useParams } from "react-router";
+import type { CaseDetail, MeDto, StageView } from "../../shared/api.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useAdminCaseAction, useCase, useCaseAudit, useRetryStage } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
@@ -11,6 +11,7 @@ import { ActionMessage } from "../components/ActionMessage.tsx";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
+import { QueryState } from "../components/QueryState.tsx";
 import { ProvisioningTracker } from "../components/ProvisioningTracker.tsx";
 import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
@@ -22,15 +23,52 @@ function LiveCase({ id }: { id: string }) {
   return <LiveIndicator status={status} />;
 }
 
+/** Where "back" goes for this role: the cases list for staff, the portal for an employee. */
+function listFor(me: MeDto | null): { to: string; text: string } {
+  if (me?.role === "employee") return { to: "/me", text: "Back to my onboarding" };
+  return { to: "/cases", text: me?.role === "manager" ? "Back to my team" : "Back to Cases" };
+}
+
+function forbiddenText(me: MeDto | null): string {
+  if (me?.role === "manager") return "This case is not one of your direct reports.";
+  if (me?.role === "employee") return "You can open only your own onboarding.";
+  return "You do not have access to this case.";
+}
+
 export function CaseDetailPage() {
   const { id = "" } = useParams();
   const { me } = useSession();
   const q = useCase(id);
   const audit = useCaseAudit(id);
+  const back = listFor(me);
 
-  if (q.isLoading) return <p className="muted">Loading case...</p>;
-  if (q.error || !q.data) return <p className="error">Could not load this case.</p>;
-  const d = q.data;
+  return (
+    <QueryState
+      query={q}
+      what="this case"
+      notFound={
+        <>
+          <h1 tabIndex={-1}>No case {id}</h1>
+          <p>
+            There is no onboarding case with that id. <Link to={back.to}>{back.text}</Link>
+          </p>
+        </>
+      }
+      forbidden={
+        <>
+          <h1 tabIndex={-1}>Case {id}</h1>
+          <p>
+            {forbiddenText(me)} <Link to={back.to}>{back.text}</Link>
+          </p>
+        </>
+      }
+    >
+      {() => <CaseView id={id} d={q.data!} me={me} audit={audit} />}
+    </QueryState>
+  );
+}
+
+function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto | null; audit: ReturnType<typeof useCaseAudit> }) {
   const openBlockers = d.blockers.filter((b) => b.status === "open");
   const blockedStages = d.stages.filter((s) => s.status === "blocked");
 
@@ -38,7 +76,7 @@ export function CaseDetailPage() {
     <>
       <div className="page-head">
         <div>
-          <h1>
+          <h1 tabIndex={-1}>
             {d.employee.firstName} {d.employee.lastName} <span className="muted mono">{d.employee.id}</span>
           </h1>
           <div className="sub">
@@ -98,12 +136,16 @@ export function CaseDetailPage() {
 
       <section className="card" aria-label="audit trail section">
         <h2>Audit trail</h2>
-        <AuditTimeline
-          events={(audit.data?.pages ?? []).flatMap((p) => p.items)}
-          hasMore={!!audit.hasNextPage}
-          onMore={() => void audit.fetchNextPage()}
-          loadingMore={audit.isFetchingNextPage}
-        />
+        <QueryState query={audit} what="the audit trail">
+          {() => (
+            <AuditTimeline
+              events={(audit.data?.pages ?? []).flatMap((p) => p.items)}
+              hasMore={!!audit.hasNextPage}
+              onMore={() => void audit.fetchNextPage()}
+              loadingMore={audit.isFetchingNextPage}
+            />
+          )}
+        </QueryState>
       </section>
     </>
   );

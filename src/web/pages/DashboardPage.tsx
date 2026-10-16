@@ -5,6 +5,7 @@ import { useDashboardSummary } from "../api/queries.ts";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { KpiTile } from "../components/KpiTile.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
+import { QueryState } from "../components/QueryState.tsx";
 import { StageFunnelChart } from "../components/StageFunnelChart.tsx";
 import { label } from "../components/StatusBadge.tsx";
 import { useHubLive } from "../live/useHubLive.ts";
@@ -126,7 +127,13 @@ export function DashboardPage() {
         </div>
         <LiveIndicator status={live.status} />
       </div>
-      {hub ? <DashboardView hub={hub} /> : <p className="muted">Loading...</p>}
+      {hub ? (
+        <DashboardView hub={hub} />
+      ) : (
+        <QueryState query={fallback} what="the dashboard">
+          {() => null}
+        </QueryState>
+      )}
     </>
   );
 }

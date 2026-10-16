@@ -2,7 +2,8 @@ import { cleanup, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AppShell, navFor } from "../../src/web/components/AppShell.tsx";
 import { RoleGate } from "../../src/web/components/RoleGate.tsx";
-import { PERSONAS, renderWith } from "./harness.tsx";
+import { routes } from "../../src/web/router.tsx";
+import { mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 afterEach(cleanup);
 
@@ -48,5 +49,31 @@ describe("RoleGate", () => {
     cleanup();
     renderWith(page, { me: PERSONAS.admin! });
     expect(screen.getByText("Admin controls")).toBeTruthy();
+  });
+});
+
+describe("/approvals gate", () => {
+  it.each([
+    ["manager", true],
+    ["peopleOps", true],
+    ["admin", true],
+    ["it", false],
+  ])("%s may open it: %s", async (persona, allowed) => {
+    const calls = mockFetch(() => ({ body: { items: [], nextCursor: null } }));
+    renderWith(null, { me: PERSONAS[persona]!, path: "/approvals", routes });
+    if (allowed) {
+      await screen.findByText("Nothing waiting for a decision.");
+      expect(calls.some((c) => c.url.startsWith("/api/approvals"))).toBe(true);
+    } else {
+      await screen.findByText("Approvals are handled by managers and People Ops.");
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it("refuses a Facilities coordinator too", async () => {
+    const calls = mockFetch(() => ({ body: { items: [], nextCursor: null } }));
+    renderWith(null, { me: { ...PERSONAS.it!, department: "facilities", staffId: "C05" }, path: "/approvals", routes });
+    await screen.findByText("Approvals are handled by managers and People Ops.");
+    expect(calls).toHaveLength(0);
   });
 });

@@ -15,8 +15,9 @@ export const PERSONAS: Record<string, MeDto> = {
   admin: { email: "a01.x@onboardflow.test", role: "admin", displayName: "Admin One", staffId: "A01" },
 };
 
-export function renderWith(ui: ReactNode, opts: { me: MeDto | null; path?: string; routes?: RouteObject[] }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+/** `client` injects a specific QueryClient (for example createQueryClient(), to test its retry rules); the default never retries. */
+export function renderWith(ui: ReactNode, opts: { me: MeDto | null; path?: string; routes?: RouteObject[]; client?: QueryClient }) {
+  const client = opts.client ?? new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const routes = opts.routes ?? [{ path: "*", element: ui }];
   const router = createMemoryRouter(routes, { initialEntries: [opts.path ?? "/"] });
   const utils = render(
@@ -41,7 +42,7 @@ export function announced(): string {
 }
 
 /** Replaces fetch with a router of canned JSON responses; records every call. */
-export function mockFetch(handler: (url: string, method: string, body: unknown) => MockResponse | Promise<MockResponse>) {
+export function mockFetch(handler: (url: string, method: string, body: unknown, signal?: AbortSignal) => MockResponse | Promise<MockResponse>) {
   const calls: FetchCall[] = [];
   const fn = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
@@ -49,7 +50,7 @@ export function mockFetch(handler: (url: string, method: string, body: unknown) 
     const headers = Object.fromEntries(Object.entries((init?.headers as Record<string, string>) ?? {}));
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ url, method, headers, body });
-    const r = await handler(url, method, body);
+    const r = await handler(url, method, body, init?.signal ?? undefined);
     if (r.raw !== undefined) return new Response(r.raw, { status: r.status ?? 200, headers: { "Content-Type": "text/plain" } });
     return new Response(JSON.stringify(r.body), { status: r.status ?? 200, headers: { "Content-Type": "application/json" } });
   };

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AUDIT_ACTIONS } from "../../shared/domain.ts";
 import { useAuditExplorer } from "../api/queries.ts";
 import { AuditTimeline } from "../components/AuditTimeline.tsx";
+import { QueryState } from "../components/QueryState.tsx";
 
 export function AuditPage() {
   const [action, setAction] = useState("");
@@ -31,12 +32,16 @@ export function AuditPage() {
         </div>
       </div>
       <section className="card">
-        <AuditTimeline
-          events={(q.data?.pages ?? []).flatMap((p) => p.items)}
-          hasMore={!!q.hasNextPage}
-          onMore={() => void q.fetchNextPage()}
-          loadingMore={q.isFetchingNextPage}
-        />
+        <QueryState query={q} what="the audit log">
+          {() => (
+            <AuditTimeline
+              events={(q.data?.pages ?? []).flatMap((p) => p.items)}
+              hasMore={!!q.hasNextPage}
+              onMore={() => void q.fetchNextPage()}
+              loadingMore={q.isFetchingNextPage}
+            />
+          )}
+        </QueryState>
       </section>
     </>
   );

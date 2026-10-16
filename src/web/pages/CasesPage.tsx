@@ -9,6 +9,7 @@ import { useEmployees, useStartCase } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
+import { QueryState } from "../components/QueryState.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
 
 export function CasesPage() {
@@ -44,27 +45,34 @@ export function CasesPage() {
           </select>
         </div>
       </div>
-      {list.data && list.data.items.length === 0 ? <EmptyState>No matching employees.</EmptyState> : null}
-      <div className="card table-wrap">
-        <table className="list">
-          <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Org unit</th>
-              <th>Start</th>
-              <th>Status</th>
-              <th>Stage</th>
-              <th>Blockers</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {(list.data?.items ?? []).map((e) => (
-              <CaseRow key={e.id} e={e} me={me} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <QueryState query={list} what="the cases">
+        {() =>
+          list.data!.items.length === 0 ? (
+            <EmptyState>No matching employees.</EmptyState>
+          ) : (
+            <div className="card table-wrap">
+              <table className="list">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Org unit</th>
+                    <th>Start</th>
+                    <th>Status</th>
+                    <th>Stage</th>
+                    <th>Blockers</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.data!.items.map((e) => (
+                    <CaseRow key={e.id} e={e} me={me} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+      </QueryState>
     </>
   );
 }

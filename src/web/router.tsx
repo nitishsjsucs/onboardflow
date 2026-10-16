@@ -46,7 +46,8 @@ export const routes: RouteObject[] = [
           {
             path: "/approvals",
             element: (
-              <RoleGate roles={["manager", "coordinator", "admin"]}>
+              // the same rule and wording as GET /api/approvals: IT and Facilities coordinators get a 403 there
+              <RoleGate roles={["manager", "coordinator", "admin"]} allow={(me) => me.role !== "coordinator" || me.department === "people_ops"} fallback={<p className="muted">Approvals are handled by managers and People Ops.</p>}>
                 <ApprovalsPage />
               </RoleGate>
             ),

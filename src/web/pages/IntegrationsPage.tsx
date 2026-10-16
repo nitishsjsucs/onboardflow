@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCaseIntegrations, useIntegrationHealth } from "../api/queries.ts";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { IntegrationHealthTable } from "../components/IntegrationHealthTable.tsx";
+import { QueryError, QueryState } from "../components/QueryState.tsx";
 import { StatusBadge } from "../components/StatusBadge.tsx";
 
 const WINDOWS = ["1h", "24h", "7d", "all"] as const;
@@ -12,8 +13,10 @@ export function IntegrationsPage() {
   const [window, setWindow] = useState<(typeof WINDOWS)[number]>("24h");
   const [caseId, setCaseId] = useState("");
   const health = useIntegrationHealth(window);
-  const log = useCaseIntegrations(caseId.trim().toUpperCase());
+  const wanted = caseId.trim().toUpperCase();
+  const log = useCaseIntegrations(wanted);
   const calls = (log.data?.pages ?? []).flatMap((p) => p.items);
+  const valid = /^E\d{3}$/.test(wanted);
   return (
     <>
       <div className="page-head">
@@ -31,13 +34,21 @@ export function IntegrationsPage() {
       </div>
       <section className="card" aria-label="health">
         <h2>Health</h2>
-        {health.data ? <IntegrationHealthTable health={health.data} /> : <p className="muted">Loading...</p>}
+        <QueryState query={health} what="the integration health">
+          {() => <IntegrationHealthTable health={health.data!} />}
+        </QueryState>
       </section>
       <section className="card" aria-label="call log">
         <h2>Call log</h2>
         <input aria-label="case id" placeholder="Case id, for example E042" value={caseId} onChange={(e) => setCaseId(e.target.value)} />
-        {calls.length === 0 ? (
-          <EmptyState>{/^E\d{3}$/i.test(caseId.trim()) ? "No calls for this case yet." : "Enter a case id to see its calls."}</EmptyState>
+        {valid && log.isError && log.data === undefined ? (
+          <QueryError error={log.error} what={`the calls of ${wanted}`} notFound={<p style={{ margin: 0 }}>No case {wanted}.</p>} onRetry={log.refetch} busy={log.isFetching} />
+        ) : valid && log.data === undefined ? (
+          <p className="muted" role="status">
+            Loading the calls of {wanted}...
+          </p>
+        ) : calls.length === 0 ? (
+          <EmptyState>{valid ? "No calls for this case yet." : "Enter a case id, for example E042, to see its calls."}</EmptyState>
         ) : (
           <div className="table-wrap">
             <table className="list">

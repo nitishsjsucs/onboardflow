@@ -8,6 +8,7 @@ import { useBlockers, useFixField, useFollowups, useResolveBlocker, useRetryStag
 import { can, useSession } from "../auth/session.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
+import { QueryState } from "../components/QueryState.tsx";
 import { label } from "../components/StatusBadge.tsx";
 import { TaskList } from "../components/TaskList.tsx";
 
@@ -76,7 +77,6 @@ export function QueuePage() {
   const followups = useFollowups();
   const blockers = useBlockers("open");
   const dept = me?.role === "coordinator" ? label(me.department ?? "") : "all departments";
-  const items = blockers.data?.items ?? [];
   return (
     <>
       <div className="page-head">
@@ -87,19 +87,25 @@ export function QueuePage() {
       </div>
       <section className="card" aria-label="open blockers">
         <h2>Open blockers</h2>
-        {items.length === 0 ? (
-          <EmptyState>No blockers.</EmptyState>
-        ) : (
-          <ul className="tasks">
-            {items.map((b) => (
-              <BlockerRow key={b.id} b={b} me={me} />
-            ))}
-          </ul>
-        )}
+        <QueryState query={blockers} what="the open blockers">
+          {() =>
+            blockers.data!.items.length === 0 ? (
+              <EmptyState>No blockers.</EmptyState>
+            ) : (
+              <ul className="tasks">
+                {blockers.data!.items.map((b) => (
+                  <BlockerRow key={b.id} b={b} me={me} />
+                ))}
+              </ul>
+            )
+          }
+        </QueryState>
       </section>
       <section className="card" aria-label="follow-ups">
         <h2>Follow-ups</h2>
-        <TaskList tasks={followups.data?.items ?? []} completable doneLabel="Mark follow-up done" />
+        <QueryState query={followups} what="the follow-ups">
+          {() => <TaskList tasks={followups.data!.items} completable doneLabel="Mark follow-up done" />}
+        </QueryState>
       </section>
     </>
   );

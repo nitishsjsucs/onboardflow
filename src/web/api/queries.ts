@@ -20,11 +20,11 @@ export const keys = {
 };
 
 export function useMe() {
-  return useQuery({ queryKey: keys.me, queryFn: () => apiFetch<MeDto>("/api/me"), retry: false });
+  return useQuery({ queryKey: keys.me, queryFn: ({ signal }) => apiFetch<MeDto>("/api/me", { signal }), retry: false });
 }
 
 export function useChecklist(enabled = true) {
-  return useQuery({ queryKey: keys.checklist, queryFn: () => apiFetch<ChecklistDto>("/api/me/checklist"), enabled });
+  return useQuery({ queryKey: keys.checklist, queryFn: ({ signal }) => apiFetch<ChecklistDto>("/api/me/checklist", { signal }), enabled });
 }
 
 /**
@@ -61,7 +61,7 @@ export function useCompleteTask() {
 // ---------------------------------------------------------------------------
 
 export function useApprovals(status: "pending" | "rejected" | "all" = "pending", enabled = true) {
-  return useQuery({ queryKey: keys.approvals(status), queryFn: () => apiFetch<Page<ApprovalView>>(`/api/approvals?status=${status}&limit=100`), enabled });
+  return useQuery({ queryKey: keys.approvals(status), queryFn: ({ signal }) => apiFetch<Page<ApprovalView>>(`/api/approvals?status=${status}&limit=100`, { signal }), enabled });
 }
 
 /**
@@ -100,11 +100,11 @@ export function useResubmit() {
 }
 
 export function useBlockers(status: "open" | "resolved" | "all" = "open") {
-  return useQuery({ queryKey: [...keys.blockers, status], queryFn: () => apiFetch<Page<BlockerView>>(`/api/blockers?status=${status}&limit=100`) });
+  return useQuery({ queryKey: [...keys.blockers, status], queryFn: ({ signal }) => apiFetch<Page<BlockerView>>(`/api/blockers?status=${status}&limit=100`, { signal }) });
 }
 
 export function useFollowups() {
-  return useQuery({ queryKey: keys.followups, queryFn: () => apiFetch<Page<TaskView>>("/api/followups?limit=100") });
+  return useQuery({ queryKey: keys.followups, queryFn: ({ signal }) => apiFetch<Page<TaskView>>("/api/followups?limit=100", { signal }) });
 }
 
 export function useRetryStage() {
@@ -137,7 +137,7 @@ export function useEmployees(f: EmployeeFilters) {
   const params = new URLSearchParams({ limit: "100" });
   for (const [k, v] of Object.entries(f)) if (v) params.set(k, v);
   const qs = params.toString();
-  return useQuery({ queryKey: keys.employees(qs), queryFn: () => apiFetch<Page<EmployeeSummary>>(`/api/employees?${qs}`) });
+  return useQuery({ queryKey: keys.employees(qs), queryFn: ({ signal }) => apiFetch<Page<EmployeeSummary>>(`/api/employees?${qs}`, { signal }) });
 }
 
 export function useStartCase() {
@@ -149,14 +149,14 @@ export function useStartCase() {
 }
 
 export function useCase(id: string) {
-  return useQuery({ queryKey: keys.case(id), queryFn: () => apiFetch<CaseDetail>(`/api/cases/${id}`) });
+  return useQuery({ queryKey: keys.case(id), queryFn: ({ signal }) => apiFetch<CaseDetail>(`/api/cases/${id}`, { signal }) });
 }
 
 export function useCaseAudit(id: string, pageSize = 25) {
   return useInfiniteQuery({
     queryKey: keys.caseAudit(id),
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => apiFetch<Page<AuditEventView>>(`/api/cases/${id}/audit?limit=${pageSize}${pageParam ? `&cursor=${pageParam}` : ""}`),
+    queryFn: ({ pageParam, signal }) => apiFetch<Page<AuditEventView>>(`/api/cases/${id}/audit?limit=${pageSize}${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
     getNextPageParam: (last) => last.nextCursor,
   });
 }
@@ -171,14 +171,14 @@ export function useAdminCaseAction(kind: "restart" | "terminate") {
 }
 
 export function useDashboardSummary(enabled = true) {
-  return useQuery({ queryKey: keys.dashboard, queryFn: () => apiFetch<HubState>("/api/dashboard/summary"), enabled });
+  return useQuery({ queryKey: keys.dashboard, queryFn: ({ signal }) => apiFetch<HubState>("/api/dashboard/summary", { signal }), enabled });
 }
 
 // ---------------------------------------------------------------------------
 // Integrations and audit explorer
 // ---------------------------------------------------------------------------
 export function useIntegrationHealth(window: "1h" | "24h" | "7d" | "all") {
-  return useQuery({ queryKey: ["integrations", "health", window], queryFn: () => apiFetch<HubState["integrationHealth"]>(`/api/integrations/health?window=${window}`) });
+  return useQuery({ queryKey: ["integrations", "health", window], queryFn: ({ signal }) => apiFetch<HubState["integrationHealth"]>(`/api/integrations/health?window=${window}`, { signal }) });
 }
 
 export function useCaseIntegrations(employeeId: string) {
@@ -186,7 +186,7 @@ export function useCaseIntegrations(employeeId: string) {
     queryKey: ["case", employeeId, "integrations"],
     enabled: /^E\d{3}$/.test(employeeId),
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => apiFetch<Page<IntegrationCallView>>(`/api/cases/${employeeId}/integrations?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`),
+    queryFn: ({ pageParam, signal }) => apiFetch<Page<IntegrationCallView>>(`/api/cases/${employeeId}/integrations?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
     getNextPageParam: (last) => last.nextCursor,
   });
 }
@@ -200,7 +200,7 @@ export function useAuditExplorer(f: AuditFilters, pageSize = 50) {
   return useInfiniteQuery({
     queryKey: ["audit", qs],
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => apiFetch<Page<AuditEventView>>(`/api/audit?${qs}${pageParam ? `&cursor=${pageParam}` : ""}`),
+    queryFn: ({ pageParam, signal }) => apiFetch<Page<AuditEventView>>(`/api/audit?${qs}${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
     getNextPageParam: (last) => last.nextCursor,
   });
 }

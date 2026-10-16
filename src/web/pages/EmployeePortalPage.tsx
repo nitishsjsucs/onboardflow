@@ -7,6 +7,7 @@ import { useSession } from "../auth/session.tsx";
 import { BlockerList } from "../components/BlockerList.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
+import { QueryError } from "../components/QueryState.tsx";
 import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
 import { TaskList } from "../components/TaskList.tsx";
@@ -32,10 +33,17 @@ export function EmployeePortalPage() {
   const q = useChecklist(!!me?.employeeId);
 
   if (!me?.employeeId) return <EmptyState>This page is for employees.</EmptyState>;
-  if (q.isLoading) return <p className="muted">Loading your onboarding...</p>;
-  if (q.error || !q.data) return <p className="error">Could not load your checklist.</p>;
+  if (q.data === undefined) {
+    if (q.isError) return <QueryError error={q.error} what="your onboarding" onRetry={q.refetch} busy={q.isFetching} />;
+    return (
+      <p className="muted" role="status">
+        Loading your onboarding...
+      </p>
+    );
+  }
   const data = q.data;
   const done = data.stages.filter((s) => s.status === "complete").length;
+  const stale = q.isError;
 
   return (
     <>
@@ -48,6 +56,14 @@ export function EmployeePortalPage() {
         </div>
         <Live employeeId={me.employeeId} />
       </div>
+      {stale ? (
+        <p className="refresh-warning" role="status">
+          Could not refresh; showing earlier data.{" "}
+          <button type="button" onClick={() => void q.refetch()} disabled={q.isFetching}>
+            Try again
+          </button>
+        </p>
+      ) : null}
       <div className="card">
         <StageStepper stages={data.stages} />
         <div style={{ marginTop: 12 }} className="progress" aria-label={`${done} of 8 stages complete`}>

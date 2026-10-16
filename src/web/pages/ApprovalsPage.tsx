@@ -5,6 +5,7 @@ import { useApprovals } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
 import { ApprovalCard } from "../components/ApprovalCard.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
+import { QueryState } from "../components/QueryState.tsx";
 
 export function ApprovalsPage() {
   const { me } = useSession();
@@ -26,18 +27,28 @@ export function ApprovalsPage() {
           <div className="sub">Equipment and access requests (manager) and People Ops sign-off. Admins decide on behalf, and it is audited.</div>
         </div>
       </div>
-      {pending.isLoading ? <p className="muted">Loading...</p> : null}
-      {pending.data && pending.data.items.length === 0 ? <EmptyState>Nothing waiting for a decision.</EmptyState> : null}
-      {(pending.data?.items ?? []).map((a) => (
-        <ApprovalCard key={a.id} approval={a} canDecide={canDecide(a)} canResubmit={false} />
-      ))}
-      {showRejected && toResubmit.length > 0 ? (
-        <>
-          <h2 style={{ marginTop: 24 }}>Revision requested</h2>
-          {toResubmit.map((a) => (
-            <ApprovalCard key={a.id} approval={a} canDecide={false} canResubmit />
-          ))}
-        </>
+      <QueryState query={pending} what="the approvals">
+        {() =>
+          pending.data!.items.length === 0 ? (
+            <EmptyState>Nothing waiting for a decision.</EmptyState>
+          ) : (
+            pending.data!.items.map((a) => <ApprovalCard key={a.id} approval={a} canDecide={canDecide(a)} canResubmit={false} />)
+          )
+        }
+      </QueryState>
+      {showRejected ? (
+        <QueryState query={rejected} what="the requests waiting for a revision">
+          {() =>
+            toResubmit.length > 0 ? (
+              <>
+                <h2 style={{ marginTop: 24 }}>Revision requested</h2>
+                {toResubmit.map((a) => (
+                  <ApprovalCard key={a.id} approval={a} canDecide={false} canResubmit />
+                ))}
+              </>
+            ) : null
+          }
+        </QueryState>
       ) : null}
     </>
   );
