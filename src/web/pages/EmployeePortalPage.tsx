@@ -4,23 +4,31 @@ import type { ChecklistDto } from "../../shared/api.ts";
 import { STAGES } from "../../shared/stages.ts";
 import { useChecklist } from "../api/queries.ts";
 import { useSession } from "../auth/session.tsx";
-import { BlockerList } from "../components/BlockerList.tsx";
+import { EmployeeNotices } from "../components/EmployeeNotices.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { QueryError } from "../components/QueryState.tsx";
 import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
-import { TaskList } from "../components/TaskList.tsx";
+import { isOverdue, overdueTaskIds, TaskList } from "../components/TaskList.tsx";
 import { useCaseLive } from "../live/useCaseLive.ts";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
+
+function notStartedStages(data: ChecklistDto): Set<string> {
+  return new Set(data.stages.filter((s) => s.status === "pending").map((s) => s.id));
+}
 
 function whatIsNext(data: ChecklistDto): string {
   if (data.caseStatus === "complete") return "You are all set. Welcome aboard!";
   if (data.caseStatus === "not_started") return "Your onboarding has not started yet. People Operations will start it soon.";
+  const ids = overdueTaskIds(data.blockers);
+  const notStarted = notStartedStages(data);
   const open = data.tasks.filter((t) => t.status === "open");
+  const overdue = open.filter((t) => isOverdue(t, ids, notStarted)).length;
+  const late = overdue > 0 ? `, ${overdue} overdue` : "";
   const current = data.stages.find((s) => s.status !== "complete" && s.status !== "pending");
-  if (current?.status === "waiting_on_employee" && open.length > 0) return `Finish your ${current.name.toLowerCase()} tasks: ${open.filter((t) => t.stageId === current.id).length} left.`;
-  if (current) return `${current.name}: ${label(current.status)}. Nothing is needed from you right now.`;
+  if (current?.status === "waiting_on_employee" && open.length > 0) return `Finish your ${current.name.toLowerCase()} tasks: ${open.filter((t) => t.stageId === current.id).length} left${late}.`;
+  if (current) return `${current.name}: ${label(current.status)}. Nothing is needed from you right now${overdue > 0 ? `, apart from ${overdue} overdue task${overdue === 1 ? "" : "s"}` : ""}.`;
   return "Nothing is needed from you right now.";
 }
 
@@ -45,6 +53,8 @@ export function EmployeePortalPage() {
   }
   const data = q.data;
   const done = data.stages.filter((s) => s.status === "complete").length;
+  const notStarted = notStartedStages(data);
+  const overdueIds = overdueTaskIds(data.blockers);
   const stale = q.isError;
 
   return (
@@ -68,26 +78,21 @@ export function EmployeePortalPage() {
       ) : null}
       <div className="card">
         <StageStepper stages={data.stages} />
-        <div style={{ marginTop: 12 }} className="progress" aria-label={`${done} of 8 stages complete`}>
+        <div style={{ marginTop: 12 }} className="progress" role="progressbar" aria-label="Stages complete" aria-valuemin={0} aria-valuemax={8} aria-valuenow={done} aria-valuetext={`${done} of 8 stages complete`}>
           <div style={{ width: `${(done / 8) * 100}%` }} />
         </div>
         <p data-testid="what-next" style={{ marginBottom: 0 }}>
           <strong>What is next:</strong> {whatIsNext(data)}
         </p>
       </div>
-      {data.blockers.length > 0 ? (
-        <div className="card">
-          <h2>Blockers affecting you</h2>
-          <BlockerList blockers={data.blockers} />
-        </div>
-      ) : null}
+      <EmployeeNotices blockers={data.blockers} />
       {STAGES.filter((s) => data.tasks.some((t) => t.stageId === s.id)).map((s) => (
         <section className="card" key={s.id} aria-label={`${s.name} checklist`}>
           <h3>
             Stage {s.ordinal}: {s.name}
           </h3>
           {/* each row sends its own completion, with one Idempotency-Key per task (api/action-keys.ts) */}
-          <TaskList tasks={data.tasks.filter((t) => t.stageId === s.id)} completable notStarted={(data.stages.find((x) => x.id === s.id)?.status ?? "pending") === "pending"} />
+          <TaskList tasks={data.tasks.filter((t) => t.stageId === s.id)} completable notStartedStages={notStarted} overdueIds={overdueIds} />
         </section>
       ))}
     </>

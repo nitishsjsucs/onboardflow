@@ -121,3 +121,5 @@ article.card:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 fieldset.priv { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin: 0; display: grid; gap: 4px; }
 fieldset.priv legend { font-weight: 600; padding: 0 4px; }
 article.card label[for] { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
+ul.notices { margin: 0; padding-left: 18px; }
+ul.notices li { margin: 4px 0; }

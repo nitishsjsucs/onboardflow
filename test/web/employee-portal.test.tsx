@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ChecklistDto, TaskView } from "../../src/shared/api.ts";
+import type { BlockerView, ChecklistDto, TaskView } from "../../src/shared/api.ts";
 import { STAGES } from "../../src/shared/stages.ts";
 import { EmployeePortalPage } from "../../src/web/pages/EmployeePortalPage.tsx";
+import { blocker } from "./fixtures.ts";
 import { announced, mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
 vi.mock("../../src/web/live/useCaseLive.ts", () => ({ useCaseLive: () => ({ state: null, status: "connected" }) }));
@@ -19,7 +20,8 @@ const task = (id: string, stageId: TaskView["stageId"], title: string, status: T
   title,
   description: "d",
   status,
-  dueAt: "2026-10-26T17:00:00.000Z",
+  // far ahead, so no task turns overdue as the calendar moves on
+  dueAt: "2099-10-26T17:00:00.000Z",
   blockerId: null,
   draftedBy: "template",
   llmSuggestedCategory: null,
@@ -97,7 +99,10 @@ describe("EmployeePortalPage", () => {
     await screen.findByText("Enroll in MFA");
     const orientation = screen.getByRole("region", { name: "Orientation and day one checklist" });
     expect(within(orientation).queryByRole("button", { name: /^Mark done/ })).toBeNull();
-    expect(within(orientation).getByText("Opens when this stage starts.")).toBeTruthy();
+    expect(within(orientation).getByText(/Opens when Orientation and day one starts\./)).toBeTruthy();
+    // a neutral badge, not "open"
+    expect(within(orientation).getByText("Not open yet")).toBeTruthy();
+    expect(within(orientation).queryByText("open")).toBeNull();
     // the started stage keeps its button
     const paperwork = screen.getByRole("region", { name: "Paperwork and verification checklist" });
     expect(within(paperwork).getByRole("button", { name: "Mark done: Submit Form W-4" })).toBeTruthy();
@@ -126,5 +131,52 @@ describe("EmployeePortalPage", () => {
     await within(row).findByText("Marked done: Submit Form W-4");
     expect(within(row).queryByRole("alert")).toBeNull();
     await waitFor(() => expect(announced()).toBe("Marked done: Submit Form W-4"));
+  });
+
+  it("explains blockers in plain words, with no ids or owner codes", async () => {
+    const notices: Array<[BlockerView, string]> = [
+      [
+        blocker({ kind: "approval_overdue", stageId: "manager_approval", ownerDepartment: "people_ops", subject: "apr:E001:manager_approval:1", detail: { approvalId: "apr:E001:manager_approval:1", checkpoint: "manager_approval", round: 1 } }),
+        "Your manager's approval is taking longer than planned. People Operations is following up. Nothing is needed from you.",
+      ],
+      [
+        blocker({ id: "b2", kind: "data_issue", stageId: "intake", ownerDepartment: "people_ops", subject: "hr.create-worker", detail: { field: "costCenter", system: "hr", message: "costCenter must match CC-####" } }),
+        "We hit a setup problem with HR (a simulated system). The People Operations team is fixing it.",
+      ],
+      [blocker({ id: "b3" }), "We hit a setup problem with IT (a simulated system). The IT team is fixing it."],
+      [
+        blocker({ id: "b4", kind: "employee_task_overdue", stageId: "paperwork", ownerDepartment: "people_ops", subject: "checklist:paperwork", detail: { taskIds: ["chk:E001:w4"], count: 1 } }),
+        "1 of your tasks is past its due date.",
+      ],
+    ];
+    mockFetch(() => ({ body: { ...checklist, blockers: notices.map(([b]) => b) } }));
+    renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
+    const box = await screen.findByRole("region", { name: "Updates on your onboarding" });
+    for (const [, text] of notices) expect(within(box).getByText(text)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/apr:|blk:|Subject:|Owner:|people_ops|it\.order-device|data issue/i);
+  });
+
+  it("marks overdue tasks from the blocker's task ids and from a past due date, and counts them in What is next", async () => {
+    const past = { ...task("chk:E001:i9_section1", "paperwork", "Complete Form I-9 Section 1"), dueAt: "2020-01-01T00:00:00.000Z" };
+    const data: ChecklistDto = {
+      ...checklist,
+      tasks: [task("chk:E001:w4", "paperwork", "Submit Form W-4"), past, task("chk:E001:offer_docs", "paperwork", "Sign offer documents", "done"), task("chk:E001:enroll_mfa", "orientation", "Enroll in MFA")],
+      blockers: [blocker({ kind: "employee_task_overdue", stageId: "paperwork", ownerDepartment: "people_ops", subject: "checklist:paperwork", detail: { taskIds: ["chk:E001:w4"], count: 1 } })],
+    };
+    mockFetch(() => ({ body: data }));
+    renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
+    const w4 = (await screen.findByText("Submit Form W-4")).closest("li") as HTMLElement;
+    expect(within(w4).getByText("Overdue")).toBeTruthy();
+    expect(within(screen.getByText("Complete Form I-9 Section 1").closest("li") as HTMLElement).getByText("Overdue")).toBeTruthy();
+    expect(within(screen.getByText("Sign offer documents").closest("li") as HTMLElement).queryByText("Overdue")).toBeNull();
+    expect(screen.getByTestId("what-next").textContent).toBe("What is next: Finish your paperwork and verification tasks: 2 left, 2 overdue.");
+  });
+
+  it("exposes the stage progress as a progressbar", async () => {
+    mockFetch(() => ({ body: checklist }));
+    renderWith(<EmployeePortalPage />, { me: PERSONAS.employee!, path: "/me" });
+    const bar = await screen.findByRole("progressbar", { name: "Stages complete" });
+    expect([bar.getAttribute("aria-valuemin"), bar.getAttribute("aria-valuemax"), bar.getAttribute("aria-valuenow")]).toEqual(["0", "8", "1"]);
+    expect(bar.getAttribute("aria-valuetext")).toBe("1 of 8 stages complete");
   });
 });

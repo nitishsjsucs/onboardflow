@@ -17,7 +17,7 @@ import { QueryState } from "../components/QueryState.tsx";
 import { ProvisioningTracker } from "../components/ProvisioningTracker.tsx";
 import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
-import { TaskList } from "../components/TaskList.tsx";
+import { overdueTaskIds, TaskList } from "../components/TaskList.tsx";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 import { useCaseLive } from "../live/useCaseLive.ts";
 
@@ -148,7 +148,7 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
 
       <section className="card" aria-label="tasks">
         <h2>Tasks</h2>
-        <TaskList tasks={d.tasks} />
+        <TaskList tasks={d.tasks} notStartedStages={new Set(d.stages.filter((s) => s.status === "pending").map((s) => s.id))} overdueIds={overdueTaskIds(openBlockers)} />
       </section>
 
       {can.restartOrTerminate(me) ? <AdminControls employeeId={id} /> : null}

@@ -63,4 +63,19 @@ describe("CaseDetailPage", () => {
     await screen.findByRole("list", { name: "onboarding stages" });
     expect(screen.queryByRole("region", { name: "admin controls" })).toBeNull();
   });
+
+  it("shows staff the same Overdue and Not open yet task badges as the employee", async () => {
+    const d = caseDetail(null);
+    const base = { employeeId: "E001", kind: "checklist" as const, templateKey: null, assignee: "employee" as const, description: "d", blockerId: null, draftedBy: null, llmSuggestedCategory: null, createdAt: "2026-10-01T00:00:00.000Z", completedAt: null, completedBy: null };
+    d.tasks = [
+      { ...base, id: "chk:E001:w4", stageId: "paperwork", title: "Submit Form W-4", status: "open", dueAt: "2020-01-01T00:00:00.000Z" },
+      { ...base, id: "chk:E001:enroll_mfa", stageId: "orientation", title: "Enroll in MFA", status: "open", dueAt: "2020-01-01T00:00:00.000Z" },
+    ];
+    serve(d);
+    renderWith(null, { me: PERSONAS.peopleOps!, path: "/cases/E001", routes });
+    const tasks = await screen.findByRole("region", { name: "tasks" });
+    expect(within(within(tasks).getByText("Submit Form W-4").closest("li") as HTMLElement).getByText("Overdue")).toBeTruthy();
+    // orientation has not started: its task is not open yet, so it is not overdue either
+    expect(within(within(tasks).getByText("Enroll in MFA").closest("li") as HTMLElement).getByText("Not open yet")).toBeTruthy();
+  });
 });
