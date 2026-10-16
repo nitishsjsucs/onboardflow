@@ -5,7 +5,9 @@
 // Each row is three lines: the stage name with who acts and a muted count of
 // cases that finished the stage, a stacked bar of the cases open in the stage
 // (blocked, waiting on a person, running), and the counts as links to the
-// matching case lists. Bar length is the stage's open cases over the largest
+// matching case lists. A request sent back for revision is blocked, as its
+// case status is: the Blocked tile, the readiness chart and the case list
+// filtered by status=blocked all count it there. Bar length is the stage's open cases over the largest
 // stage's, so a stage holding 3 blocked cases reads as a short bar, not a
 // sliver beside the finished ones. Finished cases are text, not ink.
 //
@@ -77,14 +79,15 @@ export function stageRow(s: StageRollup): StageRow {
   if (s.waiting > 0) {
     states.push(
       waitingStatusAt(s.stage) === "revision_requested"
-        ? // a revision's case status is blocked; the count names who acts, since the row may also wait on managers
+        ? // a revision's case status is blocked (People Ops' approval_rejected blocker), so it is drawn as blocked; the
+          // count names who acts, since the row may also wait on managers
           {
-            segment: "waiting",
+            segment: "blocked",
             n: s.waiting,
             text: `${s.waiting} ${s.waiting === 1 ? "revision" : "revisions"} requested, People Ops acts`,
             actors: [{ kind: "department", departments: ["people_ops"] }],
             href: casesAt(s.stage, "blocked"),
-            glyph: "pause",
+            glyph: "cross",
           }
         : { segment: "waiting", n: s.waiting, text: `${s.waiting} waiting on the employee`, actors: [{ kind: "employee" }], href: casesAt(s.stage, "in_progress"), glyph: "clock" },
     );
@@ -256,7 +259,7 @@ export function StageFunnelChart({ stages, complete, stale = false }: { stages: 
         </>
       )}
       <figcaption id={captionId} className="muted small" style={{ marginTop: 8 }}>
-        Bar length: open cases in the stage now; finished cases are counted as text.
+        Bar length: open cases in the stage now; finished cases are counted as text. A request sent back for revision counts as blocked, as in the Blocked tile.
       </figcaption>
     </figure>
   );

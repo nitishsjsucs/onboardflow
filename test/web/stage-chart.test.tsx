@@ -94,12 +94,26 @@ describe("StageFunnelChart (where open cases are waiting)", () => {
     expect(within(row("it_provisioning")).getByText(": IT acts")).toBeTruthy();
   });
 
-  it("reads the hub's waiting count as a revision at a checkpoint (People Ops acts) and as the employee's checklist elsewhere", () => {
-    renderChart(demo({ manager_approval: { awaitingApproval: 23, waiting: 1 }, closeout: { awaitingApproval: 0, waiting: 2 } }));
+  it("reads the hub's waiting count as a revision at a checkpoint (blocked, People Ops acts) and as the employee's checklist elsewhere", () => {
+    const stages = demo({ manager_approval: { awaitingApproval: 23, waiting: 1 }, closeout: { awaitingApproval: 0, waiting: 2 } });
+    renderChart(stages);
     const ma = row("manager_approval");
     expect(within(ma).getByRole("link", { name: /^1 revision requested, People Ops acts/ }).getAttribute("href")).toBe("/cases?stage=manager_approval&status=blocked");
     expect(within(ma).getByText(": People Ops and managers act")).toBeTruthy();
     expect(within(ma).getByRole("link", { name: /^23 waiting on a decision by managers/ })).toBeTruthy();
+    // a revision's case status is blocked: drawn and marked as blocked, as the Blocked tile and the readiness chart count it
+    expect(segmentWidths(stageRow(stages[2]!), 24)).toEqual([
+      { segment: "blocked", n: 1, pct: (1 / 24) * 100 },
+      { segment: "waiting", n: 23, pct: (23 / 24) * 100 },
+    ]);
+    expect([...ma.querySelectorAll(".chart-bar .seg")].map((x) => x.className)).toEqual(["seg seg-blocked", "seg seg-waiting"]);
+    expect(stageRow(stages[2]!).states.map((x) => [x.text, x.segment, x.glyph])).toEqual([
+      ["1 revision requested, People Ops acts", "blocked", "cross"],
+      ["23 waiting on a decision by managers", "waiting", "pause"],
+    ]);
+    // the red ink adds up to the Blocked tile: 12 cases at blocked stages and 3 revisions
+    const red = stages.map(stageRow).flatMap((r) => r.states).filter((x) => x.segment === "blocked").reduce((a, x) => a + x.n, 0);
+    expect(red).toBe(15);
     expect(within(row("closeout")).getByRole("link", { name: /^2 revisions requested, People Ops acts/ })).toBeTruthy();
     expect(within(row("closeout")).getByText(": People Ops acts")).toBeTruthy();
     expect(within(row("paperwork")).getByRole("link", { name: /^24 waiting on the employee/ }).getAttribute("href")).toBe("/cases?stage=paperwork&status=in_progress");
@@ -126,7 +140,7 @@ describe("StageFunnelChart (where open cases are waiting)", () => {
     expect([...document.querySelectorAll(".chart-bar")].every((b) => b.getAttribute("aria-hidden") === "true")).toBe(true);
     // every count carries an icon beside its words
     expect(row("it_provisioning").querySelectorAll(".stage-counts svg.state-icon")).toHaveLength(1);
-    expect(screen.getByText("Bar length: open cases in the stage now; finished cases are counted as text.")).toBeTruthy();
+    expect(screen.getByText("Bar length: open cases in the stage now; finished cases are counted as text. A request sent back for revision counts as blocked, as in the Blocked tile.")).toBeTruthy();
   });
 
   it("swaps the bars for a captioned table with the same links", () => {

@@ -265,7 +265,7 @@ export function ReadinessFigure({ children, canToggle, asTable, onToggle }: { ch
       </div>
       {children}
       <figcaption className="muted small" style={{ marginTop: 8 }}>
-        Ready for day one: onboarding is complete, or the case has reached orientation and is not blocked, so accounts, devices, workspace and badge are set up and checked. Bar length: people starting that week.
+        Ready for day one: onboarding is complete, or the case has reached orientation and is not blocked, so accounts, devices, workspace and badge are set up and checked. Blocked includes requests sent back for revision. Bar length: people starting that week.
       </figcaption>
     </figure>
   );
