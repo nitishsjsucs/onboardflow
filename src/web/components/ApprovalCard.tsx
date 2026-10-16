@@ -50,8 +50,10 @@ export type ApprovalCardProps = {
   canDecide: boolean;
   canResubmit: boolean;
   /**
-   * Called once this card's request is settled (decided, already decided, or resubmitted), with the card's
-   * view from then on (after a decision, the approval the server returned), so the page keeps it on screen.
+   * Called when the user acts on this item (decide or resubmit) and again once it is settled (decided, already
+   * decided, or resubmitted), with the item's view from then on (after a decision, the approval the server
+   * returned), so the page keeps it on screen. The first call matters: a decision refetches the list before
+   * its own answer is handled, and an item that left the list would unmount with its outcome and focus.
    */
   onSettled?: (a: ApprovalView) => void;
 };
@@ -79,6 +81,9 @@ export function useApprovalDecision(approval: ApprovalView, onSettled?: (a: Appr
     // only when that error arrives
   }, [decidedElsewhere]);
   async function onDecide(d: { decision: "approve" | "reject"; reason?: string; privilegedAccessApproved?: boolean }) {
+    // keep the item from the moment the user acts: the decision's own refetch (or another tab's) can drop it from
+    // the list before this answer is handled, and a remounted item would lose its outcome and focus
+    onSettled?.(approval);
     const r = await decide.run({ approvalId: a.id, ...d });
     if (r) onSettled?.({ ...approval, ...r });
     outcome.request({ onlyIfLost: true });
@@ -107,6 +112,7 @@ export function ApprovalCard({ approval, me, canDecide, canResubmit, onSettled }
   }, [resubmittedElsewhere]);
 
   async function onResubmit() {
+    onSettled?.(approval);
     const r = await resubmit.run({ approvalId: a.id, note: note.trim() });
     if (r) onSettled?.(approval);
     resubmitOutcome.request({ onlyIfLost: true });

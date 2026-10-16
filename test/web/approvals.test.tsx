@@ -343,6 +343,47 @@ describe("People Ops sign-offs as rows", () => {
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({ decision: "approve" });
   });
 
+  it("keeps the row, its outcome and focus when the list refetches without it before the decision returns", async () => {
+    // in the browser the list can refetch before the decision's answer is handled (the decision's own
+    // invalidation, or a window focus), and that list no longer has the decided sign-off: the row must stay
+    // the same element, so its outcome and focus survive
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    let decided = false;
+    let listsAfterDecision = 0;
+    mockFetch(async (_url, method) => {
+      if (method === "POST") {
+        decided = true;
+        await gate;
+        return { body: { ...ROWS[1]!, status: "approved", decidedAt: new Date().toISOString() } };
+      }
+      if (decided) listsAfterDecision++;
+      return { body: { items: decided ? ROWS.filter((r) => r.id !== ROWS[1]!.id) : ROWS, nextCursor: null } };
+    });
+    renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
+    const approve = await screen.findByRole("button", { name: "Approve sign-off for Ann Bell" });
+    const before = screen.getByRole("listitem", { name: "Sign-off for Ann Bell" });
+    approve.focus();
+    fireEvent.click(approve);
+    await waitFor(() => expect(isBusy(approve)).toBe(true));
+    // the list refetches while the decision is in flight, without Ann Bell
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    await waitFor(() => expect(listsAfterDecision).toBeGreaterThan(0));
+    await new Promise((r) => setTimeout(r, 50));
+    // still counted as waiting (the decision has not returned), and still the same row
+    expect(screen.getByTestId("signoff-summary").textContent).toBe("6 sign-offs waiting, 2 overdue, 2 start within 2 weeks");
+    expect(screen.getByRole("listitem", { name: "Sign-off for Ann Bell" })).toBe(before);
+    release();
+    const outcome = await within(before).findByText("Approved. Onboarding finishes once HR (simulated) activates the worker.");
+    await waitFor(() => expect(document.activeElement).toBe(outcome));
+    await waitFor(() => expect(screen.getByTestId("signoff-summary").textContent).toBe("5 sign-offs waiting, 1 overdue, 1 starts within 2 weeks"));
+    expect(screen.getByRole("listitem", { name: "Sign-off for Ann Bell" })).toBe(before);
+    expect(within(before).getByText("approved")).toBeTruthy();
+    expect(within(before).queryByText(/Overdue by|Due in/)).toBeNull();
+    focusManager.setFocused(undefined);
+  });
+
   it("rejects only with a reason; Cancel returns focus to Reject...", async () => {
     const calls = serve(ROWS);
     renderWith(<ApprovalsPage />, { me: PERSONAS.peopleOps!, path: "/approvals" });
