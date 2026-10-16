@@ -1,7 +1,7 @@
 {
-  "runId": "2026-10-16T04-47-50-383Z-scale",
-  "startedAt": "2026-10-16T04:48:23.493Z",
-  "gitSha": "4037512ad306705e04ff829ecd2ab51d7c18d8b9",
+  "runId": "2026-10-16T19-29-29-215Z-scale",
+  "startedAt": "2026-10-16T19:29:36.740Z",
+  "gitSha": "6d8093a09d01d908685e6a3d41325fd9e12fed26",
   "mode": "scale",
   "llmProvider": "stub",
   "seeds": [],
@@ -107,14 +107,14 @@
     "llmLatencyP50Ms": null
   },
   "timing": {
-    "scenarioP50Ms": 17053,
-    "scenarioP95Ms": 39200,
-    "totalMs": 310192
+    "scenarioP50Ms": 6804,
+    "scenarioP95Ms": 14421,
+    "totalMs": 122264
   },
   "failures": [],
   "chaos": null,
   "harnessTransport": {
-    "retries": 1,
+    "retries": 0,
     "failures": 0
   },
   "host": {
@@ -130,14 +130,14 @@
       "--llm",
       "stub"
     ],
-    "headAtStart": "4037512ad306705e04ff829ecd2ab51d7c18d8b9",
+    "headAtStart": "6d8093a09d01d908685e6a3d41325fd9e12fed26",
     "cleanTreeAtStart": true,
     "build": {
-      "commit": "4037512ad306705e04ff829ecd2ab51d7c18d8b9",
+      "commit": "6d8093a09d01d908685e6a3d41325fd9e12fed26",
       "dirtyTree": false,
-      "builtAt": "2026-10-16T04:44:14.727Z",
-      "distSha256AtStart": "56bf098520e12577d6404b2b70ff1b0f71bd2e4b27a22f558361ad9d3b68a83e",
-      "distSha256AtEnd": "56bf098520e12577d6404b2b70ff1b0f71bd2e4b27a22f558361ad9d3b68a83e",
+      "builtAt": "2026-10-16T19:26:15.333Z",
+      "distSha256AtStart": "1e41513bd7a446a9a307d0bc5b3a4747c24c9f83008c2cd35440714f56a4e639",
+      "distSha256AtEnd": "1e41513bd7a446a9a307d0bc5b3a4747c24c9f83008c2cd35440714f56a4e639",
       "matchesHead": true
     }
   },
@@ -148,7 +148,7 @@
       "employeeId": "E001",
       "completed": true,
       "passed": true,
-      "durationMs": 23431,
+      "durationMs": 6807,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -206,7 +206,7 @@
       "employeeId": "E002",
       "completed": true,
       "passed": true,
-      "durationMs": 25145,
+      "durationMs": 7293,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -264,7 +264,7 @@
       "employeeId": "E003",
       "completed": true,
       "passed": true,
-      "durationMs": 25158,
+      "durationMs": 7292,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -322,7 +322,7 @@
       "employeeId": "E004",
       "completed": true,
       "passed": true,
-      "durationMs": 25151,
+      "durationMs": 7293,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -380,7 +380,7 @@
       "employeeId": "E005",
       "completed": true,
       "passed": true,
-      "durationMs": 25139,
+      "durationMs": 6803,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -438,7 +438,7 @@
       "employeeId": "E006",
       "completed": true,
       "passed": true,
-      "durationMs": 25131,
+      "durationMs": 6800,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -496,7 +496,7 @@
       "employeeId": "E007",
       "completed": true,
       "passed": true,
-      "durationMs": 25136,
+      "durationMs": 6804,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -554,7 +554,7 @@
       "employeeId": "E008",
       "completed": true,
       "passed": true,
-      "durationMs": 25219,
+      "durationMs": 6779,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -612,7 +612,7 @@
       "employeeId": "E009",
       "completed": true,
       "passed": true,
-      "durationMs": 25129,
+      "durationMs": 6802,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -670,7 +670,7 @@
       "employeeId": "E010",
       "completed": true,
       "passed": true,
-      "durationMs": 25132,
+      "durationMs": 6801,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -728,7 +728,7 @@
       "employeeId": "E011",
       "completed": true,
       "passed": true,
-      "durationMs": 12485,
+      "durationMs": 6967,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -786,7 +786,7 @@
       "employeeId": "E012",
       "completed": true,
       "passed": true,
-      "durationMs": 36767,
+      "durationMs": 6946,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -844,7 +844,7 @@
       "employeeId": "E013",
       "completed": true,
       "passed": true,
-      "durationMs": 36783,
+      "durationMs": 6720,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -902,7 +902,7 @@
       "employeeId": "E014",
       "completed": true,
       "passed": true,
-      "durationMs": 36776,
+      "durationMs": 6718,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -960,7 +960,7 @@
       "employeeId": "E015",
       "completed": true,
       "passed": true,
-      "durationMs": 36771,
+      "durationMs": 6713,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1018,7 +1018,7 @@
       "employeeId": "E016",
       "completed": true,
       "passed": true,
-      "durationMs": 36769,
+      "durationMs": 6941,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1076,7 +1076,7 @@
       "employeeId": "E017",
       "completed": true,
       "passed": true,
-      "durationMs": 36764,
+      "durationMs": 6941,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1134,7 +1134,7 @@
       "employeeId": "E018",
       "completed": true,
       "passed": true,
-      "durationMs": 36762,
+      "durationMs": 6860,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1192,7 +1192,7 @@
       "employeeId": "E019",
       "completed": true,
       "passed": true,
-      "durationMs": 36754,
+      "durationMs": 6859,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1250,7 +1250,7 @@
       "employeeId": "E020",
       "completed": true,
       "passed": true,
-      "durationMs": 36692,
+      "durationMs": 6857,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1308,7 +1308,7 @@
       "employeeId": "E021",
       "completed": true,
       "passed": true,
-      "durationMs": 33876,
+      "durationMs": 4929,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1366,7 +1366,7 @@
       "employeeId": "E022",
       "completed": true,
       "passed": true,
-      "durationMs": 39200,
+      "durationMs": 4926,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1424,7 +1424,7 @@
       "employeeId": "E023",
       "completed": true,
       "passed": true,
-      "durationMs": 39181,
+      "durationMs": 4926,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1482,7 +1482,7 @@
       "employeeId": "E024",
       "completed": true,
       "passed": true,
-      "durationMs": 39188,
+      "durationMs": 7616,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1540,7 +1540,7 @@
       "employeeId": "E025",
       "completed": true,
       "passed": true,
-      "durationMs": 37987,
+      "durationMs": 6889,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1598,7 +1598,7 @@
       "employeeId": "E026",
       "completed": true,
       "passed": true,
-      "durationMs": 37974,
+      "durationMs": 7379,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1656,7 +1656,7 @@
       "employeeId": "E027",
       "completed": true,
       "passed": true,
-      "durationMs": 35844,
+      "durationMs": 7380,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1714,7 +1714,7 @@
       "employeeId": "E028",
       "completed": true,
       "passed": true,
-      "durationMs": 39186,
+      "durationMs": 8305,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1772,7 +1772,7 @@
       "employeeId": "E029",
       "completed": true,
       "passed": true,
-      "durationMs": 39179,
+      "durationMs": 8301,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1830,7 +1830,7 @@
       "employeeId": "E030",
       "completed": true,
       "passed": true,
-      "durationMs": 39175,
+      "durationMs": 8302,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1888,7 +1888,7 @@
       "employeeId": "E031",
       "completed": true,
       "passed": true,
-      "durationMs": 32543,
+      "durationMs": 13581,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1946,7 +1946,7 @@
       "employeeId": "E032",
       "completed": true,
       "passed": true,
-      "durationMs": 24407,
+      "durationMs": 13580,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2004,7 +2004,7 @@
       "employeeId": "E033",
       "completed": true,
       "passed": true,
-      "durationMs": 24555,
+      "durationMs": 13579,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2062,7 +2062,7 @@
       "employeeId": "E034",
       "completed": true,
       "passed": true,
-      "durationMs": 24533,
+      "durationMs": 11875,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2120,7 +2120,7 @@
       "employeeId": "E035",
       "completed": true,
       "passed": true,
-      "durationMs": 32960,
+      "durationMs": 12479,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2178,7 +2178,7 @@
       "employeeId": "E036",
       "completed": true,
       "passed": true,
-      "durationMs": 32956,
+      "durationMs": 12727,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2236,7 +2236,7 @@
       "employeeId": "E037",
       "completed": true,
       "passed": true,
-      "durationMs": 32954,
+      "durationMs": 12492,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2294,7 +2294,7 @@
       "employeeId": "E038",
       "completed": true,
       "passed": true,
-      "durationMs": 31218,
+      "durationMs": 12028,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2352,7 +2352,7 @@
       "employeeId": "E039",
       "completed": true,
       "passed": true,
-      "durationMs": 31218,
+      "durationMs": 12027,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2410,7 +2410,7 @@
       "employeeId": "E040",
       "completed": true,
       "passed": true,
-      "durationMs": 31220,
+      "durationMs": 12027,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2468,7 +2468,7 @@
       "employeeId": "E041",
       "completed": true,
       "passed": true,
-      "durationMs": 31711,
+      "durationMs": 4858,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2526,7 +2526,7 @@
       "employeeId": "E042",
       "completed": true,
       "passed": true,
-      "durationMs": 41566,
+      "durationMs": 4855,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2584,7 +2584,7 @@
       "employeeId": "E043",
       "completed": true,
       "passed": true,
-      "durationMs": 39300,
+      "durationMs": 4787,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2642,7 +2642,7 @@
       "employeeId": "E044",
       "completed": true,
       "passed": true,
-      "durationMs": 39287,
+      "durationMs": 4744,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2700,7 +2700,7 @@
       "employeeId": "E045",
       "completed": true,
       "passed": true,
-      "durationMs": 38993,
+      "durationMs": 5427,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2758,7 +2758,7 @@
       "employeeId": "E046",
       "completed": true,
       "passed": true,
-      "durationMs": 38992,
+      "durationMs": 5866,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2816,7 +2816,7 @@
       "employeeId": "E047",
       "completed": true,
       "passed": true,
-      "durationMs": 38992,
+      "durationMs": 5865,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2874,7 +2874,7 @@
       "employeeId": "E048",
       "completed": true,
       "passed": true,
-      "durationMs": 41857,
+      "durationMs": 5870,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2932,7 +2932,7 @@
       "employeeId": "E049",
       "completed": true,
       "passed": true,
-      "durationMs": 41854,
+      "durationMs": 5716,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2990,7 +2990,7 @@
       "employeeId": "E050",
       "completed": true,
       "passed": true,
-      "durationMs": 40219,
+      "durationMs": 5869,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3048,7 +3048,7 @@
       "employeeId": "E051",
       "completed": true,
       "passed": true,
-      "durationMs": 41856,
+      "durationMs": 5649,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3106,7 +3106,7 @@
       "employeeId": "E052",
       "completed": true,
       "passed": true,
-      "durationMs": 25314,
+      "durationMs": 5807,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3164,7 +3164,7 @@
       "employeeId": "E053",
       "completed": true,
       "passed": true,
-      "durationMs": 25312,
+      "durationMs": 5804,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3222,7 +3222,7 @@
       "employeeId": "E054",
       "completed": true,
       "passed": true,
-      "durationMs": 25311,
+      "durationMs": 5606,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3280,7 +3280,7 @@
       "employeeId": "E055",
       "completed": true,
       "passed": true,
-      "durationMs": 19090,
+      "durationMs": 4834,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3338,7 +3338,7 @@
       "employeeId": "E056",
       "completed": true,
       "passed": true,
-      "durationMs": 19088,
+      "durationMs": 4913,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3396,7 +3396,7 @@
       "employeeId": "E057",
       "completed": true,
       "passed": true,
-      "durationMs": 19085,
+      "durationMs": 4913,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3454,7 +3454,7 @@
       "employeeId": "E058",
       "completed": true,
       "passed": true,
-      "durationMs": 16530,
+      "durationMs": 4840,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3512,7 +3512,7 @@
       "employeeId": "E059",
       "completed": true,
       "passed": true,
-      "durationMs": 15946,
+      "durationMs": 4687,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3570,7 +3570,7 @@
       "employeeId": "E060",
       "completed": true,
       "passed": true,
-      "durationMs": 15947,
+      "durationMs": 4688,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3628,7 +3628,7 @@
       "employeeId": "E061",
       "completed": true,
       "passed": true,
-      "durationMs": 15944,
+      "durationMs": 4091,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3686,7 +3686,7 @@
       "employeeId": "E062",
       "completed": true,
       "passed": true,
-      "durationMs": 8357,
+      "durationMs": 3867,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3744,7 +3744,7 @@
       "employeeId": "E063",
       "completed": true,
       "passed": true,
-      "durationMs": 8359,
+      "durationMs": 3866,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3802,7 +3802,7 @@
       "employeeId": "E064",
       "completed": true,
       "passed": true,
-      "durationMs": 8359,
+      "durationMs": 3896,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3860,7 +3860,7 @@
       "employeeId": "E065",
       "completed": true,
       "passed": true,
-      "durationMs": 7945,
+      "durationMs": 4175,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3918,7 +3918,7 @@
       "employeeId": "E066",
       "completed": true,
       "passed": true,
-      "durationMs": 7945,
+      "durationMs": 4258,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3976,7 +3976,7 @@
       "employeeId": "E067",
       "completed": true,
       "passed": true,
-      "durationMs": 7944,
+      "durationMs": 4257,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4034,7 +4034,7 @@
       "employeeId": "E068",
       "completed": true,
       "passed": true,
-      "durationMs": 7964,
+      "durationMs": 4093,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4092,7 +4092,7 @@
       "employeeId": "E069",
       "completed": true,
       "passed": true,
-      "durationMs": 7326,
+      "durationMs": 4241,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4150,7 +4150,7 @@
       "employeeId": "E070",
       "completed": true,
       "passed": true,
-      "durationMs": 7325,
+      "durationMs": 4240,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4208,7 +4208,7 @@
       "employeeId": "E071",
       "completed": true,
       "passed": true,
-      "durationMs": 7192,
+      "durationMs": 4126,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4266,7 +4266,7 @@
       "employeeId": "E072",
       "completed": true,
       "passed": true,
-      "durationMs": 4214,
+      "durationMs": 4125,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4324,7 +4324,7 @@
       "employeeId": "E073",
       "completed": true,
       "passed": true,
-      "durationMs": 4371,
+      "durationMs": 4125,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4382,7 +4382,7 @@
       "employeeId": "E074",
       "completed": true,
       "passed": true,
-      "durationMs": 4211,
+      "durationMs": 3742,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4440,7 +4440,7 @@
       "employeeId": "E075",
       "completed": true,
       "passed": true,
-      "durationMs": 6126,
+      "durationMs": 3865,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4498,7 +4498,7 @@
       "employeeId": "E076",
       "completed": true,
       "passed": true,
-      "durationMs": 5996,
+      "durationMs": 3949,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4556,7 +4556,7 @@
       "employeeId": "E077",
       "completed": true,
       "passed": true,
-      "durationMs": 6126,
+      "durationMs": 3947,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4614,7 +4614,7 @@
       "employeeId": "E078",
       "completed": true,
       "passed": true,
-      "durationMs": 5931,
+      "durationMs": 3868,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4672,7 +4672,7 @@
       "employeeId": "E079",
       "completed": true,
       "passed": true,
-      "durationMs": 6119,
+      "durationMs": 3876,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4730,7 +4730,7 @@
       "employeeId": "E080",
       "completed": true,
       "passed": true,
-      "durationMs": 6056,
+      "durationMs": 3969,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4788,7 +4788,7 @@
       "employeeId": "E081",
       "completed": true,
       "passed": true,
-      "durationMs": 6056,
+      "durationMs": 3707,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4846,7 +4846,7 @@
       "employeeId": "E082",
       "completed": true,
       "passed": true,
-      "durationMs": 7117,
+      "durationMs": 3523,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4904,7 +4904,7 @@
       "employeeId": "E083",
       "completed": true,
       "passed": true,
-      "durationMs": 7118,
+      "durationMs": 3765,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -4962,7 +4962,7 @@
       "employeeId": "E084",
       "completed": true,
       "passed": true,
-      "durationMs": 6960,
+      "durationMs": 3766,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5020,7 +5020,7 @@
       "employeeId": "E085",
       "completed": true,
       "passed": true,
-      "durationMs": 14345,
+      "durationMs": 3825,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5078,7 +5078,7 @@
       "employeeId": "E086",
       "completed": true,
       "passed": true,
-      "durationMs": 14221,
+      "durationMs": 6024,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5136,7 +5136,7 @@
       "employeeId": "E087",
       "completed": true,
       "passed": true,
-      "durationMs": 14219,
+      "durationMs": 6024,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5194,7 +5194,7 @@
       "employeeId": "E088",
       "completed": true,
       "passed": true,
-      "durationMs": 13996,
+      "durationMs": 6567,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5252,7 +5252,7 @@
       "employeeId": "E089",
       "completed": true,
       "passed": true,
-      "durationMs": 15127,
+      "durationMs": 7695,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5310,7 +5310,7 @@
       "employeeId": "E090",
       "completed": true,
       "passed": true,
-      "durationMs": 15059,
+      "durationMs": 7601,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5368,7 +5368,7 @@
       "employeeId": "E091",
       "completed": true,
       "passed": true,
-      "durationMs": 15060,
+      "durationMs": 11497,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5426,7 +5426,7 @@
       "employeeId": "E092",
       "completed": true,
       "passed": true,
-      "durationMs": 13688,
+      "durationMs": 11498,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5484,7 +5484,7 @@
       "employeeId": "E093",
       "completed": true,
       "passed": true,
-      "durationMs": 13686,
+      "durationMs": 11255,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5542,7 +5542,7 @@
       "employeeId": "E094",
       "completed": true,
       "passed": true,
-      "durationMs": 13685,
+      "durationMs": 11253,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5600,7 +5600,7 @@
       "employeeId": "E095",
       "completed": true,
       "passed": true,
-      "durationMs": 7357,
+      "durationMs": 9972,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5658,7 +5658,7 @@
       "employeeId": "E096",
       "completed": true,
       "passed": true,
-      "durationMs": 7351,
+      "durationMs": 12609,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5716,7 +5716,7 @@
       "employeeId": "E097",
       "completed": true,
       "passed": true,
-      "durationMs": 7352,
+      "durationMs": 14643,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5774,7 +5774,7 @@
       "employeeId": "E098",
       "completed": true,
       "passed": true,
-      "durationMs": 7351,
+      "durationMs": 13935,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5832,7 +5832,7 @@
       "employeeId": "E099",
       "completed": true,
       "passed": true,
-      "durationMs": 8234,
+      "durationMs": 12963,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5890,7 +5890,7 @@
       "employeeId": "E100",
       "completed": true,
       "passed": true,
-      "durationMs": 8233,
+      "durationMs": 12961,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -5948,7 +5948,7 @@
       "employeeId": "E101",
       "completed": true,
       "passed": true,
-      "durationMs": 8233,
+      "durationMs": 13429,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6006,7 +6006,7 @@
       "employeeId": "E102",
       "completed": true,
       "passed": true,
-      "durationMs": 6963,
+      "durationMs": 14425,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6064,7 +6064,7 @@
       "employeeId": "E103",
       "completed": true,
       "passed": true,
-      "durationMs": 6964,
+      "durationMs": 14421,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6122,7 +6122,7 @@
       "employeeId": "E104",
       "completed": true,
       "passed": true,
-      "durationMs": 6962,
+      "durationMs": 14423,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6180,7 +6180,7 @@
       "employeeId": "E105",
       "completed": true,
       "passed": true,
-      "durationMs": 6402,
+      "durationMs": 14421,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6238,7 +6238,7 @@
       "employeeId": "E106",
       "completed": true,
       "passed": true,
-      "durationMs": 6400,
+      "durationMs": 11895,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6296,7 +6296,7 @@
       "employeeId": "E107",
       "completed": true,
       "passed": true,
-      "durationMs": 6401,
+      "durationMs": 12503,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6354,7 +6354,7 @@
       "employeeId": "E108",
       "completed": true,
       "passed": true,
-      "durationMs": 5999,
+      "durationMs": 12494,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6412,7 +6412,7 @@
       "employeeId": "E109",
       "completed": true,
       "passed": true,
-      "durationMs": 14075,
+      "durationMs": 12192,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6470,7 +6470,7 @@
       "employeeId": "E110",
       "completed": true,
       "passed": true,
-      "durationMs": 14073,
+      "durationMs": 12190,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6528,7 +6528,7 @@
       "employeeId": "E111",
       "completed": true,
       "passed": true,
-      "durationMs": 14072,
+      "durationMs": 12703,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6586,7 +6586,7 @@
       "employeeId": "E112",
       "completed": true,
       "passed": true,
-      "durationMs": 13217,
+      "durationMs": 14059,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6644,7 +6644,7 @@
       "employeeId": "E113",
       "completed": true,
       "passed": true,
-      "durationMs": 13217,
+      "durationMs": 14912,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6702,7 +6702,7 @@
       "employeeId": "E114",
       "completed": true,
       "passed": true,
-      "durationMs": 13216,
+      "durationMs": 14910,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6760,7 +6760,7 @@
       "employeeId": "E115",
       "completed": true,
       "passed": true,
-      "durationMs": 19205,
+      "durationMs": 14908,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6818,7 +6818,7 @@
       "employeeId": "E116",
       "completed": true,
       "passed": true,
-      "durationMs": 18802,
+      "durationMs": 14664,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6876,7 +6876,7 @@
       "employeeId": "E117",
       "completed": true,
       "passed": true,
-      "durationMs": 18802,
+      "durationMs": 13861,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6934,7 +6934,7 @@
       "employeeId": "E118",
       "completed": true,
       "passed": true,
-      "durationMs": 18804,
+      "durationMs": 14105,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -6992,7 +6992,7 @@
       "employeeId": "E119",
       "completed": true,
       "passed": true,
-      "durationMs": 11752,
+      "durationMs": 13859,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7050,7 +7050,7 @@
       "employeeId": "E120",
       "completed": true,
       "passed": true,
-      "durationMs": 12235,
+      "durationMs": 14105,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7108,7 +7108,7 @@
       "employeeId": "E121",
       "completed": true,
       "passed": true,
-      "durationMs": 12234,
+      "durationMs": 11320,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7166,7 +7166,7 @@
       "employeeId": "E122",
       "completed": true,
       "passed": true,
-      "durationMs": 12235,
+      "durationMs": 10196,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7224,7 +7224,7 @@
       "employeeId": "E123",
       "completed": true,
       "passed": true,
-      "durationMs": 12237,
+      "durationMs": 9344,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7282,7 +7282,7 @@
       "employeeId": "E124",
       "completed": true,
       "passed": true,
-      "durationMs": 12235,
+      "durationMs": 10621,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7340,7 +7340,7 @@
       "employeeId": "E125",
       "completed": true,
       "passed": true,
-      "durationMs": 9078,
+      "durationMs": 10620,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7398,7 +7398,7 @@
       "employeeId": "E126",
       "completed": true,
       "passed": true,
-      "durationMs": 9078,
+      "durationMs": 9475,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7456,7 +7456,7 @@
       "employeeId": "E127",
       "completed": true,
       "passed": true,
-      "durationMs": 9077,
+      "durationMs": 8727,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7514,7 +7514,7 @@
       "employeeId": "E128",
       "completed": true,
       "passed": true,
-      "durationMs": 9075,
+      "durationMs": 8726,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7572,7 +7572,7 @@
       "employeeId": "E129",
       "completed": true,
       "passed": true,
-      "durationMs": 14083,
+      "durationMs": 8483,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7630,7 +7630,7 @@
       "employeeId": "E130",
       "completed": true,
       "passed": true,
-      "durationMs": 13905,
+      "durationMs": 8482,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7688,7 +7688,7 @@
       "employeeId": "E131",
       "completed": true,
       "passed": true,
-      "durationMs": 15319,
+      "durationMs": 8712,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7746,7 +7746,7 @@
       "employeeId": "E132",
       "completed": true,
       "passed": true,
-      "durationMs": 15701,
+      "durationMs": 7485,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7804,7 +7804,7 @@
       "employeeId": "E133",
       "completed": true,
       "passed": true,
-      "durationMs": 15698,
+      "durationMs": 7485,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7862,7 +7862,7 @@
       "employeeId": "E134",
       "completed": true,
       "passed": true,
-      "durationMs": 17053,
+      "durationMs": 6869,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7920,7 +7920,7 @@
       "employeeId": "E135",
       "completed": true,
       "passed": true,
-      "durationMs": 23268,
+      "durationMs": 6869,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -7978,7 +7978,7 @@
       "employeeId": "E136",
       "completed": true,
       "passed": true,
-      "durationMs": 23269,
+      "durationMs": 6265,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8036,7 +8036,7 @@
       "employeeId": "E137",
       "completed": true,
       "passed": true,
-      "durationMs": 22641,
+      "durationMs": 5361,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8094,7 +8094,7 @@
       "employeeId": "E138",
       "completed": true,
       "passed": true,
-      "durationMs": 23266,
+      "durationMs": 5458,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8152,7 +8152,7 @@
       "employeeId": "E139",
       "completed": true,
       "passed": true,
-      "durationMs": 20941,
+      "durationMs": 5457,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8210,7 +8210,7 @@
       "employeeId": "E140",
       "completed": true,
       "passed": true,
-      "durationMs": 23450,
+      "durationMs": 5456,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8268,7 +8268,7 @@
       "employeeId": "E141",
       "completed": true,
       "passed": true,
-      "durationMs": 23525,
+      "durationMs": 3586,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8326,7 +8326,7 @@
       "employeeId": "E142",
       "completed": true,
       "passed": true,
-      "durationMs": 23142,
+      "durationMs": 3463,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8384,7 +8384,7 @@
       "employeeId": "E143",
       "completed": true,
       "passed": true,
-      "durationMs": 23144,
+      "durationMs": 3585,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8442,7 +8442,7 @@
       "employeeId": "E144",
       "completed": true,
       "passed": true,
-      "durationMs": 21788,
+      "durationMs": 4455,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8500,7 +8500,7 @@
       "employeeId": "E145",
       "completed": true,
       "passed": true,
-      "durationMs": 21514,
+      "durationMs": 4455,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8558,7 +8558,7 @@
       "employeeId": "E146",
       "completed": true,
       "passed": true,
-      "durationMs": 20889,
+      "durationMs": 5269,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8616,7 +8616,7 @@
       "employeeId": "E147",
       "completed": true,
       "passed": true,
-      "durationMs": 22088,
+      "durationMs": 5590,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8674,7 +8674,7 @@
       "employeeId": "E148",
       "completed": true,
       "passed": true,
-      "durationMs": 20888,
+      "durationMs": 5607,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8732,7 +8732,7 @@
       "employeeId": "E149",
       "completed": true,
       "passed": true,
-      "durationMs": 17532,
+      "durationMs": 5606,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -8790,7 +8790,7 @@
       "employeeId": "E150",
       "completed": true,
       "passed": true,
-      "durationMs": 15208,
+      "durationMs": 5605,
       "failures": [],
       "failureReason": null,
       "facts": {

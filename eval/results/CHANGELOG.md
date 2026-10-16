@@ -533,3 +533,50 @@ since 08ab031 that the evals exercise are read-only API fields: blocker rows'
   failed cases, no host stall; 11 deadlines (3 at Facilities, 3 at
   orientation, 5 at closeout). This is the run the README shows; the first
   is committed beside it.
+
+## 2026-10-16, UI and data visualization pass and its review fixes
+
+No harness, scenario, fault table or policy changed. The product changes since
+4037512 that the evals exercise are read-only: the hub's stage rollup gains
+`blockedBy` (each stage's blocked cases by the department that owns their
+blocker: one more statement in the reconcile batch, which the hub consistency
+check compares with `/api/dashboard/summary`), and each `/api/employees` row
+gains `blockerOwner` (one subquery, run for blocked rows only; the chaos bots
+poll the list). Everything else in the round (the readiness and changes
+endpoints, `/api/me` limits, the start date filters, the web client) is not
+called by the harness.
+
+Runs of this round, all at 6d8093a in this repository's working tree (`npm
+run build`, then one command at a time; each run's results were moved out
+before the next run so each started on a clean tree, then copied back
+unedited), on AC power while other projects ran their own work. Load average
+sampled every 30 s. Times are UTC.
+
+- Standard (`npm run eval:ci`, 19:26, load 4.0 to 8.6): 60/60 completed and
+  passed, 0 duplicates, CI gate passed, p50 3.5 s.
+- Local LLM (`npm run eval:llama`, 19:27, load 10.2 to 19.6; llama-server
+  started by the harness on port 8110 and stopped by it): 60/60. All 20
+  follow-ups were drafted by the model, schema-valid (p50 1.7 s).
+- Scale (`npm run eval:scale`, 19:29, load 12.9 to 19.6): 150/150, 0
+  duplicates, 0 harness retries.
+- Ablations, one command at a time (19:31 and 19:47, load 3.7 to 12.9):
+  Idempotency-Key handling off, 60/60 completed, 50/60 passed, 28 duplicates;
+  retries off, 44/60 completed, 43/60 passed, 0 duplicates. The laptop slept
+  (power log: "Maintenance Sleep" at 19:32:18, a dark wake at 19:47:27, a
+  wake by its lid at 19:49:12), so the harness recorded host stalls of 906 s
+  and 57 s and flagged both runs' timings as unreliable.
+- Chaos (`npm run eval:chaos`, 19:51, load 1.9 to 7.7, no host stall):
+  248/300, per-seed 58, 51, 25, 58, 56, 0 duplicates. All 52 misses were
+  deadlines; seed 3's 35 were mostly at orientation (11) and closeout (18).
+  In seeds 2 and 3 the local proxy logged dropped connections to the Worker
+  (65 and 59), one request took 12.9 s, and 8 harness requests were retried
+  (none failed again); seeds 1 and 4 logged none. The power log shows no
+  sleep or display change during the run. The cause was not found.
+- The ablations again (20:09, load 2.2 to 4.3, no host stall): the same
+  counts (keys off 60/60 completed, 50 passed, 28 duplicates; retries off
+  44/60 completed, 43 passed, 0 duplicates). The README shows these.
+- Chaos again, the same command and build (20:13, load 1.5 to 6.5, no host
+  stall): 288/300, per-seed 57, 58, 59, 58, 56, 0 duplicates, 0 transport
+  retries; 11 deadlines (3 at Facilities, 2 at orientation, 6 at closeout)
+  and seed 3's E059 `recovery_rounds_exhausted` at Facilities. The README
+  shows this run; the first is committed beside it.

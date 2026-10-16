@@ -1,7 +1,7 @@
 {
-  "runId": "2026-10-16T04-55-50-071Z-ablation-retries",
-  "startedAt": "2026-10-16T04:56:02.494Z",
-  "gitSha": "4037512ad306705e04ff829ecd2ab51d7c18d8b9",
+  "runId": "2026-10-16T20-09-43-411Z-ablation-retries",
+  "startedAt": "2026-10-16T20:09:46.770Z",
+  "gitSha": "6d8093a09d01d908685e6a3d41325fd9e12fed26",
   "mode": "ablation-retries",
   "llmProvider": "stub",
   "seeds": [],
@@ -107,9 +107,9 @@
     "llmLatencyP50Ms": null
   },
   "timing": {
-    "scenarioP50Ms": 9038,
-    "scenarioP95Ms": 65315,
-    "totalMs": 253782
+    "scenarioP50Ms": 2802,
+    "scenarioP95Ms": 61912,
+    "totalMs": 204365
   },
   "failures": [
     {
@@ -214,14 +214,14 @@
       "--mode",
       "ablation-retries"
     ],
-    "headAtStart": "4037512ad306705e04ff829ecd2ab51d7c18d8b9",
+    "headAtStart": "6d8093a09d01d908685e6a3d41325fd9e12fed26",
     "cleanTreeAtStart": true,
     "build": {
-      "commit": "4037512ad306705e04ff829ecd2ab51d7c18d8b9",
+      "commit": "6d8093a09d01d908685e6a3d41325fd9e12fed26",
       "dirtyTree": false,
-      "builtAt": "2026-10-16T04:44:14.727Z",
-      "distSha256AtStart": "56bf098520e12577d6404b2b70ff1b0f71bd2e4b27a22f558361ad9d3b68a83e",
-      "distSha256AtEnd": "56bf098520e12577d6404b2b70ff1b0f71bd2e4b27a22f558361ad9d3b68a83e",
+      "builtAt": "2026-10-16T19:26:15.333Z",
+      "distSha256AtStart": "1e41513bd7a446a9a307d0bc5b3a4747c24c9f83008c2cd35440714f56a4e639",
+      "distSha256AtEnd": "1e41513bd7a446a9a307d0bc5b3a4747c24c9f83008c2cd35440714f56a4e639",
       "matchesHead": true
     }
   },
@@ -232,7 +232,7 @@
       "employeeId": "E011",
       "completed": true,
       "passed": true,
-      "durationMs": 8116,
+      "durationMs": 3176,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -290,7 +290,7 @@
       "employeeId": "E009",
       "completed": true,
       "passed": true,
-      "durationMs": 8116,
+      "durationMs": 3175,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -348,7 +348,7 @@
       "employeeId": "E003",
       "completed": true,
       "passed": true,
-      "durationMs": 8110,
+      "durationMs": 3175,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -406,7 +406,7 @@
       "employeeId": "E001",
       "completed": true,
       "passed": true,
-      "durationMs": 8112,
+      "durationMs": 3175,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -464,7 +464,7 @@
       "employeeId": "E006",
       "completed": true,
       "passed": true,
-      "durationMs": 9029,
+      "durationMs": 3150,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -522,7 +522,7 @@
       "employeeId": "E002",
       "completed": true,
       "passed": true,
-      "durationMs": 9038,
+      "durationMs": 3173,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -580,7 +580,7 @@
       "employeeId": "E008",
       "completed": false,
       "passed": false,
-      "durationMs": 63698,
+      "durationMs": 61912,
       "failures": [
         "timed out waiting for paperwork started, with its checklist, for E008",
         "terminal: expected complete, got blocked",
@@ -641,7 +641,7 @@
       "employeeId": "E018",
       "completed": true,
       "passed": true,
-      "durationMs": 15820,
+      "durationMs": 3051,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -699,7 +699,7 @@
       "employeeId": "E014",
       "completed": true,
       "passed": true,
-      "durationMs": 15817,
+      "durationMs": 2840,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -757,7 +757,7 @@
       "employeeId": "E017",
       "completed": true,
       "passed": true,
-      "durationMs": 3637,
+      "durationMs": 2014,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -815,7 +815,7 @@
       "employeeId": "E020",
       "completed": true,
       "passed": true,
-      "durationMs": 15800,
+      "durationMs": 2995,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -873,7 +873,7 @@
       "employeeId": "E023",
       "completed": true,
       "passed": true,
-      "durationMs": 15238,
+      "durationMs": 3085,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -931,7 +931,7 @@
       "employeeId": "E042",
       "completed": true,
       "passed": true,
-      "durationMs": 15228,
+      "durationMs": 2995,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -989,7 +989,7 @@
       "employeeId": "E028",
       "completed": true,
       "passed": true,
-      "durationMs": 7492,
+      "durationMs": 2556,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1047,7 +1047,7 @@
       "employeeId": "E004",
       "completed": true,
       "passed": true,
-      "durationMs": 7466,
+      "durationMs": 2802,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1105,7 +1105,7 @@
       "employeeId": "E026",
       "completed": true,
       "passed": true,
-      "durationMs": 7908,
+      "durationMs": 2906,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1163,7 +1163,7 @@
       "employeeId": "E036",
       "completed": true,
       "passed": true,
-      "durationMs": 7819,
+      "durationMs": 2908,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1221,7 +1221,7 @@
       "employeeId": "E032",
       "completed": true,
       "passed": true,
-      "durationMs": 7778,
+      "durationMs": 2813,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1279,7 +1279,7 @@
       "employeeId": "E035",
       "completed": true,
       "passed": true,
-      "durationMs": 4739,
+      "durationMs": 2050,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1337,7 +1337,7 @@
       "employeeId": "E024",
       "completed": true,
       "passed": true,
-      "durationMs": 4499,
+      "durationMs": 2259,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1395,7 +1395,7 @@
       "employeeId": "E038",
       "completed": false,
       "passed": false,
-      "durationMs": 63917,
+      "durationMs": 61593,
       "failures": [
         "timed out waiting for paperwork started, with its checklist, for E038",
         "terminal: expected complete, got blocked",
@@ -1456,7 +1456,7 @@
       "employeeId": "E041",
       "completed": false,
       "passed": false,
-      "durationMs": 63720,
+      "durationMs": 61602,
       "failures": [
         "timed out waiting for paperwork started, with its checklist, for E041",
         "terminal: expected complete, got blocked",
@@ -1517,7 +1517,7 @@
       "employeeId": "E044",
       "completed": false,
       "passed": false,
-      "durationMs": 63680,
+      "durationMs": 61652,
       "failures": [
         "timed out waiting for paperwork started, with its checklist, for E044",
         "terminal: expected complete, got blocked",
@@ -1578,7 +1578,7 @@
       "employeeId": "E047",
       "completed": false,
       "passed": false,
-      "durationMs": 62797,
+      "durationMs": 61632,
       "failures": [
         "timed out waiting for paperwork started, with its checklist, for E047",
         "terminal: expected complete, got blocked",
@@ -1639,7 +1639,7 @@
       "employeeId": "E050",
       "completed": false,
       "passed": false,
-      "durationMs": 62568,
+      "durationMs": 61592,
       "failures": [
         "timed out waiting for paperwork started, with its checklist, for E050",
         "terminal: expected complete, got blocked",
@@ -1700,7 +1700,7 @@
       "employeeId": "E053",
       "completed": true,
       "passed": true,
-      "durationMs": 3927,
+      "durationMs": 2191,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1768,7 +1768,7 @@
       "employeeId": "E056",
       "completed": true,
       "passed": true,
-      "durationMs": 7594,
+      "durationMs": 2076,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1836,7 +1836,7 @@
       "employeeId": "E059",
       "completed": true,
       "passed": true,
-      "durationMs": 5612,
+      "durationMs": 2617,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -1904,7 +1904,7 @@
       "employeeId": "E062",
       "completed": false,
       "passed": false,
-      "durationMs": 64132,
+      "durationMs": 61961,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E062",
         "terminal: expected complete, got blocked",
@@ -1969,7 +1969,7 @@
       "employeeId": "E065",
       "completed": false,
       "passed": false,
-      "durationMs": 64753,
+      "durationMs": 62005,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E065",
         "terminal: expected complete, got blocked",
@@ -2034,7 +2034,7 @@
       "employeeId": "E068",
       "completed": false,
       "passed": false,
-      "durationMs": 64753,
+      "durationMs": 62084,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E068",
         "terminal: expected complete, got blocked",
@@ -2099,7 +2099,7 @@
       "employeeId": "E071",
       "completed": false,
       "passed": false,
-      "durationMs": 64749,
+      "durationMs": 61807,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E071",
         "terminal: expected complete, got blocked",
@@ -2164,7 +2164,7 @@
       "employeeId": "E074",
       "completed": false,
       "passed": false,
-      "durationMs": 68845,
+      "durationMs": 61819,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E074",
         "terminal: expected complete, got blocked",
@@ -2229,7 +2229,7 @@
       "employeeId": "E005",
       "completed": true,
       "passed": true,
-      "durationMs": 10735,
+      "durationMs": 2089,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2297,7 +2297,7 @@
       "employeeId": "E077",
       "completed": true,
       "passed": true,
-      "durationMs": 7781,
+      "durationMs": 2104,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2365,7 +2365,7 @@
       "employeeId": "E080",
       "completed": true,
       "passed": true,
-      "durationMs": 4804,
+      "durationMs": 2525,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2433,7 +2433,7 @@
       "employeeId": "E083",
       "completed": false,
       "passed": false,
-      "durationMs": 62666,
+      "durationMs": 61755,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E083",
         "terminal: expected complete, got blocked",
@@ -2504,7 +2504,7 @@
       "employeeId": "E086",
       "completed": false,
       "passed": false,
-      "durationMs": 64023,
+      "durationMs": 61838,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E086",
         "terminal: expected complete, got blocked",
@@ -2575,7 +2575,7 @@
       "employeeId": "E089",
       "completed": false,
       "passed": false,
-      "durationMs": 65315,
+      "durationMs": 61785,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E089",
         "terminal: expected complete, got blocked",
@@ -2646,7 +2646,7 @@
       "employeeId": "E092",
       "completed": false,
       "passed": false,
-      "durationMs": 66398,
+      "durationMs": 61895,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E092",
         "terminal: expected complete, got blocked",
@@ -2717,7 +2717,7 @@
       "employeeId": "E095",
       "completed": false,
       "passed": false,
-      "durationMs": 65735,
+      "durationMs": 61821,
       "failures": [
         "timed out waiting for orientation started, with its checklist, for E095",
         "terminal: expected complete, got blocked",
@@ -2788,7 +2788,7 @@
       "employeeId": "E098",
       "completed": true,
       "passed": true,
-      "durationMs": 4995,
+      "durationMs": 2152,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2856,7 +2856,7 @@
       "employeeId": "E101",
       "completed": true,
       "passed": true,
-      "durationMs": 7413,
+      "durationMs": 2207,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2924,7 +2924,7 @@
       "employeeId": "E104",
       "completed": true,
       "passed": true,
-      "durationMs": 7618,
+      "durationMs": 2649,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -2992,7 +2992,7 @@
       "employeeId": "E107",
       "completed": true,
       "passed": true,
-      "durationMs": 5378,
+      "durationMs": 2310,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3060,7 +3060,7 @@
       "employeeId": "E110",
       "completed": true,
       "passed": true,
-      "durationMs": 3528,
+      "durationMs": 2072,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3128,7 +3128,7 @@
       "employeeId": "E029",
       "completed": true,
       "passed": true,
-      "durationMs": 4049,
+      "durationMs": 2123,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3196,7 +3196,7 @@
       "employeeId": "E113",
       "completed": true,
       "passed": true,
-      "durationMs": 5401,
+      "durationMs": 2269,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3264,7 +3264,7 @@
       "employeeId": "E116",
       "completed": true,
       "passed": true,
-      "durationMs": 6579,
+      "durationMs": 2246,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3332,7 +3332,7 @@
       "employeeId": "E119",
       "completed": true,
       "passed": true,
-      "durationMs": 9853,
+      "durationMs": 2334,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3390,7 +3390,7 @@
       "employeeId": "E122",
       "completed": true,
       "passed": true,
-      "durationMs": 9767,
+      "durationMs": 2183,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3448,7 +3448,7 @@
       "employeeId": "E125",
       "completed": true,
       "passed": true,
-      "durationMs": 8879,
+      "durationMs": 2191,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3506,7 +3506,7 @@
       "employeeId": "E128",
       "completed": true,
       "passed": true,
-      "durationMs": 8155,
+      "durationMs": 2245,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3574,7 +3574,7 @@
       "employeeId": "E131",
       "completed": true,
       "passed": true,
-      "durationMs": 7238,
+      "durationMs": 2288,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3650,7 +3650,7 @@
       "employeeId": "E134",
       "completed": true,
       "passed": false,
-      "durationMs": 9923,
+      "durationMs": 2153,
       "failures": [
         "blockers: expected [\"provisioning_stalled|it_provisioning|it\"], got [\"integration_outage|it_provisioning|it\"]"
       ],
@@ -3720,7 +3720,7 @@
       "employeeId": "E137",
       "completed": true,
       "passed": true,
-      "durationMs": 10335,
+      "durationMs": 2235,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3788,7 +3788,7 @@
       "employeeId": "E140",
       "completed": true,
       "passed": true,
-      "durationMs": 16801,
+      "durationMs": 2239,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3856,7 +3856,7 @@
       "employeeId": "E143",
       "completed": true,
       "passed": true,
-      "durationMs": 13539,
+      "durationMs": 2121,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3914,7 +3914,7 @@
       "employeeId": "E007",
       "completed": true,
       "passed": true,
-      "durationMs": 13717,
+      "durationMs": 2201,
       "failures": [],
       "failureReason": null,
       "facts": {
@@ -3972,7 +3972,7 @@
       "employeeId": "E146",
       "completed": true,
       "passed": true,
-      "durationMs": 13525,
+      "durationMs": 2135,
       "failures": [],
       "failureReason": null,
       "facts": {
