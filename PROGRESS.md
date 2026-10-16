@@ -116,7 +116,8 @@ Current: Tier 1 complete (commits 1 to 25), tagged `v1-tier1`. Tier 2: commits 2
 ## Check status (last run, 2026-10-16, user workflows review fixes)
 
 - At 939e422 before any change (23:03 PDT, 2026-10-15): `npm run typecheck` pass; `npm test` pass (56 files, 544 tests).
-- At 5cac5ba with this round's SPEC, USER-WORKFLOWS and PROGRESS edits in the tree (00:48 to 00:52 PDT, 2026-10-16): `npm run typecheck` pass; `npm test` pass (56 files, 569 tests, 0 failed), including the README results test; `npm run seed:check` ok; `npm run typegen:check` up to date; `npm run deploy:dry-run` pass (2228.28 KiB upload, 513.49 KiB gzip), then `npm run build` pass (`check-bundle` ok). `npm run results:readme` left the Results block byte-identical.
+- At 5cac5ba with this round's SPEC and USER-WORKFLOWS edits in the tree (00:48 PDT, 2026-10-16): `npm run typecheck` pass; `npm test` pass (56 files, 569 tests, 0 failed), including the README results test; `npm run seed:check` ok; `npm run typegen:check` up to date; `npm run deploy:dry-run` pass (2228.28 KiB upload, 513.49 KiB gzip), then `npm run build` pass (`check-bundle` ok). `npm run results:readme` left the Results block byte-identical.
+- At aae0f32, the docs commit (00:50 PDT): `npm run typecheck` pass; `npm test` pass (56 files, 569 tests, 0 failed). `dist/` was then rebuilt from the clean tree with `npm run build`.
 - No eval was re-run: no measured path changed (see the round's section).
 - No wrangler, workerd or Playwright process of this round is left running; ports 8781, 9231 and 8110 are free; `.wrangler/state` was not touched (the browser checks ran on a copy in a scratch directory). Nothing was deployed or pushed.
 
