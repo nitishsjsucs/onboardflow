@@ -502,3 +502,34 @@ No harness, scenario, fault table or policy changed between them.
   58, 56 (the same as at 0503d3e), 0 duplicates, 0 transport retries, no host
   stall. 12 deadlines (7 in IT, Facilities or orientation, 5 at closeout) and
   seed 3's E059 `recovery_rounds_exhausted` at Facilities, as before.
+
+Runs of the user workflows round (2026-10-15 PDT, 2026-10-16 UTC), all at
+4037512 in this repository's working tree (`npm run build`, then one command
+at a time; each run's results were moved out before the next run so each
+started on a clean tree, then copied back unedited), on AC power with the lid
+open while other projects ran their own work. Load average sampled every
+30 s. No harness, scenario, fault table or policy changed. The code changes
+since 08ab031 that the evals exercise are read-only API fields: blocker rows'
+`stageStatus` and `stageRound`, and the approvals list's `previousRound`.
+
+- Standard (`npm run eval:ci`, load 3.7 to 4.6): 60/60 completed and passed,
+  0 duplicates, CI gate passed, p50 3.3 s. R09 passed unchanged (cost centers
+  are validated in the web client only).
+- Local LLM (`npm run eval:llama`, load 4.7 to 13.8; llama-server started by
+  the harness on port 8110 and stopped by it): 60/60. 19 of 20 follow-ups
+  were drafted by the model (p50 2.5 s); F-facilities-validation's draft was
+  attempted and fell back to the template (the reason is not recorded).
+- Scale (`npm run eval:scale`, load 14 to 29): 150/150, 0 duplicates, 1
+  harness request retried after a dropped proxy connection (not failed again).
+- Ablations, one command at a time (load 10.6 to 48.7): Idempotency-Key
+  handling off, 60/60 completed, 50/60 passed, 27 duplicates; retries off,
+  44/60 completed, 43/60 passed, 0 duplicates.
+- Chaos (`npm run eval:chaos`, from 05:00 UTC): 213/300, per-seed 0, 39, 60,
+  58, 56, 0 duplicates, 26 transport retries (none failed again), no host
+  stall. Seeds 1 and 2 ran while other work held the load average at 26 to
+  37; all 81 of their misses were deadlines. Seeds 3 to 5 ran at load 3 to 9.
+- Chaos again, the same command and build (from 05:18 UTC, load 2.0 to 11.1):
+  289/300, per-seed 57, 57, 60, 59, 56, 0 duplicates, 0 transport retries, 0
+  failed cases, no host stall; 11 deadlines (3 at Facilities, 3 at
+  orientation, 5 at closeout). This is the run the README shows; the first
+  is committed beside it.
