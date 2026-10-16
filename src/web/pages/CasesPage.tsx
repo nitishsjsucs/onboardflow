@@ -8,17 +8,18 @@ import { useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { EmployeeSummary, MeDto } from "../../shared/api.ts";
 import { CASE_STATUS_FILTERS, CASE_STATUSES, isOneOf } from "../../shared/domain.ts";
-import { addDays, dayIndex, weekStart } from "../../shared/readiness.ts";
+import { addDays, dayIndex, readinessClass, weekStart } from "../../shared/readiness.ts";
 import { STAGE_IDS, STAGES } from "../../shared/stages.ts";
 import { useItemAction } from "../api/item-action.ts";
-import { useEmployees, useStartCase } from "../api/queries.ts";
+import { useApprovals, useEmployees, useStartCase } from "../api/queries.ts";
 import { can, useSession } from "../auth/session.tsx";
 import { ActionButton } from "../components/ActionButton.tsx";
 import { ActionMessage } from "../components/ActionMessage.tsx";
-import { formatDay } from "../components/dates.ts";
+import { daysUntil, formatDay, localToday } from "../components/dates.ts";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
+import { TeamList } from "../components/TeamList.tsx";
 import { useDebouncedValue } from "../hooks/useDebouncedValue.ts";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 import { useFocusRequest } from "../hooks/useFocus.ts";
@@ -28,6 +29,14 @@ export const SEARCH_DEBOUNCE_MS = 250;
 const COLUMNS = ["Employee", "Org unit", "Start", "Status", "Stage", "Blockers", "Action"] as const;
 
 const dateParam = (v: string | null) => (v && dayIndex(v) !== null ? v : "");
+
+export const SOON_DAYS = 30;
+
+/** "Starts within 30 days, not ready": a start date at most 30 days away (or past) and a case not ready for day one. */
+export function startsSoonNotReady(e: EmployeeSummary, today: string = localToday()): boolean {
+  const days = daysUntil(e.startDate, today);
+  return days !== null && days <= SOON_DAYS && readinessClass(e.caseStatus, e.currentStage, null) !== "ready";
+}
 
 /** The start date filter in words: "Start week of Mon Nov 2", "Start dates up to Thu Oct 15". */
 export function startRangeText(from: string, to: string): string {
@@ -44,6 +53,10 @@ export function CasesPage() {
   const stageParam = params.get("stage");
   const status = isOneOf(CASE_STATUS_FILTERS, statusParam) ? statusParam : "";
   const stage = isOneOf(STAGE_IDS, stageParam) ? stageParam : "";
+  const isManager = me?.role === "manager";
+  const soon = isManager && params.get("soon") === "1";
+  // a manager's own pending approvals: the same query (and cache entry) as the Approvals page
+  const approvals = useApprovals("pending", isManager);
   const startFrom = dateParam(params.get("startFrom"));
   const startTo = dateParam(params.get("startTo"));
   const q = useDebouncedValue(qParam.trim(), SEARCH_DEBOUNCE_MS);
@@ -65,6 +78,12 @@ export function CasesPage() {
     else next.delete(key);
     setParams(next, { replace });
   };
+  const toggleSoon = () => {
+    const next = new URLSearchParams(params);
+    if (soon) next.delete("soon");
+    else next.set("soon", "1");
+    setParams(next);
+  };
   const clearStartRange = () => {
     const next = new URLSearchParams(params);
     next.delete("startFrom");
@@ -79,6 +98,7 @@ export function CasesPage() {
           <h1>{me?.role === "manager" ? "My team" : "Cases"}</h1>
           <div className="sub" aria-live="polite">
             {list.data ? (list.hasNextPage ? `Showing ${items.length}; more available` : `${items.length} employee${items.length === 1 ? "" : "s"}`) : " "}
+            {list.data && soon ? `; ${items.filter((e) => startsSoonNotReady(e)).length} start within ${SOON_DAYS} days, not ready` : ""}
           </div>
         </div>
         <div className="row filters">
@@ -102,6 +122,13 @@ export function CasesPage() {
           </select>
         </div>
       </div>
+      {isManager ? (
+        <div className="chips" role="group" aria-label="Filter your team">
+          <button type="button" className="chip" aria-pressed={soon} onClick={toggleSoon}>
+            Starts within {SOON_DAYS} days, not ready
+          </button>
+        </div>
+      ) : null}
       {startFrom || startTo ? (
         <div className="chips" role="group" aria-label="Active filters">
           <button type="button" className="chip" aria-label={`${startRangeText(startFrom, startTo)}: remove filter`} onClick={clearStartRange}>
@@ -113,6 +140,30 @@ export function CasesPage() {
         {() =>
           items.length === 0 ? (
             <EmptyState>No matching employees.</EmptyState>
+          ) : isManager ? (
+            <>
+              {approvals.isError ? (
+                <p className="refresh-warning" role="status">
+                  Could not load your pending approvals, so rows say &quot;Waiting on a decision&quot; instead of &quot;Waiting on you&quot;.{" "}
+                  <button type="button" onClick={() => void approvals.refetch()} disabled={approvals.isFetching}>
+                    Try again
+                  </button>
+                </p>
+              ) : null}
+              {(() => {
+                const shown = soon ? items.filter((e) => startsSoonNotReady(e)) : items;
+                return shown.length === 0 ? (
+                  <EmptyState>Nobody on your team starts within {SOON_DAYS} days without being ready.</EmptyState>
+                ) : (
+                  <TeamList items={shown} me={me} approvals={approvals.data?.items ?? []} approvalsFailed={approvals.isError} />
+                );
+              })()}
+              {list.hasNextPage ? (
+                <ActionButton onClick={() => void list.fetchNextPage()} busy={list.isFetchingNextPage}>
+                  {list.isFetchingNextPage ? "Loading..." : "Load more"}
+                </ActionButton>
+              ) : null}
+            </>
           ) : (
             <>
               <div className="card table-wrap">

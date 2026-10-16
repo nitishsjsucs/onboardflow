@@ -199,6 +199,23 @@ section.card > label[for] { display: block; font-weight: 600; font-size: 0.88rem
   .pip.used { background: CanvasText; }
 }
 
+/* My team (managers): one row per report, an 8-stage strip, who acts now. */
+.team-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.team-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; display: grid; gap: 6px; }
+.team-head, .team-now { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; }
+.team-now { font-size: 0.9rem; }
+.team-state { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.team-state .button-link { padding: 1px 10px; }
+.strip { display: flex; align-items: center; gap: 3px; max-width: 300px; }
+.strip-pip { flex: 1 1 0; height: 8px; border-radius: 3px; border: 1.5px solid var(--muted); display: grid; place-items: center; }
+.strip-pip.done { background: var(--muted); }
+.strip-pip.current { height: 16px; border-color: transparent; color: var(--surface); }
+@media (forced-colors: active) {
+  .strip-pip { forced-color-adjust: none; border-color: CanvasText; }
+  .strip-pip.done { background: GrayText; }
+  .strip-pip.current { background: CanvasText; color: Canvas; }
+}
+
 /* Phone width: lists stack, filters take the full width, the cases table becomes cards. */
 @media (max-width: 760px) {
   ul.tasks li { flex-direction: column; align-items: stretch; }
