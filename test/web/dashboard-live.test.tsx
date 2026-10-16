@@ -1,7 +1,7 @@
-import { cleanup, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HubState } from "../../src/shared/agent-state.ts";
-import { STAGE_IDS } from "../../src/shared/stages.ts";
+import { STAGE_BY_ID, STAGE_IDS } from "../../src/shared/stages.ts";
 import { DashboardPage } from "../../src/web/pages/DashboardPage.tsx";
 import { mockFetch, PERSONAS, renderWith } from "./harness.tsx";
 
@@ -25,19 +25,23 @@ const hub: HubState = {
   version: 12,
 };
 
-vi.mock("../../src/web/live/useHubLive.ts", () => ({ useHubLive: () => ({ state: hub, status: "connected" }) }));
+const live = vi.hoisted(() => ({ value: { state: null as unknown, status: "connected" as string } }));
+vi.mock("../../src/web/live/useHubLive.ts", () => ({ useHubLive: () => live.value }));
 
 afterEach(cleanup);
+beforeEach(() => {
+  live.value = { state: hub, status: "connected" };
+});
 
 describe("DashboardPage with live hub state", () => {
-  it("renders KPI tiles, the 8-bar funnel, blockers by kind and department, approvals pending and overdue", () => {
+  it("renders KPI tiles, the 8-stage funnel, blockers by kind and department, approvals pending and overdue", () => {
     const calls = mockFetch(() => ({ body: hub }));
     renderWith(<DashboardPage />, { me: PERSONAS.it!, path: "/dashboard" });
     expect(screen.getByTestId("kpi-In progress").textContent).toContain("21");
     expect(screen.getByTestId("kpi-Blocked").textContent).toContain("4");
     expect(screen.getByTestId("kpi-Awaiting approval").textContent).toContain("7");
     expect(screen.getByTestId("kpi-Complete").textContent).toContain("17");
-    const funnel = screen.getByRole("img", { name: "cases per stage" });
+    const funnel = screen.getByRole("list", { name: "cases per stage" });
     expect(STAGE_IDS.map((s) => funnel.querySelector(`[data-testid="funnel-${s}"]`) !== null)).toEqual(Array(8).fill(true));
     const byKind = screen.getByRole("region", { name: "Open blockers by kind" });
     expect(within(byKind).getByTestId("Open blockers by kind-integration_outage").textContent).toContain("3");
@@ -48,5 +52,51 @@ describe("DashboardPage with live hub state", () => {
     expect(screen.getByRole("status", { name: /Live/ })).toBeTruthy();
     // live state present: no fallback fetch
     expect(calls).toHaveLength(0);
+  });
+
+  it("shows each stage's label and counts as text", () => {
+    mockFetch(() => ({ body: hub }));
+    renderWith(<DashboardPage />, { me: PERSONAS.it!, path: "/dashboard" });
+    const it = screen.getByTestId("funnel-it_provisioning");
+    expect(within(it).getByText(`4. ${STAGE_BY_ID.it_provisioning.name}`)).toBeTruthy();
+    expect(within(it).getByText("8 in stage")).toBeTruthy();
+    expect(within(it).getByText("5 active")).toBeTruthy();
+    expect(within(it).getByText("3 blocked")).toBeTruthy();
+    expect(within(it).getByText("31 complete")).toBeTruthy();
+  });
+
+  it("links the numbers to the lists behind them", () => {
+    mockFetch(() => ({ body: hub }));
+    renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
+    expect(screen.getByTestId("kpi-Blocked").getAttribute("href")).toBe("/cases?status=blocked");
+    expect(screen.getByTestId("kpi-In progress").getAttribute("href")).toBe("/cases?status=in_progress");
+    expect(screen.getByTestId("kpi-Awaiting approval").getAttribute("href")).toBe("/cases?status=awaiting_approval");
+    expect(screen.getByTestId("kpi-Complete").getAttribute("href")).toBe("/cases?status=complete");
+    expect(within(screen.getByTestId("funnel-paperwork")).getByRole("link").getAttribute("href")).toBe("/cases?stage=paperwork");
+    expect(within(screen.getByTestId("Open blockers by kind-approval_overdue")).getByRole("link").getAttribute("href")).toBe("/queue?kind=approval_overdue");
+    expect(within(screen.getByTestId("Open blockers by department-it")).getByRole("link").getAttribute("href")).toBe("/queue?department=it");
+  });
+
+  it("gives department links to admins only (a coordinator's queue is their own department)", () => {
+    mockFetch(() => ({ body: hub }));
+    renderWith(<DashboardPage />, { me: PERSONAS.peopleOps!, path: "/dashboard" });
+    expect(within(screen.getByTestId("Open blockers by department-it")).queryByRole("link")).toBeNull();
+    expect(within(screen.getByTestId("Open blockers by kind-data_issue")).getByRole("link")).toBeTruthy();
+  });
+
+  it("says live updates are paused when the socket is offline, and fetches the summary again only on Refresh", async () => {
+    live.value = { state: null, status: "offline" };
+    const fresher = { ...hub, totals: { ...hub.totals, blocked: 5 }, reconciledAt: "2026-10-08T10:05:00.000Z" };
+    let n = 0;
+    const calls = mockFetch(() => ({ body: ++n === 1 ? hub : fresher }));
+    renderWith(<DashboardPage />, { me: PERSONAS.admin!, path: "/dashboard" });
+    const paused = await screen.findByText(/Live updates paused; showing data from/);
+    expect(screen.getByTestId("kpi-Blocked").textContent).toContain("4");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls).toHaveLength(1);
+    fireEvent.click(within(paused).getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(screen.getByTestId("kpi-Blocked").textContent).toContain("5"));
+    expect(calls).toHaveLength(2);
+    expect(calls.every((c) => c.url === "/api/dashboard/summary")).toBe(true);
   });
 });

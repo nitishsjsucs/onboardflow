@@ -1,4 +1,9 @@
-// Hand-built SVG funnel: one horizontal stacked bar per stage (no chart library).
+// Cases per stage as HTML rows (no chart library): the stage name and the
+// number of cases in it on one line, then a stacked bar with percentage
+// widths. Every count is real text (each segment carries a visually hidden
+// "<n> <label>"), so labels render at body size on a phone and screen
+// readers read the numbers.
+import { Link } from "react-router";
 import type { StageRollup } from "../../shared/agent-state.ts";
 import { STAGE_BY_ID } from "../../shared/stages.ts";
 
@@ -10,48 +15,52 @@ const SEGMENTS = [
   { key: "blocked", label: "blocked", color: "var(--bad)" },
 ] as const;
 
-export function StageFunnelChart({ stages, total }: { stages: StageRollup[]; total: number }) {
-  const rowH = 26;
-  const labelW = 210;
-  const width = 640;
-  const barW = width - labelW - 40;
-  const height = stages.length * rowH + 30;
-  const scale = (n: number) => (total > 0 ? (n / total) * barW : 0);
+/** `linkTo(stage)` makes each stage name a link (the dashboard links to the cases at that stage). */
+export function StageFunnelChart({ stages, total, linkTo }: { stages: StageRollup[]; total: number; linkTo?: (stage: string) => string }) {
+  const pct = (n: number) => (total > 0 ? Math.min(100, (n / total) * 100) : 0);
   return (
     <figure style={{ margin: 0 }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="cases per stage">
-        {stages.map((s, i) => {
-          let x = labelW;
-          const y = i * rowH + 4;
+      <ol className="funnel" aria-label="cases per stage">
+        {stages.map((s) => {
           const def = STAGE_BY_ID[s.stage];
+          const inStage = s.active + s.waiting + s.awaitingApproval + s.blocked;
+          const name = `${def.ordinal}. ${def.name}`;
           return (
-            <g key={s.stage} data-testid={`funnel-${s.stage}`}>
-              <text x={0} y={y + 14} fontSize={12} fill="var(--text)">
-                {def.ordinal}. {def.name.length > 30 ? `${def.name.slice(0, 29)}...` : def.name}
-              </text>
-              <rect x={labelW} y={y} width={barW} height={rowH - 8} fill="var(--idle-bg)" rx={3} />
-              {SEGMENTS.map((seg) => {
-                const n = s[seg.key];
-                const w = scale(n);
-                const rect = n > 0 ? <rect key={seg.key} x={x} y={y} width={w} height={rowH - 8} fill={seg.color} rx={2}><title>{`${n} ${seg.label}`}</title></rect> : null;
-                x += w;
-                return rect;
-              })}
-              <text x={width - 34} y={y + 14} fontSize={12} fill="var(--muted)">
-                {s.active + s.waiting + s.awaitingApproval + s.blocked}
-              </text>
-            </g>
+            <li key={s.stage} data-testid={`funnel-${s.stage}`}>
+              <div className="funnel-head">
+                {linkTo ? (
+                  <Link to={linkTo(s.stage)} aria-label={`${name}: ${inStage} in stage. Show them`}>
+                    {name}
+                  </Link>
+                ) : (
+                  <span>{name}</span>
+                )}
+                <span className="funnel-count">{inStage} in stage</span>
+              </div>
+              <div className="funnel-bar">
+                {SEGMENTS.map((seg) => {
+                  const n = s[seg.key];
+                  return n > 0 ? (
+                    <span key={seg.key} className="seg" style={{ width: `${pct(n)}%`, background: seg.color }} title={`${n} ${seg.label}`}>
+                      <span className="visually-hidden">
+                        {n} {seg.label}
+                      </span>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            </li>
           );
         })}
-      </svg>
-      <figcaption className="row muted" style={{ fontSize: "0.8rem" }}>
+      </ol>
+      <figcaption className="row muted" style={{ fontSize: "0.8rem", marginTop: 8 }}>
         {SEGMENTS.map((seg) => (
           <span key={seg.key} className="row" style={{ gap: 4 }}>
             <span style={{ width: 10, height: 10, background: seg.color, display: "inline-block", borderRadius: 2 }} />
             {seg.label}
           </span>
         ))}
-        <span>Right column: cases currently in the stage.</span>
+        <span>Bar widths are shares of all started cases.</span>
       </figcaption>
     </figure>
   );

@@ -123,3 +123,10 @@ fieldset.priv legend { font-weight: 600; padding: 0 4px; }
 article.card label[for] { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
 ul.notices { margin: 0; padding-left: 18px; }
 ul.notices li { margin: 4px 0; }
+.funnel { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.funnel-head { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; }
+.funnel-count { color: var(--muted); white-space: nowrap; }
+.funnel-bar { display: flex; height: 12px; background: var(--idle-bg); border-radius: 3px; overflow: hidden; margin-top: 3px; }
+.funnel-bar .seg { display: block; height: 100%; }
+a.kpi-link { display: block; text-decoration: none; color: inherit; }
+a.kpi-link:hover, a.kpi-link:focus-visible { border-color: var(--accent); }

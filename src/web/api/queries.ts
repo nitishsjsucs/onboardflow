@@ -169,11 +169,17 @@ export function useEmployeeProfile(id: string, enabled = true) {
 
 export type EmployeeFilters = { q?: string; status?: string; stage?: string };
 
+/** Employees matching the filters, 100 per page; Load more follows nextCursor (the API reports no total). */
 export function useEmployees(f: EmployeeFilters) {
   const params = new URLSearchParams({ limit: "100" });
   for (const [k, v] of Object.entries(f)) if (v) params.set(k, v);
   const qs = params.toString();
-  return useQuery({ queryKey: keys.employees(qs), queryFn: ({ signal }) => apiFetch<Page<EmployeeSummary>>(`/api/employees?${qs}`, { signal }) });
+  return useInfiniteQuery({
+    queryKey: keys.employees(qs),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => apiFetch<Page<EmployeeSummary>>(`/api/employees?${qs}${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
+    getNextPageParam: (last) => last.nextCursor,
+  });
 }
 
 export function useStartCase() {
