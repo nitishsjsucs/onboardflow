@@ -1,6 +1,7 @@
 // TanStack Query hooks over the API. Live agent state invalidates these keys.
 import { actionId, actionKeys } from "./action-keys.ts";
 import { apiFetch } from "./client.ts";
+import { shouldRetryQuery } from "./query-client.ts";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApprovalView, AuditEventView, BlockerView, CaseDetail, ChecklistDto, EmployeeProfileDto, EmployeeSummary, IntegrationCallView, MeDto, Page, TaskView } from "../../shared/api.ts";
 import type { HubState } from "../../shared/agent-state.ts";
@@ -20,8 +21,9 @@ export const keys = {
   dashboard: ["dashboard"] as const,
 };
 
+/** Who is signed in. A 401 is final (signed out); a network failure or 5xx is retried like any query. */
 export function useMe() {
-  return useQuery({ queryKey: keys.me, queryFn: ({ signal }) => apiFetch<MeDto>("/api/me", { signal }), retry: false });
+  return useQuery({ queryKey: keys.me, queryFn: ({ signal }) => apiFetch<MeDto>("/api/me", { signal }), retry: shouldRetryQuery });
 }
 
 export function useChecklist(enabled = true) {

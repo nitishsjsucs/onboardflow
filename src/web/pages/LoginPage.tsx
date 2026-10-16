@@ -74,7 +74,18 @@ export function LoginPage() {
           You are signed in through Cloudflare Access, but this account has no OnboardFlow access. Ask an admin to add you.
         </div>
       ) : devUnavailable ? (
-        <div className="card">{signedIn ? `Signed in through Cloudflare Access as ${signedIn.email}.` : "Sign in through Cloudflare Access to continue."}</div>
+        <div className="card">
+          {signedIn ? (
+            `Signed in through Cloudflare Access as ${signedIn.email}.`
+          ) : (
+            <>
+              <p style={{ marginTop: 0 }}>Sign in through Cloudflare Access to continue. Reloading the page takes you to its sign-in.</p>
+              <button type="button" className="primary" onClick={() => window.location.reload()}>
+                Reload to sign in
+              </button>
+            </>
+          )}
+        </div>
       ) : (
         <div className="card">
           <h2>Choose a persona (local development)</h2>

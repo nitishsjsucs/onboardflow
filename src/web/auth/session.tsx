@@ -6,12 +6,25 @@ import type { Role } from "../../shared/roles.ts";
 import { ApiError, apiFetch } from "../api/client.ts";
 import { keys, useMe } from "../api/queries.ts";
 
-/** `expired`: a request answered 401 after sign-in (the cookie or Access session ran out). */
-type Session = { me: MeDto | null; loading: boolean; error: unknown; expired: boolean };
-const SessionContext = createContext<Session>({ me: null, loading: true, error: null, expired: false });
+/**
+ * `expired`: a request answered 401 after sign-in (the cookie or Access session ran out).
+ * `refetch` asks /api/me again (Try again after it failed); `fetching` is true while it runs.
+ */
+type Session = { me: MeDto | null; loading: boolean; error: unknown; expired: boolean; refetch: () => unknown; fetching: boolean };
+const noop = () => undefined;
+const SessionContext = createContext<Session>({ me: null, loading: true, error: null, expired: false, refetch: noop, fetching: false });
 
 function isUnauthenticated(e: unknown): boolean {
   return e instanceof ApiError && e.status === 401;
+}
+
+/**
+ * Whether a failed /api/me means nobody usable is signed in (go to the login page): a 401, or an Access
+ * account with no OnboardFlow user. Anything else (a 5xx, a network failure) says nothing about the
+ * session, so the page explains it and offers Try again instead of sending a signed-in user to sign in.
+ */
+export function isSignedOut(e: unknown): boolean {
+  return isUnauthenticated(e) || (e instanceof ApiError && e.code === "not_provisioned");
 }
 
 function isMeKey(key: readonly unknown[]): boolean {
@@ -38,12 +51,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       offMutations();
     };
   }, [qc]);
-  return <SessionContext.Provider value={{ me: q.data ?? null, loading: q.isLoading, error: q.error, expired }}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={{ me: q.data ?? null, loading: q.isLoading, error: q.error, expired, refetch: q.refetch, fetching: q.isFetching }}>{children}</SessionContext.Provider>
+  );
 }
 
 /** Test seam: provide a fixed session without fetching. */
 export function StaticSession({ me, expired = false, children }: { me: MeDto | null; expired?: boolean; children: ReactNode }) {
-  return <SessionContext.Provider value={{ me, loading: false, error: null, expired }}>{children}</SessionContext.Provider>;
+  return <SessionContext.Provider value={{ me, loading: false, error: null, expired, refetch: noop, fetching: false }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): Session {

@@ -170,6 +170,40 @@ describe("an ended session", () => {
     expect(within(banner).getByRole("button", { name: "Reload to sign in" })).toBeTruthy();
   });
 
+  it("a failed /api/me (503) keeps the URL and offers Try again instead of the login page", async () => {
+    let failures = 3;
+    const calls = mockFetch((url) => {
+      if (url === "/api/health") return { body: { ok: true, authMode: "access", version: "1.0.0" } };
+      if (url === "/api/me") {
+        if (failures-- > 0) return { status: 503, body: { error: { code: "internal_error", message: "x", requestId: "r-me" } } };
+        return { body: PERSONAS.peopleOps! };
+      }
+      if (url === "/dev/personas") return { status: 404, body: { error: { code: "not_found", message: "not found", requestId: "r4" } } };
+      return { body: { items: [], nextCursor: null } };
+    });
+    const { router } = renderApp("/queue?kind=integration_outage");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Could not load who is signed in.");
+    // retried twice like any query (3 requests), and still on the page the user asked for
+    expect(calls.filter((c) => c.url === "/api/me")).toHaveLength(3);
+    expect(router.state.location.pathname + router.state.location.search).toBe("/queue?kind=integration_outage");
+    expect(screen.queryByText(/Sign in through Cloudflare Access/)).toBeNull();
+    fireEvent.click(within(alert).getByRole("button", { name: "Try again" }));
+    await screen.findByRole("heading", { level: 1, name: "Queue" });
+    expect(router.state.location.search).toBe("?kind=integration_outage");
+  });
+
+  it("Access mode, signed out: the login page offers a reload that goes through the Access sign-in", async () => {
+    mockFetch((url) => {
+      if (url === "/api/me") return { status: 401, body: { error: { code: "unauthenticated", message: "missing token", requestId: "r-me" } } };
+      if (url === "/dev/personas") return { status: 404, body: { error: { code: "not_found", message: "not found", requestId: "r4" } } };
+      return { body: { ok: true, authMode: "access", version: "1.0.0" } };
+    });
+    const { router } = renderApp("/queue");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    expect(await screen.findByRole("button", { name: "Reload to sign in" })).toBeTruthy();
+  });
+
   it("explains an Access account with no OnboardFlow access", async () => {
     mockFetch((url) => {
       if (url === "/api/me") return { status: 403, body: { error: { code: "not_provisioned", message: "this email has no OnboardFlow account", requestId: "r3" } } };
