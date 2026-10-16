@@ -179,6 +179,24 @@ a.kpi-link:hover, a.kpi-link:focus-visible { border-color: var(--accent); }
 .confirm p { margin: 0 0 8px; }
 section.card > label[for] { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
 
+/* Recovery rounds next to a Retry: the sentence, then one pip per allowed round (decorative). */
+.rounds { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 4px 0; font-size: 0.86rem; }
+.pips { display: inline-flex; align-items: center; gap: 3px; }
+.pip { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--muted); }
+.pip.used { background: var(--muted); }
+.pip.last { border-color: var(--bad); }
+.pip-label { font-size: 0.72rem; color: var(--muted); margin-left: 2px; }
+.attempts { flex-basis: 100%; margin-top: 4px; }
+.attempts-panel { margin-top: 6px; padding-left: 10px; border-left: 3px solid var(--border); }
+.attempts-panel p { margin: 4px 0; }
+.attempt-list { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 0; margin: 4px 0; font-size: 0.85rem; }
+.attempt-list li { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+.attempt-list li.failed { color: var(--bad); border-color: currentColor; }
+@media (forced-colors: active) {
+  .pip { forced-color-adjust: none; border-color: CanvasText; }
+  .pip.used { background: CanvasText; }
+}
+
 /* Phone width: lists stack, filters take the full width, the cases table becomes cards. */
 @media (max-width: 760px) {
   ul.tasks li { flex-direction: column; align-items: stretch; }

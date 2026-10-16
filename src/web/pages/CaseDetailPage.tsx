@@ -16,6 +16,8 @@ import { isFixableField, readableMessage } from "../components/blocker-text.ts";
 import { DataIssueFix } from "../components/DataIssueFix.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
 import { QueryState } from "../components/QueryState.tsx";
+import { closeoutRoundBase, roundsReadout } from "../components/rounds.ts";
+import { AttemptsPanel, RoundsMeter } from "../components/RoundsMeter.tsx";
 import { ProvisioningTracker } from "../components/ProvisioningTracker.tsx";
 import { StageStepper } from "../components/StageStepper.tsx";
 import { label, StatusBadge } from "../components/StatusBadge.tsx";
@@ -87,6 +89,9 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
     blockedStages.map((s) => s.id),
     () => blockersHeading.current ?? pageHeading.current,
   );
+  // closeout counts its recovery rounds from the round its sign-off was approved in (approval-loop.ts)
+  const closeoutBase = closeoutRoundBase(d.approvals);
+  const roundsFor = (s: StageView) => (s.id === "closeout" ? (closeoutBase === null ? null : { status: s.status, round: s.round, base: closeoutBase }) : { status: s.status, round: s.round });
 
   return (
     <>
@@ -130,11 +135,11 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
                   <p style={{ margin: "8px 0 4px" }}>
                     <strong>{s.name} is blocked.</strong>
                   </p>
-                  <DataIssueFix me={me} employeeId={id} employeeName={name} stageId={s.id} owner={owner} detail={dataIssue} />
+                  <DataIssueFix me={me} employeeId={id} employeeName={name} stageId={s.id} owner={owner} detail={dataIssue} rounds={roundsFor(s)} />
                 </div>
               );
             }
-            return <BlockedStageRow key={s.id} employeeId={id} employeeName={name} stage={s} canRetry={can.retry(me, owner)} />;
+            return <BlockedStageRow key={s.id} me={me} employeeId={id} employeeName={name} stage={s} canRetry={can.retry(me, owner)} rounds={roundsFor(s)} />;
           })}
         </section>
       ) : null}
@@ -184,8 +189,25 @@ function CaseView({ id, d, me, audit }: { id: string; d: CaseDetail; me: MeDto |
   );
 }
 
-function BlockedStageRow({ employeeId, employeeName, stage: s, canRetry }: { employeeId: string; employeeName: string; stage: StageView; canRetry: boolean }) {
+function BlockedStageRow({
+  me,
+  employeeId,
+  employeeName,
+  stage: s,
+  canRetry,
+  rounds,
+}: {
+  me: MeDto | null;
+  employeeId: string;
+  employeeName: string;
+  stage: StageView;
+  canRetry: boolean;
+  rounds: { status: StageView["status"]; round: number; base?: number } | null;
+}) {
   const retry = useItemAction(useRetryStage(), (r) => `Retry requested for ${s.name}: round ${r.round} running`);
+  const readoutId = useId();
+  const readout = canRetry && rounds ? roundsReadout({ stageStatus: rounds.status, stageRound: rounds.round, roundBase: rounds.base, maxStageRounds: me?.limits?.maxStageRounds }) : null;
+  const text = `Retry ${s.name}${readout?.lastRetry ? " (last round)" : ""}`;
   return (
     <div className="blocked-stage" data-focus-item={s.id}>
       <div className="row" style={{ marginTop: 8 }}>
@@ -193,11 +215,13 @@ function BlockedStageRow({ employeeId, employeeName, stage: s, canRetry }: { emp
           {s.name} is blocked{typeof s.blockedReason?.message === "string" && s.blockedReason.message ? `: ${readableMessage(s.blockedReason.message)}` : ""}.
         </span>
         {canRetry ? (
-          <ActionButton className="primary" aria-label={`Retry ${s.name} for ${employeeName}`} busy={retry.pending} onClick={() => void retry.run({ employeeId, stageId: s.id })}>
-            Retry {s.name}
+          <ActionButton className="primary" aria-label={`${text} for ${employeeName}`} aria-describedby={readout ? readoutId : undefined} busy={retry.pending} onClick={() => void retry.run({ employeeId, stageId: s.id })}>
+            {text}
           </ActionButton>
         ) : null}
       </div>
+      {readout ? <RoundsMeter readout={readout} id={readoutId} /> : null}
+      {canRetry ? <AttemptsPanel employeeId={employeeId} employeeName={employeeName} stageId={s.id} stageName={s.name} maxRecoveryRounds={me?.limits?.maxRecoveryRounds} /> : null}
       <ActionMessage error={retry.error} success={retry.success} context={{ action: `retry ${s.name}`, subject: s.name }} />
     </div>
   );

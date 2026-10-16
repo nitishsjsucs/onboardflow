@@ -154,6 +154,11 @@ export const Me = z.object({
   employeeId: z.string().optional(),
   staffId: z.string().optional(),
   department: z.enum(DEPARTMENTS).optional(),
+  /**
+   * Coordinators and admins only (added 2026-10-16): the configured recovery limits, so a Retry can say how
+   * many rounds are left. maxStageRounds per stage; maxRecoveryRounds per workflow run across all stages.
+   */
+  limits: z.object({ maxStageRounds: z.number().int(), maxRecoveryRounds: z.number().int() }).optional(),
 });
 export type MeDto = z.infer<typeof Me>;
 

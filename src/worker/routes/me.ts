@@ -1,4 +1,4 @@
-// /api/me and /api/me/checklist (employee portal).
+// /api/me (who is signed in; coordinators and admins also get the recovery limits) and /api/me/checklist (employee portal).
 import { Hono } from "hono";
 import type { ChecklistDto } from "../../shared/api.ts";
 import { requireRole } from "../auth/middleware.ts";
@@ -7,7 +7,14 @@ import { apiError, type AppEnv } from "../http.ts";
 
 export function meRoutes() {
   const r = new Hono<AppEnv>();
-  r.get("/", (c) => c.json(c.get("principal")));
+  r.get("/", (c) => {
+    const p = c.get("principal");
+    if (p.role !== "coordinator" && p.role !== "admin") return c.json(p);
+    // The configured limits. With EVAL_HOOKS on, an instance may run with limits from its start event
+    // (onboarding-workflow.ts), which this cannot know; production and the demo use these.
+    const g = c.get("config").gates;
+    return c.json({ ...p, limits: { maxStageRounds: g.maxStageRounds, maxRecoveryRounds: g.maxRecoveryRounds } });
+  });
 
   r.get("/checklist", requireRole("employee"), async (c) => {
     const id = c.get("principal").employeeId;

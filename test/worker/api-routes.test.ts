@@ -54,6 +54,18 @@ beforeAll(async () => {
 }, 60_000);
 
 describe("read routes return the documented shapes", () => {
+  it("me: the recovery limits only for coordinators and admins", async () => {
+    for (const as of ["C01", "C03", "C05", "A01"]) {
+      const me = valid(Me, await api("/api/me", { as }));
+      expect(me.limits, as).toEqual({ maxStageRounds: 4, maxRecoveryRounds: 6 });
+    }
+    for (const as of [DONE, manager]) {
+      const res = await api("/api/me", { as });
+      expect(valid(Me, res).limits, as).toBeUndefined();
+      expect(Object.keys(res.body as object)).not.toContain("limits");
+    }
+  });
+
   it("health, me, checklist", async () => {
     valid(Health, await api("/api/health"));
     expect(valid(Me, await api("/api/me", { as: DONE })).employeeId).toBe(DONE);

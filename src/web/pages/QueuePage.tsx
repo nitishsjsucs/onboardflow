@@ -19,6 +19,8 @@ import { blockerDetail, blockerTitle, DEPARTMENT_NAMES, FIELD_LABELS, isFixableF
 import { DataIssueFix } from "../components/DataIssueFix.tsx";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { QueryState } from "../components/QueryState.tsx";
+import { roundsReadout, type RoundsReadout } from "../components/rounds.ts";
+import { AttemptsPanel, RoundsMeter } from "../components/RoundsMeter.tsx";
 import { TaskList } from "../components/TaskList.tsx";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 import { useFocusRequest, useFocusRescue } from "../hooks/useFocus.ts";
@@ -132,7 +134,21 @@ function ResolveForm({ b, title, onCancel }: { b: BlockerView; title: string; on
   );
 }
 
-function KindActions({ b, me, stage, pendingFix }: { b: BlockerView; me: MeDto | null; stage: string; pendingFix: PendingFix | undefined }) {
+/** An outage or stall item that offers Retry: the owner may retry, the stage is blocked or running, and no data fix is pending. */
+function offersRetry(b: BlockerView, me: MeDto | null, pendingFix: PendingFix | undefined): boolean {
+  return (b.kind === "integration_outage" || b.kind === "provisioning_stalled") && can.retry(me, b.ownerDepartment) && (b.stageStatus === "blocked" || b.stageStatus === "active") && !pendingFix;
+}
+
+/**
+ * The rounds this item's stage has used. Closeout counts its recovery rounds from the round its sign-off was
+ * approved in, which a blocker row does not carry: its item points to the case page instead (null here).
+ */
+function queueReadout(b: BlockerView, me: MeDto | null): RoundsReadout | null {
+  if (b.stageId === "closeout") return null;
+  return roundsReadout({ stageStatus: b.stageStatus, stageRound: b.stageRound, maxStageRounds: me?.limits?.maxStageRounds });
+}
+
+function KindActions({ b, me, stage, pendingFix, readout, readoutId }: { b: BlockerView; me: MeDto | null; stage: string; pendingFix: PendingFix | undefined; readout: RoundsReadout | null; readoutId: string }) {
   const retry = useItemAction(useRetryStage(), (r) => `Retry requested for ${stage}: round ${r.round} running`);
   const d = b.detail;
   const approvalId = typeof d.approvalId === "string" ? d.approvalId : null;
@@ -143,10 +159,16 @@ function KindActions({ b, me, stage, pendingFix }: { b: BlockerView; me: MeDto |
       if (pendingFix) return <PendingFixNote b={b} fix={pendingFix} />;
       const running = b.stageStatus === "active";
       // the accessible name starts with the visible label (WCAG 2.5.3), then names the subject
-      const text = running ? "Retry running" : "Retry stage";
+      const text = running ? "Retry running" : readout?.lastRetry ? "Retry stage (last round)" : "Retry stage";
       return (
         <>
-          <ActionButton className="primary" aria-label={`${text}: ${stage} for ${b.employeeName}`} busy={retry.pending || running} onClick={() => void retry.run({ employeeId: b.employeeId, stageId: b.stageId })}>
+          <ActionButton
+            className="primary"
+            aria-label={`${text}: ${stage} for ${b.employeeName}`}
+            aria-describedby={readout ? readoutId : undefined}
+            busy={retry.pending || running}
+            onClick={() => void retry.run({ employeeId: b.employeeId, stageId: b.stageId })}
+          >
             {text}
           </ActionButton>
           <ActionMessage error={retry.error} success={retry.success} context={{ action: `retry ${stage}`, subject: stage }} />
@@ -196,6 +218,9 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
   const detail = blockerDetail(b);
   const state = stageState(b);
   const canResolve = b.kind !== "approval_rejected" && can.workDepartment(me, b.ownerDepartment);
+  const readoutId = useId();
+  const retryOffered = offersRetry(b, me, pendingFix);
+  const readout = retryOffered ? queueReadout(b, me) : null;
   return (
     <li className="queue-item" id={queueItemId(b.id)} data-focus-item={b.id} data-testid={`blocker-${b.kind}`} aria-labelledby={titleId}>
       <div className="item-main">
@@ -213,17 +238,35 @@ function QueueItem({ b, followUp, me, pendingFix }: { b: BlockerView; followUp: 
             detected {relativeTime(b.detectedAt)}
           </time>
         </div>
+        {readout ? <RoundsMeter readout={readout} id={readoutId} /> : null}
+        {retryOffered && b.stageId === "closeout" ? (
+          <p className="muted small" style={{ margin: "4px 0 0" }}>
+            Rounds for the sign-off stage: <Link to={`/cases/${b.employeeId}`}>see the case page</Link>
+          </p>
+        ) : null}
       </div>
       <div className="item-actions">
-        <KindActions b={b} me={me} stage={stage} pendingFix={pendingFix} />
+        <KindActions b={b} me={me} stage={stage} pendingFix={pendingFix} readout={readout} readoutId={readoutId} />
         {canResolve && !resolving ? (
           <button type="button" ref={resolveButton.ref} aria-label={`Resolve: ${title}, ${b.employeeName}`} onClick={() => setResolving(true)}>
             Resolve...
           </button>
         ) : null}
       </div>
+      {retryOffered ? <AttemptsPanel employeeId={b.employeeId} employeeName={b.employeeName} stageId={b.stageId} stageName={stage} maxRecoveryRounds={me?.limits?.maxRecoveryRounds} /> : null}
       {b.kind === "data_issue" ? (
-        <DataIssueFix me={me} employeeId={b.employeeId} employeeName={b.employeeName} stageId={b.stageId} owner={b.ownerDepartment} detail={b.detail} retryRunning={b.stageStatus === "active"} showMessage={false} />
+        <DataIssueFix
+          me={me}
+          employeeId={b.employeeId}
+          employeeName={b.employeeName}
+          stageId={b.stageId}
+          owner={b.ownerDepartment}
+          detail={b.detail}
+          retryRunning={b.stageStatus === "active"}
+          showMessage={false}
+          // closeout's rounds count from its approved sign-off, which a blocker row does not carry
+          rounds={b.stageId === "closeout" ? null : { status: b.stageStatus, round: b.stageRound }}
+        />
       ) : null}
       {resolving ? (
         <ResolveForm

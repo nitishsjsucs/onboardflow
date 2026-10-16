@@ -241,12 +241,14 @@ export function useIntegrationHealth(window: "1h" | "24h" | "7d" | "all") {
   return useQuery({ queryKey: ["integrations", "health", window], queryFn: ({ signal }) => apiFetch<HubState["integrationHealth"]>(`/api/integrations/health?window=${window}`, { signal }) });
 }
 
-export function useCaseIntegrations(employeeId: string) {
+/** A case's call log, oldest first. `enabled: false` sends nothing (a panel that is still closed). */
+export function useCaseIntegrations(employeeId: string, opts: { pageSize?: number; enabled?: boolean } = {}) {
+  const pageSize = opts.pageSize ?? 50;
   return useInfiniteQuery({
-    queryKey: ["case", employeeId, "integrations"],
-    enabled: /^E\d{3}$/.test(employeeId),
+    queryKey: ["case", employeeId, "integrations", pageSize],
+    enabled: /^E\d{3}$/.test(employeeId) && (opts.enabled ?? true),
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam, signal }) => apiFetch<Page<IntegrationCallView>>(`/api/cases/${employeeId}/integrations?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
+    queryFn: ({ pageParam, signal }) => apiFetch<Page<IntegrationCallView>>(`/api/cases/${employeeId}/integrations?limit=${pageSize}${pageParam ? `&cursor=${pageParam}` : ""}`, { signal }),
     getNextPageParam: (last) => last.nextCursor,
   });
 }

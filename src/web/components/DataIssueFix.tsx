@@ -10,7 +10,7 @@
 // round). The fix and the retry stay two calls, each with its own key.
 import { type Ref, useId, useRef, useState } from "react";
 import type { EmployeeProfileDto, MeDto } from "../../shared/api.ts";
-import { ALLOWED_BUNDLES, COST_CENTER_PATTERN, type FixableField, type LicenseBundle } from "../../shared/domain.ts";
+import { ALLOWED_BUNDLES, COST_CENTER_PATTERN, type FixableField, type LicenseBundle, type StageStatus } from "../../shared/domain.ts";
 import { STAGE_BY_ID, type StageId } from "../../shared/stages.ts";
 import { type ItemAction, useItemAction } from "../api/item-action.ts";
 import { useEmployeeProfile, useFixField, useRetryStage } from "../api/queries.ts";
@@ -19,6 +19,8 @@ import { useFocusRequest } from "../hooks/useFocus.ts";
 import { ActionButton } from "./ActionButton.tsx";
 import { ActionMessage } from "./ActionMessage.tsx";
 import { FIELD_LABELS, isFixableField, readableMessage, SYSTEM_NAMES } from "./blocker-text.ts";
+import { roundsReadout } from "./rounds.ts";
+import { RoundsMeter } from "./RoundsMeter.tsx";
 import { label } from "./StatusBadge.tsx";
 
 /** Whether the profile's value would pass the simulated system's check. */
@@ -46,9 +48,14 @@ export type DataIssueFixProps = {
   retryRunning?: boolean;
   /** Repeat the system's message (off in the queue, whose item already shows it under the title). */
   showMessage?: boolean;
+  /**
+   * The stage's status and round (and, for closeout, the round its sign-off was approved in), so Retry can
+   * say which recovery round it uses. Null or absent: no readout.
+   */
+  rounds?: { status: StageStatus | null; round: number | null; base?: number } | null;
 };
 
-export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, detail, retryRunning, showMessage = true }: DataIssueFixProps) {
+export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, detail, retryRunning, showMessage = true, rounds }: DataIssueFixProps) {
   const field = isFixableField(detail.field) ? detail.field : null;
   const mayFix = !!field && can.fixField(me, field);
   const mayRetry = can.retry(me, owner);
@@ -57,6 +64,9 @@ export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, det
   const fix = useItemAction(useFixField(), (_r, v) => `Saved the ${FIELD_LABELS[v.field]} for ${employeeName}`);
   const retry = useItemAction(useRetryStage(), (r) => `Retry requested for ${stage}: round ${r.round} running`);
   const hintId = useId();
+  const readoutId = useId();
+  const readout = rounds ? roundsReadout({ stageStatus: rounds.status, stageRound: rounds.round, roundBase: rounds.base, maxStageRounds: me?.limits?.maxStageRounds }) : null;
+  const last = readout?.lastRetry ? " (last round)" : "";
   // after a saved fix, the next step is Retry: focus goes to it (or to the confirmation when this user may not retry)
   const next = useFocusRequest<HTMLButtonElement>();
   const fixMessage = useRef<HTMLDivElement>(null);
@@ -103,28 +113,33 @@ export function DataIssueFix({ me, employeeId, employeeName, stageId, owner, det
               <p style={{ margin: "8px 0 4px" }}>
                 {saved ? "Saved." : `The ${fieldLabel} now looks valid.`} Retry {stage} now?
               </p>
+              {readout ? <RoundsMeter readout={readout} id={readoutId} /> : null}
               <ActionButton
                 ref={next.ref}
                 className="primary"
-                aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} now for ${employeeName}`}
+                aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} now${last} for ${employeeName}`}
+                aria-describedby={readout ? readoutId : undefined}
                 busy={retry.pending || retryRunning}
                 onClick={() => void retry.run({ employeeId, stageId })}
               >
-                {retryRunning ? "Retry running" : `Retry ${stage} now`}
+                {retryRunning ? "Retry running" : `Retry ${stage} now${last}`}
               </ActionButton>
             </>
           ) : (
             <>
+              {readout ? <RoundsMeter readout={readout} id={readoutId} /> : null}
               <ActionButton
-                aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage} for ${employeeName}`}
-                aria-describedby={hintId}
+                aria-label={retryRunning ? `Retry running: ${stage} for ${employeeName}` : `Retry ${stage}${last} for ${employeeName}`}
+                aria-describedby={readout ? `${readoutId} ${hintId}` : hintId}
                 busy={retry.pending || retryRunning}
                 onClick={() => void retry.run({ employeeId, stageId })}
               >
-                {retryRunning ? "Retry running" : `Retry ${stage}`}
+                {retryRunning ? "Retry running" : `Retry ${stage}${last}`}
               </ActionButton>
               <p id={hintId} className="muted hint">
-                Fix the {fieldLabel} first, or the retry fails again and uses one of this stage's recovery rounds.
+                {readout && !readout.running
+                  ? `Fix the ${fieldLabel} first, or the retry fails again and uses round ${readout.next} of ${readout.max}.`
+                  : `Fix the ${fieldLabel} first, or the retry fails again and uses one of this stage's recovery rounds.`}
               </p>
             </>
           )}
