@@ -1,11 +1,12 @@
 // Cases: filterable table. Managers see only their direct reports. Filters
-// live in the URL (?q=&status=&stage=), so reload, back and links from the
-// dashboard keep them; the search waits until typing stops. Load more follows
-// the API's cursor, 100 employees at a time.
+// live in the URL (?q=&status=&stage=; status=open is every started case
+// that has not finished), so reload, back and links from the dashboard keep
+// them; the search waits until typing stops. Load more follows the API's
+// cursor, 100 employees at a time.
 import { useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { EmployeeSummary, MeDto } from "../../shared/api.ts";
-import { CASE_STATUSES, isOneOf } from "../../shared/domain.ts";
+import { CASE_STATUS_FILTERS, CASE_STATUSES, isOneOf } from "../../shared/domain.ts";
 import { STAGE_IDS, STAGES } from "../../shared/stages.ts";
 import { useItemAction } from "../api/item-action.ts";
 import { useEmployees, useStartCase } from "../api/queries.ts";
@@ -30,7 +31,7 @@ export function CasesPage() {
   const qParam = params.get("q") ?? "";
   const statusParam = params.get("status");
   const stageParam = params.get("stage");
-  const status = isOneOf(CASE_STATUSES, statusParam) ? statusParam : "";
+  const status = isOneOf(CASE_STATUS_FILTERS, statusParam) ? statusParam : "";
   const stage = isOneOf(STAGE_IDS, stageParam) ? stageParam : "";
   const q = useDebouncedValue(qParam.trim(), SEARCH_DEBOUNCE_MS);
   const list = useEmployees({ q, status, stage });
@@ -65,6 +66,7 @@ export function CasesPage() {
           <input aria-label="search" type="search" placeholder="Search name, email or id" value={qParam} onChange={(e) => setFilter("q", e.target.value, true)} />
           <select aria-label="status" value={status} onChange={(e) => setFilter("status", e.target.value)}>
             <option value="">Any status</option>
+            <option value="open">Open (started, not finished)</option>
             {CASE_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {label(s)}

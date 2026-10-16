@@ -1,9 +1,14 @@
 // Live dashboard: the OpsHubAgent state over a read-only WebSocket, with the
 // /api/dashboard/summary snapshot as the fallback until the first frame.
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import type { HubState } from "../../shared/agent-state.ts";
+import type { MeDto } from "../../shared/api.ts";
+import { BLOCKER_KINDS, isOneOf } from "../../shared/domain.ts";
+import { FIXED_BLOCKER_OWNER } from "../../shared/roles.ts";
 import { useDashboardSummary } from "../api/queries.ts";
 import { useSession } from "../auth/session.tsx";
+import { DEPARTMENT_NAMES } from "../components/blocker-text.ts";
 import { EmptyState } from "../components/EmptyState.tsx";
 import { KpiTile } from "../components/KpiTile.tsx";
 import { LiveIndicator } from "../components/LiveIndicator.tsx";
@@ -13,27 +18,45 @@ import { label } from "../components/StatusBadge.tsx";
 import { useHubLive } from "../live/useHubLive.ts";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.ts";
 
-/** A table of counts; with `linkTo`, each row's name links to the list behind it. */
-function Breakdown({ title, data, linkTo }: { title: string; data: Record<string, number>; linkTo?: (key: string) => string }) {
+/** A table of counts; with `linkTo`, a row's name links to the list behind it (no link where it returns null). */
+function Breakdown({ title, data, linkTo, children }: { title: string; data: Record<string, number>; linkTo?: (key: string) => string | null; children?: ReactNode }) {
   return (
     <section className="card" aria-label={title}>
       <h2>{title}</h2>
       <table className="list">
         <tbody>
-          {Object.entries(data).map(([k, v]) => (
-            <tr key={k} data-testid={`${title}-${k}`}>
-              <td>{linkTo ? <Link to={linkTo(k)}>{label(k)}</Link> : label(k)}</td>
-              <td style={{ textAlign: "right" }}>{v}</td>
-            </tr>
-          ))}
+          {Object.entries(data).map(([k, v]) => {
+            const to = linkTo?.(k);
+            return (
+              <tr key={k} data-testid={`${title}-${k}`}>
+                <td>{to ? <Link to={to}>{label(k)}</Link> : label(k)}</td>
+                <td style={{ textAlign: "right" }}>{v}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+      {children}
     </section>
   );
 }
 
-export function DashboardView({ hub, isAdmin = false }: { hub: HubState; isAdmin?: boolean }) {
+/**
+ * Where a blocker kind's count links. The counts cover every department. An admin's queue shows them all; a
+ * coordinator's queue is fixed to their own department, so a kind links only when all of its blockers are
+ * that department's (approval and checklist kinds are People Ops'); the others would open an empty list.
+ */
+function kindLink(me: MeDto | null): ((kind: string) => string | null) | undefined {
+  if (me?.role === "admin") return (k) => `/queue?kind=${k}`;
+  const own = me?.role === "coordinator" ? me.department : undefined;
+  if (!own) return undefined;
+  return (k) => (isOneOf(BLOCKER_KINDS, k) && FIXED_BLOCKER_OWNER[k] === own ? `/queue?kind=${k}` : null);
+}
+
+export function DashboardView({ hub, me }: { hub: HubState; me: MeDto | null }) {
   const total = Object.values(hub.totals).reduce((a, b) => a + b, 0);
+  const isAdmin = me?.role === "admin";
+  const ownDepartment = me?.role === "coordinator" && me.department ? DEPARTMENT_NAMES[me.department] : null;
   return (
     <>
       <div className="grid four">
@@ -47,10 +70,17 @@ export function DashboardView({ hub, isAdmin = false }: { hub: HubState; isAdmin
       </p>
       <section className="card" aria-label="stage funnel">
         <h2>Cases by stage</h2>
-        <StageFunnelChart stages={hub.byStage} total={Math.max(1, total - hub.totals.not_started)} linkTo={(stage) => `/cases?stage=${stage}`} />
+        {/* "in stage" counts started cases that have not finished; a completed case keeps its last stage, so the link filters to open cases */}
+        <StageFunnelChart stages={hub.byStage} total={Math.max(1, total - hub.totals.not_started)} linkTo={(stage) => `/cases?stage=${stage}&status=open`} />
       </section>
       <div className="grid two">
-        <Breakdown title="Open blockers by kind" data={hub.blockersOpen.byKind} linkTo={(k) => `/queue?kind=${k}`} />
+        <Breakdown title="Open blockers by kind" data={hub.blockersOpen.byKind} linkTo={kindLink(me)}>
+          {ownDepartment ? (
+            <p className="muted small" style={{ marginBottom: 0 }}>
+              Counts cover every department. <Link to="/queue">Your queue</Link> lists {ownDepartment}&apos;s.
+            </p>
+          ) : null}
+        </Breakdown>
         {/* a coordinator's queue is fixed to their own department, so only admins get these links */}
         <Breakdown title="Open blockers by department" data={hub.blockersOpen.byDepartment} {...(isAdmin ? { linkTo: (d: string) => `/queue?department=${d}` } : {})} />
       </div>
@@ -154,7 +184,7 @@ export function DashboardPage() {
         </p>
       ) : null}
       {hub ? (
-        <DashboardView hub={hub} isAdmin={me?.role === "admin"} />
+        <DashboardView hub={hub} me={me} />
       ) : (
         <QueryState query={fallback} what="the dashboard">
           {() => null}

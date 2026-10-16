@@ -8,6 +8,7 @@ import {
   APPROVAL_STATUSES,
   ASSIGNEES,
   BLOCKER_KINDS,
+  CASE_STATUS_FILTERS,
   CASE_STATUSES,
   EMPLOYMENT_TYPES,
   EQUIPMENT_PROFILES,
@@ -103,7 +104,7 @@ const limit = z.coerce.number().int().min(1).max(MAX_PAGE).optional();
 export const PageQuery = z.object({ cursor: z.string().optional(), limit });
 export const EmployeesQuery = PageQuery.extend({
   stage: z.enum(STAGE_IDS).optional(),
-  status: z.enum(CASE_STATUSES).optional(),
+  status: z.enum(CASE_STATUS_FILTERS).optional(),
   orgUnit: z.string().optional(),
   q: z.string().max(100).optional(),
 });

@@ -72,16 +72,33 @@ describe("DashboardPage with live hub state", () => {
     expect(screen.getByTestId("kpi-In progress").getAttribute("href")).toBe("/cases?status=in_progress");
     expect(screen.getByTestId("kpi-Awaiting approval").getAttribute("href")).toBe("/cases?status=awaiting_approval");
     expect(screen.getByTestId("kpi-Complete").getAttribute("href")).toBe("/cases?status=complete");
-    expect(within(screen.getByTestId("funnel-paperwork")).getByRole("link").getAttribute("href")).toBe("/cases?stage=paperwork");
+    // a stage's "in stage" count is its open cases: a completed case keeps its last stage, so the link filters them out
+    expect(within(screen.getByTestId("funnel-paperwork")).getByRole("link").getAttribute("href")).toBe("/cases?stage=paperwork&status=open");
+    expect(within(screen.getByTestId("funnel-closeout")).getByRole("link").getAttribute("href")).toBe("/cases?stage=closeout&status=open");
     expect(within(screen.getByTestId("Open blockers by kind-approval_overdue")).getByRole("link").getAttribute("href")).toBe("/queue?kind=approval_overdue");
     expect(within(screen.getByTestId("Open blockers by department-it")).getByRole("link").getAttribute("href")).toBe("/queue?department=it");
   });
 
-  it("gives department links to admins only (a coordinator's queue is their own department)", () => {
+  it("links a coordinator only to kinds their own queue holds, and says the counts cover every department", () => {
+    const kindHref = (k: string) => within(screen.getByTestId(`Open blockers by kind-${k}`)).queryByRole("link")?.getAttribute("href") ?? null;
     mockFetch(() => ({ body: hub }));
     renderWith(<DashboardPage />, { me: PERSONAS.peopleOps!, path: "/dashboard" });
     expect(within(screen.getByTestId("Open blockers by department-it")).queryByRole("link")).toBeNull();
-    expect(within(screen.getByTestId("Open blockers by kind-data_issue")).getByRole("link")).toBeTruthy();
+    // approval and checklist blockers are all People Ops': their counts match People Ops' queue
+    expect(kindHref("approval_overdue")).toBe("/queue?kind=approval_overdue");
+    expect(kindHref("approval_rejected")).toBe("/queue?kind=approval_rejected");
+    // outages and data issues belong to several departments: a count of all of them would not match the list
+    expect(kindHref("integration_outage")).toBeNull();
+    expect(kindHref("data_issue")).toBeNull();
+    const byKind = screen.getByRole("region", { name: "Open blockers by kind" });
+    expect(within(byKind).getByText(/Counts cover every department\./).textContent).toBe("Counts cover every department. Your queue lists People Ops's.");
+    expect(within(byKind).getByRole("link", { name: "Your queue" }).getAttribute("href")).toBe("/queue");
+    cleanup();
+    // an IT coordinator's queue never holds approval blockers: no link that would open an empty list
+    mockFetch(() => ({ body: hub }));
+    renderWith(<DashboardPage />, { me: PERSONAS.it!, path: "/dashboard" });
+    expect(kindHref("approval_overdue")).toBeNull();
+    expect(kindHref("integration_outage")).toBeNull();
   });
 
   it("says live updates are paused when the socket is offline, and fetches the summary again only on Refresh", async () => {

@@ -66,6 +66,22 @@ describe("read routes return the documented shapes", () => {
     expect(rest.nextCursor).toBeNull();
     const done = valid(page(EmployeeSummarySchema), await api("/api/employees?status=complete", { as: "C01" }));
     expect(done.items.map((e) => e.id)).toEqual([DONE]);
+    // status=open: started and not finished, as the dashboard's stage funnel counts them. A complete case keeps
+    // its last stage, so it is in stage=closeout but not in its open cases.
+    expect(valid(page(EmployeeSummarySchema), await api("/api/employees?stage=closeout", { as: "C01" })).items.map((e) => e.id)).toContain(DONE);
+    const OPEN = "E021";
+    const before = await DB.prepare("SELECT status, current_stage FROM cases WHERE employee_id = ?").bind(OPEN).first<{ status: string; current_stage: string | null }>();
+    try {
+      await DB.prepare("UPDATE cases SET status = 'awaiting_approval', current_stage = 'closeout' WHERE employee_id = ?").bind(OPEN).run();
+      const open = valid(page(EmployeeSummarySchema), await api("/api/employees?stage=closeout&status=open", { as: "C01" }));
+      expect(open.items.map((e) => e.id)).toEqual([OPEN]);
+      const anyStage = valid(page(EmployeeSummarySchema), await api("/api/employees?status=open&limit=100", { as: "A01" }));
+      expect(anyStage.items.every((e) => ["in_progress", "blocked", "awaiting_approval"].includes(e.caseStatus))).toBe(true);
+      expect(anyStage.items.map((e) => e.id)).toContain(OPEN);
+    } finally {
+      await DB.prepare("UPDATE cases SET status = ?, current_stage = ? WHERE employee_id = ?").bind(before!.status, before!.current_stage, OPEN).run();
+    }
+    expect((await api("/api/employees?status=bogus", { as: "C01" })).status).toBe(400);
     const mine = valid(page(EmployeeSummarySchema), await api("/api/employees?limit=100", { as: manager }));
     expect(mine.items.every((e) => e.managerId === manager)).toBe(true);
     expect(mine.items.map((e) => e.id)).toContain(DONE);

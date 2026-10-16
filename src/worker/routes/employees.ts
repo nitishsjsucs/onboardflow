@@ -1,7 +1,7 @@
 // /api/employees: list (managers see direct reports), profile, and field fixes.
 import { Hono } from "hono";
 import { EmployeesQuery, type EmployeeSummary, PatchEmployeeBody } from "../../shared/api.ts";
-import type { FixableField } from "../../shared/domain.ts";
+import { type FixableField, OPEN_CASE_STATUSES } from "../../shared/domain.ts";
 import { requireRole } from "../auth/middleware.ts";
 import { canFixField, canViewCase } from "../auth/policy.ts";
 import { getEmployee } from "../db/repo.ts";
@@ -41,7 +41,11 @@ export function employeeRoutes() {
       where.push("c.current_stage = ?");
       binds.push(q.value.stage);
     }
-    if (q.value.status) {
+    if (q.value.status === "open") {
+      // started and not finished, as the dashboard's stage funnel counts them
+      where.push(`c.status IN (${OPEN_CASE_STATUSES.map(() => "?").join(", ")})`);
+      binds.push(...OPEN_CASE_STATUSES);
+    } else if (q.value.status) {
       where.push("c.status = ?");
       binds.push(q.value.status);
     }

@@ -11,6 +11,10 @@ export const CASE_STATUSES = [
   "failed",
 ] as const;
 export type CaseStatus = (typeof CASE_STATUSES)[number];
+/** Started and not finished: the cases a stage of the funnel counts as in that stage. A list filter, not a status. */
+export const OPEN_CASE_STATUSES = ["in_progress", "blocked", "awaiting_approval"] as const satisfies readonly CaseStatus[];
+/** The case status filter of the employees list: one status, or "open" for OPEN_CASE_STATUSES. */
+export const CASE_STATUS_FILTERS = [...CASE_STATUSES, "open"] as const;
 
 export const FAILURE_REASONS = [
   "terminated",

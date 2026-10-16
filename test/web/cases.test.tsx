@@ -77,6 +77,16 @@ describe("CasesPage list", () => {
     expect(screen.getByText("4 employees")).toBeTruthy();
   });
 
+  it("opens the dashboard funnel's link as the stage's open cases", async () => {
+    const calls = mockFetch(() => ({ body: { items: [WREN], nextCursor: null } }));
+    renderWith(<CasesPage />, { me: PERSONAS.peopleOps!, path: "/cases?stage=closeout&status=open" });
+    await screen.findByRole("link", { name: "Wren Abara" });
+    const status = screen.getByLabelText("status") as HTMLSelectElement;
+    expect(status.value).toBe("open");
+    expect(status.selectedOptions[0]!.textContent).toBe("Open (started, not finished)");
+    expect(employeeGets(calls)[0]!.url).toBe("/api/employees?limit=100&status=open&stage=closeout");
+  });
+
   it("keeps the filters in the URL: a link opens pre-filtered, and Back restores the previous filter", async () => {
     const calls = mockFetch(() => ({ body: { items: [WREN], nextCursor: null } }));
     const { router } = renderWith(<CasesPage />, { me: PERSONAS.peopleOps!, path: "/cases?status=blocked" });
